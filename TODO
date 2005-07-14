@@ -1,0 +1,80 @@
+ * Find data.008 w/ data.008.bni
+
+ * Allow ffts on arbitrary length eegs by loading data piecewise
+
+ * Fix threshold problem
+
+ * Use BMSI from web
+
+ * Put slider and channel selector for in the evoked matplotlib win
+
+ * Deal with duplicate channel nums in Kolasa's BNI - improve BNI
+   reading
+
+ * Allow EOI save to filesystem even when use web is on
+
+ * Allow new EOI events
+
+ * Allow for multiple colormaps for leo
+
+ * Allow for different pipe interpolations for leo
+
+ * DONE 2004-01-13 - Allow electrode pick from loc3d window
+
+ * DONE 2004-01-13 - View3 text toggle broken
+
+ * Allow enter of selected electrode with text box
+
+ * Something is whacked out in the way the label and pick happen with
+   Kolasa's seizure fileunt
+
+ * Use different gain for scalp electrodes using 10-20 name scalp
+   scalp http://astronomy.swin.edu.au/~pbourke/dataformats/electrocap/
+
+ * Rotate normals of pipes when 1D strips rotate
+
+ * Fix grid manager prefer problem with radio buttons
+
+ * Fix scalar from file open button -it's a marker load data button
+   which belongs elsewhere. Add a marker tab which allows you to
+   control marker properties (size, marker file, etc)
+
+ * With multiple view3 windows, share computations as events.  Cache
+   by eoi and timelim.  Share properties as well if auto is on??  
+   How to share thresholding.  Should we have a single grid manager
+   with multiple windows using it?
+
+ * Warn when a new electrode is close to an existing electrode.
+
+ * Fix movie view3 interb seg fault when IPWs not loaded
+
+ * allow wheel scroll of plane under point.
+
+
+    opdown_strings): assertion `strings != NULL' failed
+    Traceback (most recent call last):
+      File "/hunter/jdhunter/python/projects/eegtools/eegview/dialogs.py", line 779, in on_buttonOK_clicked
+        self.okCallback(self.get_params())
+      File "/home/jdhunter/python/projects/eegtools/eegview/eegview.py", line 943, in ok_callback
+        else: new_eoi_success()
+      File "/home/jdhunter/python/projects/eegtools/eegview/eegview.py", line 919, in new_eoi_success
+        eoiNew.update_map(eeg.get_filename())
+      File "/hunter/jdhunter/python/projects/eegtools/eegview/data.py", line 269, in update_map
+        query = 'INSERT INTO assocmap VALUES (%d, "%s", "%s", "%s")' %\
+    TypeError: int argument required
+
+
+When user selects a trode from the view3 window that is not in the
+eegplot window, you get
+
+    Traceback (most recent call last):
+      File "/home/jdhunter/python/projects/eegtools/eegview/view3.py", line 243, in press_left
+        self.broadcast(Observer.SELECT_CHANNEL, trode)
+      File "/home/jdhunter/python/projects/eegtools/eegview/events.py", line 14, in broadcast
+        observer.recieve(event, *args)
+      File "eegview/eegview.py", line 420, in recieve
+        self.set_selected((gname, gnum))
+      File "eegview/eegview.py", line 756, in set_selected
+        ind = self.eoiIndDict[trode]
+    KeyError: ('FG', 29)
+ 
