@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # TODO: clear x,y lim and ticks when you change eegs
 # TODO: fix vsteps for different numbers of electrodes
 # font sizes are different on ylabels
@@ -6,6 +5,7 @@ from __future__ import division
 import sys, os, copy, traceback
 import distutils.sysconfig
 
+import pylab
 import pygtk
 pygtk.require('2.0')
 import gtk
@@ -18,11 +18,11 @@ from pbrainlib.gtkutils import str2num_or_err, simple_msg, error_msg, \
      not_implemented, yes_or_no, FileManager, select_name, get_num_range
 
 from data import EEGWeb, EEGFileSystem, EOI, Amp, Grids
-from file_formats import FileFormat_BNI, W18Header
+from file_formats import FileFormat_BNI, W18Header, FileFormat_BNI
 
 from dialogs import Dialog_Preferences, Dialog_SelectElectrodes,\
-     Dialog_CohstatExport, Dialog_SaveEOI, Dialog_EEGParams, AutoPlayDialog,\
-     SpecProps
+     Dialog_CohstatExport, Dialog_SaveEOI, Dialog_EEGParams, \
+     Dialog_Annotate, Dialog_AnnBrowser, AutoPlayDialog, SpecProps
 import servers
 from borgs import Shared
 from events import Observer
@@ -38,6 +38,7 @@ from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 from matplotlib.transforms import get_bbox_transform, Point, Value, Bbox,\
      unit_bbox
+from matplotlib.patches import Rectangle
 
 from scipy import arange, sin, pi, zeros, ones, reshape, Float, Float0, \
      greater_equal, transpose, array, arange, resize, Int16, \
@@ -47,14 +48,13 @@ from scipy.signal import buttord, butter, lfilter
 
 from mpl_windows import ChannelWin, AcorrWin, HistogramWin, SpecWin
 
+from datetime import datetime
+
 
 major, minor1, minor2, s, tmp = sys.version_info
 if major<2 or (major==2 and minor1<3):
     True = 1
     False = 0
-
-
-
 
 def load_w18(fullpath):
     assert(os.path.exists(fullpath))
@@ -75,7 +75,6 @@ def load_w18(fullpath):
 
     eeg = EEGFileSystem(fullpath, params)
     return eeg
-
 
 def load_bmsi(bnipath):
 
@@ -114,8 +113,6 @@ def load_params(path):
 
     eeg = EEGFileSystem(eegfile, params)
     return eeg
-
-
 
 extmap = { '.w18' : load_w18,
            '.bni' : load_bmsi,
@@ -184,7 +181,6 @@ class EEGNavBar(gtk.Toolbar, Observer):
             self.panx,
             10)
         self.bRight.connect("scroll_event", self.panx)
-
 
         self.append_space()
 
@@ -269,23 +265,22 @@ class EEGNavBar(gtk.Toolbar, Observer):
         def toggled(button):
             self.broadcast(Observer.GMTOGGLED, button)
 
+        def lock_trode_toggled(button) :
+            self.broadcast(Observer.LOCK_TRODE_TOGGLED, button)
+
         self.buttonGM = gtk.CheckButton('GM')
         self.buttonGM.show()
         self.buttonGM.connect('toggled', toggled)
         self.buttonGM.set_active(True)
         self.append_widget(
             self.buttonGM, 'Remove grand mean from data if checked', '')
-
-
-    def append_space(self, *args):
-        'hide deprecation'
         
-        try: sep = gtk.SeparatorToolItem()
-        except AttributeError:
-            gtk.Toolbar.append_space(self)
-        else:
-            self.append_widget(sep,'','')
-        
+        self.buttonLockTrode = gtk.CheckButton('Lock')
+        self.buttonLockTrode.show()
+        self.buttonLockTrode.connect('toggled', lock_trode_toggled)
+        self.append_widget(
+            self.buttonLockTrode, 'Lock Selected Electrode', '')
+
     def auto_play(self, *args):
 
         tmin, tmax = self.eegplot.get_time_lim()
@@ -344,7 +339,7 @@ class EEGNavBar(gtk.Toolbar, Observer):
 
         self.eegplot.pan_time(right)
         self.eegplot.draw()
-        return True
+        return gtk.TRUE
 
     def zoomx(self, button, arg):
         if self.eegplot is None: return 
@@ -356,7 +351,7 @@ class EEGNavBar(gtk.Toolbar, Observer):
 
         self.eegplot.change_time_gain(direction)
         self.eegplot.draw()
-        return True
+        return gtk.TRUE
 
     def zoomy(self, button, arg):
         if self.eegplot is None: return 
@@ -368,7 +363,7 @@ class EEGNavBar(gtk.Toolbar, Observer):
 
         self.eegplot.change_volt_gain(direction)
         self.eegplot.draw()
-        return True
+        return gtk.TRUE
 
 
 
@@ -420,7 +415,7 @@ class EEGPlot(Observer):
         self.filterGM = Shared.windowMain.toolbar.buttonGM.get_active()
         self._selectedCache = None, None
 
-        
+        self.lock_trode = False
 
 
     def get_color(self, trode):
@@ -462,7 +457,9 @@ class EEGPlot(Observer):
             for ind, line in zip(self.indices, self.lines):
                 line.set_data(t, data[:,ind])
             self.draw()
-
+        elif event == Observer.LOCK_TRODE_TOGGLED :
+            button = args[0]
+            self.lock_trode = button.get_active()
             
     def draw(self):
         self.canvas.draw()
@@ -555,11 +552,57 @@ class EEGPlot(Observer):
         decfreq = self.eeg.freq/decimateFactor
         self.decfreq = decfreq
         return t[::decimateFactor], data[::decimateFactor], decfreq
-    
+
+    def update_annotations(self) :
+        minTime, maxTime = self.get_time_lim()
+        ann = self.eeg.get_ann()
+        startEndTimes = ann.keys()
+        startEndTimes.sort()
+        for startEndTime in startEndTimes :
+            startTime = startEndTime[0]
+            endTime = startEndTime[1]
+            # Start or end of annotation box is in view
+            if (startTime > minTime and startTime < maxTime) or (endTime > minTime and endTime < maxTime) :
+                # Draw/Update annotation box.
+                try : ann[startEndTime]['rect']
+                except :
+                    ymin, ymax = self.axes.get_ylim()
+                    rect = Rectangle(xy=(startTime, ymin),
+                                     width=(endTime - startTime),
+                                     height=(ymax - ymin),
+                                     facecolor=ann[startEndTime]['color'])
+                    ann[startEndTime]['rect'] = rect
+                    # xxx how to get rid of these rects when you move out of view
+                    self.axes.add_patch(rect)
+                else :
+                    rect = ann[startEndTime]['rect']
+                    rect.set_facecolor(ann[startEndTime]['color'])
+                    # xxx set new xy, width?
+
+    # xxx don't need to un/select if currRect
+    def set_curr_annotation(self, startEndTime) :
+        ann = self.eeg.get_ann()
+
+        # Unselect current rect
+        try : self.currRect
+        except : pass
+        else :
+            rect = ann[self.currRect]['rect']
+            rect.set_edgecolor('k')
+            rect.set_linewidth(1)
+            if startEndTime == None :
+                del self.currRect
+
+        # Select new rect
+        if startEndTime <> None :
+            self.currRect = startEndTime
+            rect = ann[startEndTime]['rect']
+            rect.set_edgecolor('r')
+            rect.set_linewidth(3)
+
     def plot(self):
         self.axes.cla()
         t, data, freq = self.filter(0, 10)
-
 
         dt = 1/freq
 
@@ -641,10 +684,11 @@ class EEGPlot(Observer):
             tick.tick2line.set_transform(self.axes.transAxes)
             tick.gridline.set_transform(self.axes.transAxes)            
         
-        
+        # Update annotation boxes
+        self.update_annotations()
+
         self.save_excursion()
         self.draw()
-
         
     def restore_excursion(self):
         try: self.saveExcursion
@@ -759,7 +803,7 @@ class EEGPlot(Observer):
             self.broadcast(Observer.SET_TIME_LIM, xmin, xmax)
 
         
-    def get_channel_at_point(self, x, y):
+    def get_channel_at_point(self, x, y, select=True):
         "Get the EEG with the voltage trace nearest to x, y (window coords)"
         tmin, tmax = self.get_time_lim()
         dt = 1/self.decfreq
@@ -788,8 +832,9 @@ class EEGPlot(Observer):
         labeld = self.eeg.amp.get_dataind_dict()
         trode = labeld[self.indices[ind]]
         gname, gnum = trode
-        ok = self.set_selected((gname, gnum))
-        if ok: self.broadcast(Observer.SELECT_CHANNEL, trode)
+        if select :
+            ok = self.set_selected((gname, gnum))
+            if ok: self.broadcast(Observer.SELECT_CHANNEL, trode)
         return trode
 
     def set_selected(self, trode):
@@ -824,10 +869,7 @@ class SpecPlot(Observer):
         self.cmap = cm.jet
         # min and max power
 
-        
-        
     def make_spec(self, *args):
-
         selected = self.eegPlot.get_selected()
         if selected is None:
             self.axes.cla()
@@ -960,7 +1002,6 @@ class MainWindow(PrefixWrapper):
         self.axes.set_xlim([0.0,10.0])
         self.axes.set_xticklabels([])
 
-        
         self.axesSpec = self.fig.add_axes([0.075, 0.05, 0.9, 0.2])
         t = self.axesSpec.text(
             0.5, 0.5,
@@ -1034,7 +1075,7 @@ class MainWindow(PrefixWrapper):
         eois = eeg.get_associated_files(atype=5, mapped=1)
         self.eoiMenu = self.make_context_menu(eois)
         self.eegPlot.plot()
-        return True
+        return gtk.TRUE
 
                   
     def make_patients_menu(self):
@@ -1088,7 +1129,7 @@ class MainWindow(PrefixWrapper):
         
     def new_eoi(self, menuitem):
         self.edit_eoi()
-        
+
     def make_context_menu(self, eois):
         contextMenu = gtk.Menu()
 
@@ -1131,11 +1172,20 @@ class MainWindow(PrefixWrapper):
         contextMenu.append(menuItemNew)
         menuItemNew.connect("activate", self.new_eoi)
         menuItemNew.show()
+
+        label = "Annotate Highlighted Area"
+        menuItemAnnotate = gtk.MenuItem(label)
+        contextMenu.append(menuItemAnnotate)
+        menuItemAnnotate.connect("activate", self.annotate)
+        menuItemAnnotate.show()
+
+        label = "Delete Annotation"
+        menuItemDelAnn = gtk.MenuItem(label)
+        contextMenu.append(menuItemDelAnn)
+        menuItemDelAnn.connect("activate", self.del_ann)
+        menuItemDelAnn.show()
+
         return contextMenu
-
-
-        return contextMenu
-
 
     def make_spec_menu(self):
         contextMenu = gtk.Menu()
@@ -1147,9 +1197,7 @@ class MainWindow(PrefixWrapper):
         menuItemSave.show()
         return contextMenu
 
-
     def edit_eoi(self, *args):
-
         def ok_callback(eoi):
             success = self.eegPlot.set_eoi(eoi)
             if success:
@@ -1168,7 +1216,6 @@ class MainWindow(PrefixWrapper):
                                     selected=eoiActive
                                     )
         d.set_transient_for(self.widget)
-
 
     def save_eoi(self, menuitem, saveas):
 
@@ -1239,18 +1286,97 @@ class MainWindow(PrefixWrapper):
                            ok_callback=ok_callback)
         dlgSave.get_widget().set_transient_for(self.widget)
         dlgSave.show_widget()
-        
-    
+
+    def annotate(self, *args) :
+        def ok_callback(params) :
+            dlgAnnotate.hide_widget()
+
+            # Add annotation to data structure
+            startEndTime = (params['startTime'], params['endTime'])
+            params = dlgAnnotate.get_params()
+            ann = self.eegPlot.eeg.get_ann()
+            try : self.rect
+            except :
+                created = ann[startEndTime]['created']
+                edited = datetime.today()
+            else :
+                created = datetime.today()
+                edited = created
+            ann[startEndTime] = {
+                'startTime'     : params['startTime'],
+                'endTime'       : params['endTime'],
+                'created'       : created,
+                'edited'        : edited,
+                'username'      : params['username'],
+                'code'          : params['code'],
+                'color'         : params['color'],
+                'annotation'    : params['annotation']}
+
+            # xxx Write ann file.
+
+            # Create new annotation box.
+            self.eegPlot.update_annotations()
+
+            # Update ann browser info
+            try : self.dlgAnnBrowser
+            except : pass
+            else :
+                self.dlgAnnBrowser.update_ann_info(startEndTime)
+
+            # Turn off highlight box.
+            try : self.rect
+            except : pass
+            else :
+                self.eegPlot.axes.patches.remove(self.rect)
+                del self.rect
+
+            self.eegPlot.draw()
+
+            return
+
+        ann = self.eegPlot.eeg.get_ann()
+        try : self.eegPlot.currRect
+        except :
+            # Create new annotation                
+            startTime = self.rect.get_x()
+            endTime = startTime + self.rect.get_width()
+            if endTime < startTime :
+                startTime, endTime = endTime, startTime
+            params = {'startTime'   : startTime,
+                      'endTime'     : endTime}
+        else :
+            # Edit currently selected annotation
+            params = ann[self.eegPlot.currRect]
+
+        dlgAnnotate = Dialog_Annotate(params, ok_callback)
+        dlgAnnotate.get_widget().set_transient_for(self.widget)
+        dlgAnnotate.show_widget()
+
+    def del_ann(self, *args) :
+        dlg = gtk.MessageDialog(type=gtk.MESSAGE_QUESTION,
+                                buttons=gtk.BUTTONS_YES_NO,
+                                message_format='Are you sure you wish to delete this annotation?')
+        dlg.set_title('Delete Annotation')
+        response = dlg.run()
+        dlg.destroy()
+
+        if response == gtk.RESPONSE_OK :
+            ann = self.eegPlot.eeg.get_ann()
+            rect = ann[self.eegPlot.currRect]['rect']
+            # xxx how to delete Rectangle?
+#            del ann[self.eegPlot.currRect]
+#            del self.eegPlot.currRect
+
     def on_buttonSaveExcursion_clicked(self, event):
 
         self.eegPlot.save_excursion()
-        return True
+        return gtk.TRUE
     
     def on_buttonRestoreExcursion_clicked(self, event):
 
         self.eegPlot.restore_excursion()
         self.eegPlot.draw()
-        return True
+        return gtk.TRUE
     
     def on_buttonJumpToTime_clicked(self, event):
 
@@ -1260,17 +1386,17 @@ class MainWindow(PrefixWrapper):
         if val is None: return
         self.eegPlot.set_time_lim(val)
         self.eegPlot.draw()
-        return True
+        return gtk.TRUE
 
     def expose_event(self, widget, event):
-        return True
+        return gtk.TRUE
     
     def configure_event(self, widget, event):
         self._isConfigured = True
-        return True
+        return gtk.TRUE
 
     def realize(self, widget):
-        return True
+        return gtk.TRUE
 
 
             
@@ -1282,7 +1408,77 @@ class MainWindow(PrefixWrapper):
         print 'bye mom'
         
     def motion_notify_event(self, widget, event):
-        return True
+        height = self.canvas.figure.bbox.height()
+        x, y = event.x, height-event.y
+
+        try : self.eegPlot
+        except : pass
+        else :
+            # Motion within EEG axes
+            if self.axes.in_axes(x, y):
+                t, yt = self.axes.transData.inverse_xy_tup((x, y))
+
+                # Update status bar with time and electrode name and number
+                gname, gnum = self.eegPlot.get_channel_at_point(event.x, event.y, False)
+                self.update_status_bar(
+                    'Time  = %1.1f (s), Electrode %s%d' % (t, gname, gnum))
+
+                # Create/Update timeline and highlight rectangle
+                try : self.timeLine
+                except :
+                    timeLine = self.axes.axvline(t, color='r',
+                                                 linewidth=1,
+                                                 linestyle='--')
+                    timeLine.set_dashes([3, 1])
+                    self.timeLine = timeLine
+
+#                   self.rect = self.axes.axvspan(t, t,
+#                                                 facecolor='#ddddff')
+#                   self.background = self.canvas.copy_from_bbox(self.axes.bbox)
+
+#                    ymin, ymax = self.axes.get_ylim()
+#                    self.rect = Rectangle(xy=(t, ymin),
+#                                          width=0,
+#                                          height=(ymax - ymin),
+#                                          facecolor='#bbbbff')
+#                    self.axes.add_patch(self.rect)
+                else :
+                    if event.state & gtk.gdk.BUTTON1_MASK :
+                        try : self.rect
+                        except :
+                            ymin, ymax = self.axes.get_ylim()
+                            self.rect = Rectangle(xy=(t, ymin),
+                                                  width=0,
+                                                  height=(ymax - ymin),
+                                                  facecolor='#bbbbff')
+                            self.axes.add_patch(self.rect)
+                        else :
+                            x = self.timeLine.get_xdata()
+                            self.rect.set_width(t - x[0])
+
+#                       self.canvas.restore_region(self.background)
+#                       self.axes.draw_artist(self.rect)
+#                       self.canvas.blit(self.axes.bbox)
+                    else :
+                        try : self.rect
+                        except :
+                            ydata = self.timeLine.get_ydata()
+                            self.timeLine.set_xdata ([t] * len(ydata))
+
+#                        if self.rect.get_width() == 0 :
+#                            ydata = self.timeLine.get_ydata()
+#                            self.timeLine.set_xdata ([t] * len(ydata))
+#                            self.rect.set_x(t)
+#                            self.rect.set_width(0)
+                self.canvas.draw_idle()
+
+            # Motion within spectrum axes
+            elif self.axesSpec.in_axes(x,y):
+                t, f = self.axesSpec.transData.inverse_xy_tup((x, y))
+                self.update_status_bar(
+                    'Time  = %1.1f (s), Freq = %1.1f (Hz)' % (t, f))
+
+        return gtk.TRUE
 
     def scroll_event(self, widget, event):
         "If in specgram resize"
@@ -1294,8 +1490,6 @@ class MainWindow(PrefixWrapper):
         l1,b1,w1,h1 = self.axes.get_position()
         l2,b2,w2,h2 = self.axesSpec.get_position()
 
-
-        
         deltay = direction*0.1*h2
         h1 -= deltay
         h2 += deltay
@@ -1311,33 +1505,89 @@ class MainWindow(PrefixWrapper):
         self.buttonDown = event.button
         height = self.canvas.figure.bbox.height()
         x, y = event.x, height-event.y
+
         if event.button==3:
             # right click brings up the context menu
-
-            
             if self.axes.in_axes(x, y):
                 menu = self.eoiMenu
+                print menu
             elif self.axesSpec.in_axes(x,y):
                 menu = self.specMenu
             else:
-                return 
+                return
+
+            # Update popup menu items
+            menuItems = menu.get_children()
+            menuItemAnnotate = menuItems[-2]
+            menuItemDelAnn = menuItems[-1]
+            try : self.rect
+            except :
+                try : self.eegPlot.currRect
+                except :
+                    menuItemAnnotate.set_sensitive(False)
+                    menuItemDelAnn.set_sensitive(False)
+                else :
+                    menuItemAnnotate.set_sensitive(True)
+                    menuItemAnnotate.get_children()[0].set_text('Edit Selected Annotation')
+                    menuItemDelAnn.set_sensitive(True)
+            else :
+                menuItemAnnotate.set_sensitive(True)
+                menuItemAnnotate.get_children()[0].set_text('Create New Annotation')
+                menuItemDelAnn.set_sensitive(False)
+
             menu.popup(None, None, None, 0, 0)
+
         elif event.button==1:
             if self.axes.in_axes(x, y):
                 try: self.eegPlot
                 except AttributeError:pass
                 else:
-                    trode = self.eegPlot.get_channel_at_point(event.x, event.y)
-                    gname, gnum = trode
-                    self.update_status_bar('Electrode: %s%d' % (gname, gnum))
+                    t, yt = self.axes.transData.inverse_xy_tup( (x,y) )
+
+                    # Turn off highlight.
+                    try : self.rect
+                    except : pass
+                    else :
+                        self.eegPlot.axes.patches.remove(self.rect)
+                        del self.rect
+                        ydata = self.timeLine.get_ydata()
+                        self.timeLine.set_xdata ([t] * len(ydata))
+
+                    # Select a highlight box if clicked.
+                    ann = self.eegPlot.eeg.get_ann()
+                    startEndTimes = ann.keys()
+                    startEndTimes.sort()
+                    for startEndTime in startEndTimes :
+                        startTime, endTime = startEndTime
+                        if endTime < t : continue
+                        if t > startEndTime[0] :
+                            self.eegPlot.set_curr_annotation(startEndTime)
+                            try : self.dlgAnnBrowser
+                            except : pass
+                            else :
+                                self.dlgAnnBrowser.update_ann_info(startEndTime)
+                            break
+                    else :
+                        self.eegPlot.set_curr_annotation(None)
+                        try : self.dlgAnnBrowser
+                        except : pass
+                        else :
+                            self.dlgAnnBrowser.update_ann_info()
+
+                    # Select an electrode if not locked.
+                    if not self.eegPlot.lock_trode :                        
+                        trode = self.eegPlot.get_channel_at_point(event.x, event.y)
+                        gname, gnum = trode
+                        self.update_status_bar('Electrode: %s%d' % (gname, gnum))
+
             elif self.axesSpec.in_axes(x,y):
-                t, f = self.axes.transData.inverse_xy_tup( (x,y) )
+                t, f = self.axesSpec.transData.inverse_xy_tup( (x,y) )
                 self.update_status_bar(
                     'Time  = %1.1f (s), Freq = %1.1f (Hz)' % (t,f))
 
                 
         else: print event.button
-        return True
+        return gtk.TRUE
 
     def button_release_event(self, widget, event):
         self.buttonDown = None
@@ -1383,7 +1633,7 @@ class MainWindow(PrefixWrapper):
         d.get_widget().set_transient_for(self.widget)
 
         
-        return True
+        return gtk.TRUE
 
     def on_menuFileQuit_activate(self, event):
         update_rc_and_die()
@@ -1477,6 +1727,11 @@ class MainWindow(PrefixWrapper):
             except AttributeError: pass
             else: Observer.observers.remove(self.specPlot)        
                 
+            # Remove timeLine and rect
+            try : del self.timeLine
+            except : pass
+            else : del self.rect
+
             self.eegPlot = EEGPlot(eeg, self.canvas)
             self.specPlot = SpecPlot(self.axesSpec, self.canvas, self.eegPlot)
             self.specMenu = self.make_spec_menu()
@@ -1493,7 +1748,7 @@ class MainWindow(PrefixWrapper):
                 
             eois = eeg.get_associated_files(atype=5, mapped=1)
             self.eoiMenu = self.make_context_menu(eois)
-            return True
+            return gtk.TRUE
 
 
     def on_menuFileSave_activate(self, event):
@@ -1598,13 +1853,28 @@ class MainWindow(PrefixWrapper):
         d.get_widget().set_transient_for(self.widget)
         d.show_widget()
         
-        return True
+        return gtk.TRUE
+
+    def on_menuAnnBrowser_activate(self, event) :
+        def ok_callback() :
+            dlgAnnBrowser.hide_widget()
+            del self.dlgAnnBrowser
+
+        try : self.eegPlot
+        except : pass
+        else :
+            dlgAnnBrowser = Dialog_AnnBrowser(self.eegPlot, ok_callback)
+            dlgAnnBrowser.get_widget().set_transient_for(self.widget)
+            dlgAnnBrowser.show_widget()
+            self.dlgAnnBrowser = dlgAnnBrowser
+
+        return gtk.TRUE
 
 def update_rc_and_die(*args):
     eegviewrc.lastdir = fmanager.get_lastdir()
     #eegviewrc.figsize = Shared.windowMain.fig.get_size_inches()
     eegviewrc.save()
-    gtk.mainquit()
+    gtk.main_quit()
 
 if __name__=='__main__':
     Shared.windowMain = MainWindow()
@@ -1613,6 +1883,6 @@ if __name__=='__main__':
     Shared.windowMain.widget.connect('destroy', update_rc_and_die)
     Shared.windowMain.widget.connect('delete_event', update_rc_and_die)
 
-    try: gtk.main ()
+    try: gtk.main()
     except KeyboardInterrupt:
         update_rc_and_die()

@@ -59,7 +59,7 @@ from loc3djr.image_reader import widgets as imageReaderWidgets
 
 from matplotlib.cbook import exception_to_str
 from matplotlib.mlab import detrend_none, detrend_mean, detrend_linear,\
-     window_none, window_hanning
+     window_none, window_hanning, log2
 from pbrainlib.gtkutils import error_msg, simple_msg, make_option_menu,\
      get_num_value, get_num_range, get_two_nums, str2int_or_err,\
      OpenSaveSaveAsHBox, ButtonAltLabel
@@ -71,7 +71,7 @@ from utils import filter_grand_mean, all_pairs_eoi, cohere_bands, power_bands,\
      cohere_pairs, cohere_pairs_eeg, get_best_exp_params,\
      get_exp_prediction, read_cohstat
 
-from data import Amp
+from data import Amp, EOI
 from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanvas
 from matplotlib.backends.backend_gtkagg import NavigationToolbar
 from matplotlib.figure import Figure
@@ -411,7 +411,33 @@ class View3(gtk.Window, Observer):
             func=get_thresh_value)
         toolbar2.append_widget(threshMenu, 'The threshold type', '')
 
-        
+
+        def low_clicked(button):
+            self._low = button.get_active()
+            
+        self._low = False
+        button = gtk.CheckButton('Low')
+        button.show()
+        button.set_active(self._low)
+        toolbar2.append_widget(
+            button, 'Only plot low', '')
+
+        button.connect('toggled', low_clicked)
+
+        self.entryMaxDist = gtk.Entry()
+        self.entryMaxDist.show()
+        self.entryMaxDist.set_text('None')
+        self.entryMaxDist.set_width_chars(5)
+        toolbar2.append_widget(self.entryMaxDist, 'Maximum distace', '')
+
+        iconw = gtk.Image() # icon widget
+        iconw.set_from_stock(gtk.STOCK_EXECUTE, iconSize)
+        button = toolbar2.append_item(
+            'Replot',
+            'Replot',
+            'Private', 
+            iconw,
+            self.plot_band)
 
         toolbar2.append_space()
 
@@ -490,18 +516,31 @@ class View3(gtk.Window, Observer):
             error_msg(msg)
             return
 
+        seen = {}
+        for i,j in cxy.keys():
+            seen[i] = 1
+            seen[j] = 1
+        channels = seen.keys()
+        channels.sort()
+            
+        ampDlg = AmpDialog(channels)
+        ampDlg.show()
+        amp = ampDlg.get_amp()
+        if amp is None: return
+        self.amp = amp
         # Convert the cyx, pxy to electrode dicts and filter out
         # channels not in the eoi
 
-        d = self.amp.get_channelnum_dict()
-        seene = dict([(e,1) for e in self.eoi])
+        d = amp.get_channelnum_dict()
 
         # make sure the keys agree
         Cxy = {}; Pxy = {}
         keys = cxy.keys()
         skipd = {}
-        for key in keys:
-            i, j = key
+        eoi = amp.to_eoi()
+        self.set_eoi(eoi)
+
+        for i,j in keys:
             if not d.has_key(i):
                 skipd[i] = 1
                 continue
@@ -509,6 +548,7 @@ class View3(gtk.Window, Observer):
                 skipd[j] = 1
                 continue
             key = d[i], d[j]
+
             Cxy[key] = cxy[(i,j)]
             Pxy[key] = pxy[(i,j)]
 
@@ -518,12 +558,9 @@ class View3(gtk.Window, Observer):
         if len(skipped):
             print >>sys.stderr, 'Skipping these electrodes not in eoi\n\t%s eoi'%skipped
 
+        
         self.cohereResults = None, Cxy, Pxy
         self.plot_band()
-
-
-            
-
 
 
     def auto_play(self, *args):
@@ -662,11 +699,17 @@ class View3(gtk.Window, Observer):
                 self.cohereResults = cohRes
                 self.pxxResults = pxxRes
                 return
-            
+
+        
         eeg = self.eegPlot.get_eeg()
         dt = 1.0/eeg.freq
 
         t, data = self.eeg.get_data(tmin, tmax)
+
+        Nt = len(t)
+        NFFT = int(2**math.floor(log2(Nt)-2))
+        print 'NFFT', NFFT
+        NFFT = min(NFFT, 512)
         if self.filterGM:            
             data = filter_grand_mean(data)
             
@@ -674,7 +717,7 @@ class View3(gtk.Window, Observer):
             eeg,
             self.eoiPairs,
             data = data,
-            NFFT = 512,
+            NFFT = NFFT,
             detrend = detrend_none,
             window = window_none,
             noverlap = 0,
@@ -801,6 +844,7 @@ class View3(gtk.Window, Observer):
         else:
 
             ax1 = fig.add_subplot(211)
+            ax1.set_title('Coherence vs distance')            
             ind = argsort(dvec)
             dsort = take(dvec, ind)
             psort = take(predicted, ind)
@@ -809,17 +853,19 @@ class View3(gtk.Window, Observer):
 
             if threshType=='abs.':
                 ax1.plot(dvec, cutoff*ones(dvec.shape, typecode=Float), 'r-')
-
+            ax1.set_ylabel('Absolute')
 
             ax2 = fig.add_subplot(212)
             ax2.plot(dvec, normedvec, 'k,',
                      dsort, ones(dsort.shape, typecode=Float), 'g-')
+            ax2.set_ylabel('Normalized')
+            ax2.set_xlabel('Distance (cm)')            
 
             #print 'threshType', threshType
             if threshType in ('pct.', 'STD', 'ratio'):
                 #print 'plotting line at', threshVal
                 ax2.plot(dvec, cutoff*ones(dvec.shape, typecode=Float), 'r-')
-
+                
 
         toolbar = NavigationToolbar(self.canvas, win)
         toolbar.show()
@@ -909,6 +955,10 @@ class View3(gtk.Window, Observer):
 
         useSelected = self.buttonSelected.get_active() and (self.selected is not None)
 
+        maxd = self.entryMaxDist.get_text()
+        try: maxd = float(maxd)
+        except ValueError: maxd = None
+        
         self.gridManager.flush_connections()
         #for key in cxy.keys(): print key
         for i in range(N):
@@ -922,6 +972,9 @@ class View3(gtk.Window, Observer):
                 if not cxy.has_key(key):
                     print 'draw_connections no key:',key
                     continue
+                if maxd is not None:
+                    d = dist(self.xyzd[e1], self.xyzd[e2])
+                    if d>maxd: continue
                 phase = pxy[key]
                 if abs(phase)<0.1: phasemap = None
                 elif phase>0: phasemap = posphase  # 1 leads 2
@@ -929,7 +982,10 @@ class View3(gtk.Window, Observer):
 
                 coherence = cxy[key]
                 #print e1, e2, coherence, cutoff
-                if coherence<cutoff: continue
+                if self._low:
+                    if coherence>cutoff: continue
+                else:
+                    if coherence<cutoff: continue
 
                 ok = self.gridManager.connect_markers(
                     e1, e2, scalarfunc=phasemap)
@@ -1355,10 +1411,11 @@ class ArrayMapper(gtk.Window, ScalarMapper):
 
 
 class AmpDialog(gtk.Dialog):
-    def __init__(self, numChannels):
+    def __init__(self, channels):
         gtk.Dialog.__init__(self, 'Channel num to electrode mapping')
 
-        self.numChannels = numChannels
+        self.channels = channels
+        self.numChannels = len(channels)
         
         self.set_size_request(300,600)
         scrolledWin = gtk.ScrolledWindow()
@@ -1383,14 +1440,14 @@ class AmpDialog(gtk.Dialog):
         labelNum.show()
 
         table.attach(labelCnum, 0, 1, 0, 1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(labelName, 1, 2, 0, 1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(labelNum, 2, 3, 0, 1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         entries = []
-        for i in range(self.numChannels):
-            label = gtk.Label('%d' % (i+1))
+        for i,cnum in enumerate(channels):
+            label = gtk.Label('%d' % cnum)
             label.show()
             entryName = gtk.Entry()
             entryName.show()
@@ -1399,11 +1456,11 @@ class AmpDialog(gtk.Dialog):
             entryNum.show()
             entryNum.set_width_chars(10)
             table.attach(label, 0, 1, i+1, i+2,
-                         xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                         xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
             table.attach(entryName, 1, 2, i+1, i+2,
-                         xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                         xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
             table.attach(entryNum, 2, 3, i+1, i+2,
-                         xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                         xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
             entries.append((label, entryName, entryNum))
 
         self.entries = entries
@@ -1429,9 +1486,9 @@ class AmpDialog(gtk.Dialog):
         entryGname.show()
         entryGname.set_width_chars(10)
         table.attach(label, 0, 1, 0, 1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(entryGname, 0, 1, 1, 2,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
 
         labelStart = gtk.Label('Chan# Start')
         labelStart.show()
@@ -1441,9 +1498,9 @@ class AmpDialog(gtk.Dialog):
         entryStart.set_text('1')
         
         table.attach(labelStart, 1, 2, 0, 1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(entryStart, 1, 2, 1, 2,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
 
         labelEnd = gtk.Label('Chan# End')
         labelEnd.show()
@@ -1453,9 +1510,9 @@ class AmpDialog(gtk.Dialog):
         entryEnd.set_text('%d'%len(entries))
         
         table.attach(labelEnd, 2, 3, 0, 1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(entryEnd, 2, 3, 1, 2,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
 
         def fill_it(button):
             gname = entryGname.get_text()
@@ -1466,7 +1523,9 @@ class AmpDialog(gtk.Dialog):
             if cend is None: return
 
             cnt = 1
+
             if cend>len(entries):
+                #TODO: i not defined
                 error_msg('Channel #%d out of range' % i, parent=self)
                 return
 
@@ -1691,9 +1750,9 @@ class ImageManager:
                 scrollbar.connect('value_changed', self.set_opacity)
 
                 table.attach(label, 0, 1, row, row+1,
-                             xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                             xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
                 table.attach(scrollbar, 1, 2, row, row+1,
-                             xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                             xoptions=gtk.FILL, yoptions=gtk.EXPAND)
 
             def set_opacity(self, *args):
                 val = self.scrollbar.get_value()
@@ -1733,9 +1792,9 @@ class ImageManager:
         scrollbar.set_size_request(150,20)
 
         table.attach(label, 0, 1, row, row+1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(scrollbar, 1, 2, row, row+1,
-                     xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                     xoptions=gtk.FILL, yoptions=gtk.EXPAND)
 
 
 
@@ -2301,7 +2360,7 @@ class GridManager:
             self.X = X
 
 
-            ampDlg = AmpDialog(numChannels)
+            ampDlg = AmpDialog([(i+1) for i in range(numChannels)])
             ampDlg.show()
             amp = ampDlg.get_amp()
             if amp is None: return
@@ -2469,9 +2528,9 @@ class GridManager:
         scrollbar.connect('value_changed', set_size)
         scrollbar.set_size_request(*self.SCROLLBARSIZE)
         table.attach(label, 0, 1, row, row+1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(scrollbar, 1, 2, row, row+1,
-                     xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                     xoptions=gtk.FILL, yoptions=gtk.EXPAND)
 
 
 
@@ -2621,9 +2680,9 @@ class GridManager:
         scrollbar.set_size_request(*self.SCROLLBARSIZE)
 
         table.attach(label, 0, 1, row, row+1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(scrollbar, 1, 2, row, row+1,
-                     xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                     xoptions=gtk.FILL, yoptions=gtk.EXPAND)
         row+=1
 
         label = gtk.Label('Labels')
@@ -2644,9 +2703,9 @@ class GridManager:
         scrollbar.set_size_request(*self.SCROLLBARSIZE)
 
         table.attach(label, 0, 1, row, row+1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(scrollbar, 1, 2, row, row+1,
-                     xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                     xoptions=gtk.FILL, yoptions=gtk.EXPAND)
         
         row += 1
 
@@ -2669,9 +2728,9 @@ class GridManager:
         scrollbar.set_size_request(*self.SCROLLBARSIZE)
 
         table.attach(label, 0, 1, row, row+1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(scrollbar, 1, 2, row, row+1,
-                     xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                     xoptions=gtk.FILL, yoptions=gtk.EXPAND)
         row += 1
 
         self.opacityBarsDict = {}
@@ -2709,9 +2768,9 @@ class GridManager:
             scrollbar.set_increments(0.05,0.25)
             self.opacityBarsDict[name] = scrollbar
             table.attach(label, 0, 1, row, row+1,
-                         xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                         xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
             table.attach(scrollbar, 1, 2, row, row+1,
-                         xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                         xoptions=gtk.FILL, yoptions=gtk.EXPAND)
             row += 1
             funcs.append(func)
 
@@ -2737,9 +2796,9 @@ class GridManager:
         scrollbar.set_size_request(*self.SCROLLBARSIZE)
 
         table.attach(label, 0, 1, row, row+1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(scrollbar, 1, 2, row, row+1,
-                     xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                     xoptions=gtk.FILL, yoptions=gtk.EXPAND)
         row += 1
 
         return table
@@ -2787,9 +2846,9 @@ class GridManager:
             scrollbar.set_size_request(*self.SCROLLBARSIZE)
             scrollbar.set_increments(5,10)
             table.attach(label, 0, 1, i, i+1,
-                         xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                         xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
             table.attach(scrollbar, 1, 2, i, i+1,
-                         xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                         xoptions=gtk.FILL, yoptions=gtk.EXPAND)
 
         return table
         

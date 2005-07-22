@@ -62,7 +62,7 @@ from matplotlib.mlab import detrend_none, detrend_mean, detrend_linear,\
      window_none, window_hanning, log2
 from pbrainlib.gtkutils import error_msg, simple_msg, make_option_menu,\
      get_num_value, get_num_range, get_two_nums, str2int_or_err,\
-     OpenSaveSaveAsHBox, ButtonAltLabel, SpreadSheet
+     OpenSaveSaveAsHBox, ButtonAltLabel
 
 from shared import fmanager
 from borgs import Shared
@@ -487,25 +487,10 @@ class View3(gtk.Window, Observer):
             iconw,
             show_image_prefs)
 
-
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_INDEX, iconSize)
-        buttonNew = toolbar2.append_item(
-            'Show data',
-            'Display coherences in spreadsheet',
-            'Private',
-            iconw,
-            self.show_spreadsheet)
-
         
 
         return toolbar2
 
-    def show_spreadsheet(self, *args):
-        rows = self.plot_band(saveRows=True)
-        sheet = SpreadSheet(rows, fmanager=fmanager, title='Suprathreshold coherehences in %s'%self._activeBand)
-        sheet.show_all()
-        
     def voltage_map(self, button):
         win = VoltageMapWin(self)
         win.show()
@@ -764,14 +749,14 @@ class View3(gtk.Window, Observer):
         bandind = self.banddict[self._activeBand]
         return bandind
     
-    def plot_band(self, *args, **kwargs):
+    def plot_band(self, *args):
         bandind = self.get_band_ind()
 
         try: self.cohereResults
         except AttributeError:  self.compute_coherence()
 
         freqs, cxyBands, phaseBands = self.cohereResults
-        ret = self.draw_connections(cxyBands, phaseBands, **kwargs)
+        self.draw_connections(cxyBands, phaseBands)
 
         
         try: pxx = self.pxxResults
@@ -781,7 +766,7 @@ class View3(gtk.Window, Observer):
 
             self.gridManager.scalarVals = []
             self.gridManager.set_scalar_data(datad)
-        return ret
+        #print datad
         
         
     def norm_by_distance(self, Cxy, bandind=None, pars=None):
@@ -948,7 +933,7 @@ class View3(gtk.Window, Observer):
         return dvec, cvec, cxy, pxy, predicted, pars, normedvec, cutoff
 
         
-    def draw_connections(self, Cxy, Pxy, **kwargs):
+    def draw_connections(self, Cxy, Pxy):
 
         N = len(self.eoi)
 
@@ -973,10 +958,6 @@ class View3(gtk.Window, Observer):
         maxd = self.entryMaxDist.get_text()
         try: maxd = float(maxd)
         except ValueError: maxd = None
-
-        saveRows = kwargs.get('saveRows', False)
-        rows = []
-        
         
         self.gridManager.flush_connections()
         #for key in cxy.keys(): print key
@@ -1011,9 +992,7 @@ class View3(gtk.Window, Observer):
                 if not ok:
                     error_msg('Giving up', parent=self)
                     break
-                if saveRows: rows.append(('%s %d'%e1, '%s %d'%e2, '%1.4f'%coherence))
         self.interactor.Render()
-        return rows
         
 
 
@@ -1461,11 +1440,11 @@ class AmpDialog(gtk.Dialog):
         labelNum.show()
 
         table.attach(labelCnum, 0, 1, 0, 1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(labelName, 1, 2, 0, 1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(labelNum, 2, 3, 0, 1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         entries = []
         for i,cnum in enumerate(channels):
             label = gtk.Label('%d' % cnum)
@@ -1477,11 +1456,11 @@ class AmpDialog(gtk.Dialog):
             entryNum.show()
             entryNum.set_width_chars(10)
             table.attach(label, 0, 1, i+1, i+2,
-                         xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                         xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
             table.attach(entryName, 1, 2, i+1, i+2,
-                         xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                         xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
             table.attach(entryNum, 2, 3, i+1, i+2,
-                         xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                         xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
             entries.append((label, entryName, entryNum))
 
         self.entries = entries
@@ -1507,9 +1486,9 @@ class AmpDialog(gtk.Dialog):
         entryGname.show()
         entryGname.set_width_chars(10)
         table.attach(label, 0, 1, 0, 1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(entryGname, 0, 1, 1, 2,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
 
         labelStart = gtk.Label('Chan# Start')
         labelStart.show()
@@ -1519,9 +1498,9 @@ class AmpDialog(gtk.Dialog):
         entryStart.set_text('1')
         
         table.attach(labelStart, 1, 2, 0, 1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(entryStart, 1, 2, 1, 2,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
 
         labelEnd = gtk.Label('Chan# End')
         labelEnd.show()
@@ -1531,9 +1510,9 @@ class AmpDialog(gtk.Dialog):
         entryEnd.set_text('%d'%len(entries))
         
         table.attach(labelEnd, 2, 3, 0, 1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(entryEnd, 2, 3, 1, 2,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
 
         def fill_it(button):
             gname = entryGname.get_text()
@@ -1771,9 +1750,9 @@ class ImageManager:
                 scrollbar.connect('value_changed', self.set_opacity)
 
                 table.attach(label, 0, 1, row, row+1,
-                             xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                             xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
                 table.attach(scrollbar, 1, 2, row, row+1,
-                             xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                             xoptions=gtk.FILL, yoptions=gtk.EXPAND)
 
             def set_opacity(self, *args):
                 val = self.scrollbar.get_value()
@@ -1813,9 +1792,9 @@ class ImageManager:
         scrollbar.set_size_request(150,20)
 
         table.attach(label, 0, 1, row, row+1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(scrollbar, 1, 2, row, row+1,
-                     xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                     xoptions=gtk.FILL, yoptions=gtk.EXPAND)
 
 
 
@@ -2549,9 +2528,9 @@ class GridManager:
         scrollbar.connect('value_changed', set_size)
         scrollbar.set_size_request(*self.SCROLLBARSIZE)
         table.attach(label, 0, 1, row, row+1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(scrollbar, 1, 2, row, row+1,
-                     xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                     xoptions=gtk.FILL, yoptions=gtk.EXPAND)
 
 
 
@@ -2701,9 +2680,9 @@ class GridManager:
         scrollbar.set_size_request(*self.SCROLLBARSIZE)
 
         table.attach(label, 0, 1, row, row+1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(scrollbar, 1, 2, row, row+1,
-                     xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                     xoptions=gtk.FILL, yoptions=gtk.EXPAND)
         row+=1
 
         label = gtk.Label('Labels')
@@ -2724,9 +2703,9 @@ class GridManager:
         scrollbar.set_size_request(*self.SCROLLBARSIZE)
 
         table.attach(label, 0, 1, row, row+1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(scrollbar, 1, 2, row, row+1,
-                     xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                     xoptions=gtk.FILL, yoptions=gtk.EXPAND)
         
         row += 1
 
@@ -2749,9 +2728,9 @@ class GridManager:
         scrollbar.set_size_request(*self.SCROLLBARSIZE)
 
         table.attach(label, 0, 1, row, row+1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(scrollbar, 1, 2, row, row+1,
-                     xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                     xoptions=gtk.FILL, yoptions=gtk.EXPAND)
         row += 1
 
         self.opacityBarsDict = {}
@@ -2789,9 +2768,9 @@ class GridManager:
             scrollbar.set_increments(0.05,0.25)
             self.opacityBarsDict[name] = scrollbar
             table.attach(label, 0, 1, row, row+1,
-                         xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                         xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
             table.attach(scrollbar, 1, 2, row, row+1,
-                         xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                         xoptions=gtk.FILL, yoptions=gtk.EXPAND)
             row += 1
             funcs.append(func)
 
@@ -2817,9 +2796,9 @@ class GridManager:
         scrollbar.set_size_request(*self.SCROLLBARSIZE)
 
         table.attach(label, 0, 1, row, row+1,
-                     xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(scrollbar, 1, 2, row, row+1,
-                     xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                     xoptions=gtk.FILL, yoptions=gtk.EXPAND)
         row += 1
 
         return table
@@ -2867,9 +2846,9 @@ class GridManager:
             scrollbar.set_size_request(*self.SCROLLBARSIZE)
             scrollbar.set_increments(5,10)
             table.attach(label, 0, 1, i, i+1,
-                         xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                         xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
             table.attach(scrollbar, 1, 2, i, i+1,
-                         xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                         xoptions=gtk.FILL, yoptions=gtk.EXPAND)
 
         return table
         

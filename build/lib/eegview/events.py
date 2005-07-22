@@ -2,7 +2,7 @@ from sets import Set
 
 class Observer:
     SET_TIME_LIM, SELECT_CHANNEL, SAVE_FRAME, COMPUTE_COHERENCE,\
-                  GMTOGGLED= range(5)
+                  GMTOGGLED, LOCK_TRODE_TOGGLED= range(6)
     observers = Set()
 
     def __init__(self):

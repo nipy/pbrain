@@ -161,7 +161,6 @@ class Dialog_SelectElectrodes(gtk.Dialog):
         frame.set_border_width(5)
         self.vbox.pack_start(frame, gtk.FALSE, gtk.FALSE)
 
-
         textView = gtk.TextView()
         textView.show()
 
@@ -760,9 +759,313 @@ class Dialog_SaveEOI(PrefixWrapper):
 
     def get_params(self):
         return {'filename': self['comboExisting'].entry.get_text()}
-                
 
 
+class Dialog_Annotate(PrefixWrapper) :
+    prefix = 'dlgAnnotate_'
+    widgetName = 'dialogAnnotate'
+
+    def __init__(self, params={}, ok_callback=donothing_callback) :
+        PrefixWrapper.__init__(self)
+        self.ok_callback = ok_callback
+
+        # Set combo options
+        # xxx is all this necessay to add combo box entries?
+        if self['comboBoxEntryCode'].get_model() == None :
+#            codes = get_code_from_registry('EEG classification').descs
+            codes = ['code1', 'code2', 'code3']
+
+            model = gtk.ListStore(str)
+            for code in codes :
+                model.append([code])
+            self['comboBoxEntryCode'].set_model(model)
+            cell = gtk.CellRendererText()
+            self['comboBoxEntryCode'].pack_start(cell, True)
+            self['comboBoxEntryCode'].add_attribute(cell, 'text', 0)
+
+        self.set_params(params)
+
+    def set_params(self, params) :
+        self['labelStartTime'].set_text('%1.1f' % params.get('startTime'))
+        self['labelEndTime'].set_text('%1.1f' % params.get('endTime'))
+        self['entryUsername'].set_text(params.get('username', 'unknown'))
+        self['colorButton'].set_color(gtk.gdk.color_parse(params.get('color', '#ddddff')))
+        self['textViewAnnotation'].get_buffer().set_text(params.get('annotation', ''))
+
+        # Set active combo box entry
+        model = self['comboBoxEntryCode'].get_model()
+        n = 0
+        for rw in model :
+            if rw[0] == params.get('code', '') :
+                self['comboBoxEntryCode'].set_active(n)
+            n += 1
+
+    def get_params(self) :
+        params = {}
+        params['startTime'] = float(self['labelStartTime'].get_text())
+        params['endTime'] = float(self['labelEndTime'].get_text())
+        params['username'] = self['entryUsername'].get_text()
+
+        c = self['comboBoxEntryCode']
+        model = c.get_model()
+        active = c.get_active()
+        if active >= 0 :
+            params['code'] = model[active][0]
+        else :
+            params['code'] = ''
+
+        color = self['colorButton'].get_color()
+        params['color'] = '#%.2X%.2X%.2X' % (color.red / 256,
+                                             color.green / 256,
+                                             color.blue / 256)
+
+        start, end = self['textViewAnnotation'].get_buffer().get_bounds()
+        params['annotation'] = self['textViewAnnotation'].get_buffer().get_text(start, end)
+
+        return params
+
+    def on_buttonOK_clicked(self, event) :
+        params = self.get_params()
+        self.ok_callback(params)
+
+class Dialog_AnnBrowser(PrefixWrapper) :
+    prefix = 'dlgAnnBrowser_'
+    widgetName = 'dialogAnnBrowser'
+
+    def __init__(self, eegPlot, ok_callback=donothing_callback) :
+        PrefixWrapper.__init__(self)
+        self.ok_callback = ok_callback
+
+        self.eegPlot = eegPlot
+
+        # Set combo box username options
+        if self['comboBoxEntryUsername'].get_model() == None :
+            usernames = ['Any']
+            ann = self.eegPlot.eeg.get_ann()
+            for a in ann.values() :
+                if a['username'] not in usernames :
+                  usernames.append(a['username'])
+            model = gtk.ListStore(str)
+            for username in usernames :
+                model.append([username])
+            self['comboBoxEntryUsername'].set_model(model)
+            self['comboBoxEntryUsername'].set_text_column(0)
+            self['comboBoxEntryUsername'].set_active(0)
+
+        # Set combo box code options
+        if self['comboBoxEntryCode'].get_model() == None :
+            codes = ['Any', 'code1', 'code2', 'code3']
+            model = gtk.ListStore(str)
+            for code in codes :
+                model.append([code])
+            self['comboBoxEntryCode'].set_model(model)
+            self['comboBoxEntryCode'].set_text_column(0)
+            self['comboBoxEntryCode'].set_active(0)
+
+        # Update annotation info if an annotation is currently selected.
+        try : self.eegPlot.currRect
+        except :
+          self.update_ann_info()
+        else :
+          self.update_ann_info(self.eegPlot.currRect)
+
+    def get_username(self) :
+        username = None
+        c = self['comboBoxEntryUsername']
+        model = c.get_model()
+        active = c.get_active()
+        if active >= 0 :
+            username = model[active][0]
+            if username == 'Any' : username = None
+        else :
+            username = None
+
+        return username
+
+    def get_code(self) :
+        code = None
+        c = self['comboBoxEntryCode']
+        model = c.get_model()
+        active = c.get_active()
+        if active >= 0 :
+            code = model[active][0]
+            if code == 'Any' : code = None
+        else :
+            code = None
+
+        return code
+
+    def update_ann_info(self, startEndTime=None) :
+        ann = self.eegPlot.eeg.get_ann()
+
+        if startEndTime :
+            # Make widgets sensitive
+            for widget in ['label1', 'label2', 'label3', 'label4', 'label5', 'label6',
+                           'labelStartTime', 'labelEndTime',
+                           'labelUsername', 'labelCode', 'labelColor',
+                           'textViewAnnotation'] :
+                self[widget].set_sensitive(True)
+
+            # Update text
+            self['labelStartTime'].set_text(str(startEndTime[0]))
+            self['labelEndTime'].set_text(str(startEndTime[1]))
+            self['labelUsername'].set_text(ann[startEndTime]['username'])
+            self['labelColor'].set_text(ann[startEndTime]['color'])
+            self['labelCode'].set_text(ann[startEndTime]['code'])
+            self['textViewAnnotation'].get_buffer().set_text(ann[startEndTime]['annotation'])
+
+        else :
+            # Make widgets not sensitive
+            for widget in ['label1', 'label2', 'label3', 'label4', 'label5', 'label6',
+                           'labelStartTime', 'labelEndTime',
+                           'labelUsername', 'labelCode', 'labelColor',
+                           'textViewAnnotation'] :
+                self[widget].set_sensitive(False)
+
+            # Update text
+            self['labelStartTime'].set_text('0.0')
+            self['labelEndTime'].set_text('0.0')
+            self['labelUsername'].set_text('none')
+            self['labelColor'].set_text('none')
+            self['labelCode'].set_text('none')
+            self['textViewAnnotation'].get_buffer().set_text('')
+
+    def jump_to_annotation(self, newStartEndTime) :
+        tmin, tmax = self.eegPlot.get_time_lim()
+        width = tmax - tmin
+	startTime, endTime = tmin, tmax
+	if newStartEndTime[0] < tmin or newStartEndTime[0] > tmax:
+	    startTime = newStartEndTime[0]
+	if newStartEndTime[1] > tmax :
+	    if newStartEndTime[1] > startTime + width :
+                endTime = newStartEndTime[1]
+            else :
+                endTime = startTime + width
+        elif newStartEndTime[1] < tmin :
+            endTime = startTime + width
+
+        self.eegPlot.set_time_lim(startTime, endTime, updateData = True)
+	self.eegPlot.update_annotations()
+        self.eegPlot.set_curr_annotation(newStartEndTime)
+        self.eegPlot.draw()
+
+    def on_buttonFirst_clicked(self, event) :
+        # Get first annotation
+        username = self.get_username()
+        code = self.get_code()
+        ann = self.eegPlot.eeg.get_ann()
+        newStartEndTime = None
+        startEndTimes = ann.keys()
+        startEndTimes.sort()
+        if username == None and code == None :
+            newStartEndTime = startEndTimes[0]
+        else :
+            for startEndTime in startEndTimes :
+                ok = 1
+                if username <> None and ann[startEndTime]['username'] <> username :
+                    ok = 0
+                if ok and (code <> None and ann[startEndTime]['code'] <> code) :
+                    ok = 0
+                if ok :
+                    newStartEndTime = startEndTime
+                    break
+
+        # Jump to annotation
+        if newStartEndTime <> None :
+	    self.update_ann_info(newStartEndTime)
+            self.jump_to_annotation(newStartEndTime)
+
+    def on_buttonPrev_clicked(self, event) :
+        try : self.eegPlot.currRect
+        except : pass # xxx warn to select a rect?
+        else :
+            username = self.get_username()
+            code = self.get_code()
+            ann = self.eegPlot.eeg.get_ann()
+            newStartEndTime = None
+            startEndTimes = ann.keys()
+            startEndTimes.sort()
+            ind = startEndTimes.index(self.eegPlot.currRect)
+            if ind > 0 :
+                if username == None  and code == None:
+                    newStartEndTime = startEndTimes[ind - 1]
+                else :
+                    ind -= 1
+                    while ind >= 0 :
+                        ok = 1
+                        if username <> None and ann[startEndTimes[ind]]['username'] <> username :
+                            ok = 0
+                        if ok and (code <> None and ann[startEndTimes[ind]]['code'] <> code) :
+                            ok = 0
+                        if ok :
+                            newStartEndTime = startEndTimes[ind]
+                            break
+                        ind -= 1
+
+            if newStartEndTime <> None :
+                self.update_ann_info(newStartEndTime)
+                self.jump_to_annotation(newStartEndTime)
+
+    def on_buttonNext_clicked(self, event) :
+        try : self.eegPlot.currRect
+        except : pass # xxx warn to select a rect?
+        else :
+            username = self.get_username()
+            code = self.get_code()
+            ann = self.eegPlot.eeg.get_ann()
+            newStartEndTime = None
+            startEndTimes = ann.keys()
+            startEndTimes.sort()
+            ind = startEndTimes.index(self.eegPlot.currRect)
+            if ind < len(startEndTimes) - 1 :
+                if username == None and code == None :
+                    newStartEndTime = startEndTimes[ind + 1]
+                else :
+                    ind += 1
+                    while ind < len(startEndTimes) :
+                        ok = 1
+                        if username <> None and ann[startEndTimes[ind]]['username'] <> username :
+                            ok = 0
+                        if ok and (code <> None and ann[startEndTimes[ind]]['code'] <> code) :
+                            ok = 0
+                        if ok :
+                            newStartEndTime = startEndTimes[ind]
+                            break
+                        ind += 1
+
+            if newStartEndTime <> None :
+                self.update_ann_info(newStartEndTime)
+                self.jump_to_annotation(newStartEndTime)
+
+    def on_buttonLast_clicked(self, event) :
+        # Get last annotation of given code
+        username = self.get_username()
+        code = self.get_code()
+        ann = self.eegPlot.eeg.get_ann()
+        newStartEndTime = None
+        startEndTimes = ann.keys()
+        startEndTimes.sort()
+        startEndTimes.reverse()
+        if username == None and code == None :
+            newStartEndTime = startEndTimes[0]
+        else :
+            for startEndTime in startEndTimes :
+                ok = 1
+                if username <> None and ann[startEndTime]['userrname'] <> username :
+                    ok = 0
+                if ok and (code <> None and ann[startEndTime]['code'] <> code) :
+                    ok = 0
+                if ok :
+                    newStartEndTime = startEndTime
+                    break
+
+        # Jump to annotation
+        if newStartEndTime <> None :
+            self.update_ann_info(newStartEndTime)
+            self.jump_to_annotation(newStartEndTime)
+
+    def on_buttonClose_clicked(self, event) :
+        self.ok_callback()
 
 class Dialog_EEGParams(PrefixWrapper):
     prefix = 'dlgEEG_'
@@ -1065,8 +1368,10 @@ class SpecProps(gtk.Dialog):
         e.set_width_chars(boxWid)
         e.show()
         self.entryFMin = e
-        table.attach(l, 0, 1, 0, 1)
-        table.attach(e, 1, 2, 0, 1)
+        table.attach(l, 0, 1, 0, 1,
+                     xoptions=gtk.SHRINK, yoptions=gtk.SHRINK)
+        table.attach(e, 1, 2, 0, 1,
+                     xoptions=gtk.FILL, yoptions=gtk.SHRINK)
 
         l = gtk.Label('Freq. max')
         l.show()
@@ -1075,8 +1380,10 @@ class SpecProps(gtk.Dialog):
         e.set_width_chars(boxWid)
         e.show()
         self.entryFMax = e
-        table.attach(l, 0, 1, 1, 2)
-        table.attach(e, 1, 2, 1, 2)
+        table.attach(l, 0, 1, 1, 2,
+                     xoptions=gtk.SHRINK, yoptions=gtk.SHRINK)
+        table.attach(e, 1, 2, 1, 2,
+                     xoptions=gtk.FILL, yoptions=gtk.SHRINK)
 
 
         l = gtk.Label('Color min')
@@ -1085,9 +1392,10 @@ class SpecProps(gtk.Dialog):
         e.set_width_chars(boxWid)
         e.show()
         self.entryCMin = e
-        table.attach(l, 0, 1, 2, 3)
+        table.attach(l, 0, 1, 2, 3,
+                     xoptions=gtk.SHRINK, yoptions=gtk.SHRINK)
         table.attach(e, 1, 2, 2, 3,
-                     xoptions=gtk.EXPAND)
+                     xoptions=gtk.FILL, yoptions=gtk.SHRINK)
 
         l = gtk.Label('Color max')
         l.show()
@@ -1096,9 +1404,10 @@ class SpecProps(gtk.Dialog):
         e.set_width_chars(boxWid)
         e.show()
         self.entryCMax = e
-        table.attach(l, 0, 1, 3, 4)
+        table.attach(l, 0, 1, 3, 4,
+                     xoptions=gtk.SHRINK, yoptions=gtk.SHRINK)
         table.attach(e, 1, 2, 3, 4,
-                     xoptions=gtk.EXPAND)
+                     xoptions=gtk.FILL, yoptions=gtk.SHRINK)
 
         
         self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)

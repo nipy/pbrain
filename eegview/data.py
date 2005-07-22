@@ -1,3 +1,5 @@
+# 7.13.05 jwaxma2@uic.edu
+#   Added .ann annotation file.
 from __future__ import division
 
 import os, sys, re, glob, urllib, httplib
@@ -11,6 +13,8 @@ from Numeric import array, Int16, Float, Float16, \
 from MLab import median
 from utils import all_pairs_ij, all_pairs_eoi
 import file_formats
+import csv
+import gtk
 
 import servers
 e1020 = Set([
@@ -79,21 +83,11 @@ class Grid(dict):
     def get_name(self):
         return self.name
 
-
     def get_number_electrodes(self):
         return len(self.keys())
     
-    
-
-
-
-
-
 class AssociatedFile:
-
-
     def __init__(self, dbaseFields=None, useFile=None):
-
         if dbaseFields is None:
             import mx.DateTime
             now = mx.DateTime.now()
@@ -108,16 +102,11 @@ class AssociatedFile:
                 self.filename = fname
                 self.fullpath = useFile
                 self.load_data(useFile)
-
         else:
-
             self.__dict__.update(dbaseFields)
             self.set_exists_web(pid=dbaseFields['pid'],
                                 filename=dbaseFields['filename'])
             self.load_data()
-
-        
-
 
     def set_exists_web(self, pid, filename):
         self.dbaseFilename = filename
@@ -129,16 +118,12 @@ class AssociatedFile:
     def is_web_file(self):
         return self.existsWeb
 
-
     def to_conf_file(self):
         "Convert self to a config file string"
         raise NotImplementedError, 'Derved class must override'
 
-
     def load_data(self, useFile=None):
-
         if useFile is not None:
-
             try: fh = file(useFile, 'r')
             except IOError:
                 raise ValueError('Failed to open %s for reading' % useFile)
@@ -188,7 +173,6 @@ class AssociatedFile:
 
     def new_web(self, pid, fname):
         """
-
         Add the file to the web server and database.  Raises a NameError if
         there is already a file in the assocfile table with primary key
         (pid, dname).
@@ -202,8 +186,7 @@ class AssociatedFile:
             where='pid=%s and filename="%s"' % (pid, fname))
         if result is not None:
             raise NameError, 'assocfile alreay has entry\n%s' % result
-        
-            
+
         fields = {'description': self.description,
                   'date': self.date,
                   'pid' : pid,
@@ -214,7 +197,6 @@ class AssociatedFile:
                     'filename' : fname,
                     'content' : self.to_conf_file()}
 
-        
         dm = servers.datamanager
         auth = dm.get_base64_authorization().replace('\n', '\\n')
         headers = {'Authorization' : 'Basic ' + auth}
@@ -233,7 +215,7 @@ class AssociatedFile:
             msg = 'EOI must be a web file to map to %s' % eegFilename
             raise RuntimeError, msg
 
-        #Check to see if the association already exists; if so, just return
+        # Check to see if the association already exists; if so, just return
         cursor = servers.sql.cursor
         sql = 'SELECT pid FROM assocmap WHERE ' +\
               'filename=%s AND assocfile=%s'
@@ -247,8 +229,6 @@ class AssociatedFile:
         cursor.execute(sql,
                        (self.pid, eegFilename, self.filename, 'eeg'))
 
-        
-
 class Loc3dJr(AssociatedFile):        
     extension = 'csv'
     filetype = 8
@@ -257,7 +237,6 @@ class Loc3dJr(AssociatedFile):
 
     def _load_data(self, fh):
         self.fh = StringIO(fh.read())
-
 
 class Info(AssociatedFile):        
     extension = 'info'
@@ -287,8 +266,7 @@ class EOI(list, AssociatedFile):
         if trodes is self: return
         self.clear_electrodes()
         self.extend(trodes)
-        
-        
+
     def _update_seen(self):
         self._seen = {}
         for (grdName, grdNum) in self:
@@ -304,7 +282,6 @@ class EOI(list, AssociatedFile):
         return self.description
 
     def _load_data(self, fh):
-
         fh.readline()  # slurp the header
 
         desc = fh.readline()  # slurp the description
@@ -313,7 +290,6 @@ class EOI(list, AssociatedFile):
             line = fh.readline().strip()
             if len(line)==0: break
             desc+=line
-
 
         trodes = []
         for line in fh.readlines():
@@ -327,7 +303,6 @@ class EOI(list, AssociatedFile):
         self.set_electrodes(trodes)
         self.set_description(desc)
 
-        
     def get_data(self, amp, eeg):
         """
         Given and Amp instance and an EEG instance, return the data
@@ -345,14 +320,12 @@ class EOI(list, AssociatedFile):
 
         Raises a KeyError if an eoi channel cannot be found in the amp
         struct and returns an error string indicating the problem EOI
-
         """
 
-        #First invert the amp struct into a map from [name][num] to index
+        # First invert the amp struct into a map from [name][num] to index
         ampdict = {}
         for (cnum, ename, enum) in amp:
             ampdict.setdefault(ename,{})[enum] = cnum-1
-
 
         indices = []
         for name, num in self:
@@ -376,19 +349,15 @@ class EOI(list, AssociatedFile):
             lines.append('%s %d' % tup)
         return '\n'.join(lines)
 
-
-
-
 class Amp(list, AssociatedFile):
     """
-
     An amplifier config file.  iterable as a list of (ampNum, grdName,
     grdNum) tuples
-
     """
     
     extension = 'amp'
     filetype = 3
+
     def __init__(self, dbaseFields=None, useFile=None):
         AssociatedFile.__init__(self, dbaseFields, useFile)
         self.message = None
@@ -401,7 +370,6 @@ class Amp(list, AssociatedFile):
             electrodes.append( (gname, gnum) )
         eoi.set_electrodes(electrodes)
         return eoi
-
 
     def _load_data(self, fh):
         """
@@ -427,8 +395,7 @@ class Amp(list, AssociatedFile):
             seengrid[(gname, gnum)] = 1
             ampChannels.append( (cnum, gname, gnum))
 
-
-        #flush the old list and set the new
+        # flush the old list and set the new
         self.set_channels(ampChannels)
         
     def clear_channels(self):
@@ -439,7 +406,6 @@ class Amp(list, AssociatedFile):
         if channels is self: return
         self.clear_channels()
         self.extend(channels)
-        
 
     def to_conf_file(self):
         "Convert self to a config file string"
@@ -455,8 +421,8 @@ class Amp(list, AssociatedFile):
 
     def get_electrode_to_indices_dict(self):
         "return a dict from electrodes to index into the data array"
-        return dict([ ( (name,num), ind-1 ) for ind, name, num in self])
 
+        return dict([ ( (name,num), ind-1 ) for ind, name, num in self])
 
     def get_dataind_dict(self):
         """
@@ -464,15 +430,15 @@ class Amp(list, AssociatedFile):
         necessarily the same as an index into the amp structure)
         to gname, gnum tuples        
         """
+
         return dict([ ( ind-1, (name,num) ) for ind, name, num in self])        
 
     def get_channelnum_dict(self):
         """
         Return a dict mapping channel num gname, gnum tuples
         """
+
         return dict([ ( ind, (name,num) ) for ind, name, num in self])        
-        
-        
 
 class Grids(AssociatedFile, dict):
     extension = 'grd'
@@ -509,8 +475,6 @@ class Grids(AssociatedFile, dict):
                 xyz = array([0.0,0.0,0.0])
             e.set_xyz(xyz)
 
-
-
     def get_dist_for_eoi(self, eoi):
         """
         Creates a dict of each pair with key (e1,e2) and the distance
@@ -527,6 +491,7 @@ class Grids(AssociatedFile, dict):
 
     def get_xyz_for_eoi(self, eoi):
         "Get the xyz coords for an eoi as a dict from name, num to x,y,z"
+
         XYZ = {}
         for name, num in eoi:
             try:
@@ -538,7 +503,6 @@ class Grids(AssociatedFile, dict):
         return XYZ
 
     def _load_data(self, fh):
-
         fh.readline(), fh.readline()  # slurp the header
 
         # clear the current dictionary
@@ -601,12 +565,35 @@ class Grids(AssociatedFile, dict):
         Get all the electrodes for every grid in the Grids instance as an
         EOI
         """
+
         eoi = EOI()
         eoi.set_electrodes([ (e.get_name(), e.get_num())
                              for aGrid in self.get_grids()
                              for e in aGrid.get_electrodes()])
         return eoi
 
+class Ann(dict, AssociatedFile) :
+    extension = 'ann.csv'
+    filetype  = 13
+
+    def __init__(self, dbaseFields=None, useFile=None) :
+        AssociatedFile.__init__(self, dbaseFields, useFile)
+        self.message = None
+
+    # xxx error checking
+    def _load_data(self, fh) :
+        reader = csv.reader(fh)
+        for line in reader :
+            if not line : next
+            self[(float(line[0]), float(line[1]))] = {
+                'startTime'     : float(line[0]),
+                'endTime'       : float(line[1]),
+                'created'       : line[2],
+                'edited'        : line[3],
+                'username'      : line[4],
+                'color'         : line[5],
+                'code'          : line[6],
+                'annotation'    : line[7]}
 
 def assoc_factory_web(entry):
     typeMap = { 3 : Amp,
@@ -617,39 +604,22 @@ def assoc_factory_web(entry):
     return typeMap[entry.type](entry.get_orig_map())
 
 def assoc_factory_filesystem(filetype, fname):
-    
     typeMap = { 3 : Amp,
                 4 : Grids,
                 5 : EOI,
                 8 : Loc3dJr,
                 12 : Info,
+                13 : Ann,
                 }
     return typeMap[filetype](useFile=fname)
 
-
-
 EDF, BMSI, NSASCII, NSCNT, FLOATARRAY, W18 = range(6)
 
-
-class EEGBase:
-    """
-    The following attributes are publicly available
-
-      pid 
-      date 
-      filename 
-      description 
-      channels 
-      freq 
-      classification 
-      file_type 
-      behavior_state 
-
-    """
+class EEGBase:               
     def __init__(self):
         self.readmap = {BMSI : self._read_nicolet,
                         W18  : self._read_w18,
-                   }
+                       }
 
         self.scale= None
 
@@ -675,9 +645,7 @@ class EEGBase:
         else:
             return eois[0]
 
-        
     def get_amp(self, name=None):
-
         if name is not None:
             amps = self.get_associated_files(3, mapped=1)
             for amp in amps:
@@ -687,11 +655,9 @@ class EEGBase:
             else:
                 raise ValueError('Could not find amp file with name %s' % name)
 
-
         try:
             return self.amp
         except AttributeError:
-
             amp = self.get_associated_files(3, mapped=1)
             if len(amp)==1:
                 amp = amp[0]
@@ -708,7 +674,6 @@ class EEGBase:
                     channels.append((i+1, 'NA', i+1))
                 amp.set_channels(channels)
 
-
         self.amp = amp
         return amp
 
@@ -720,6 +685,7 @@ class EEGBase:
                 grd = grd[0]
             elif len(grd)>1:
                 grd = grd[0]
+                # xxx popup select dialog
                 print 'Warning: %s has more than one grd file; using %s' %\
                       (self.filename, grd.filename)
             elif len(grd)==0:
@@ -736,6 +702,32 @@ class EEGBase:
             return None
         self.loc3djr = loc3djr[0]
         return self.loc3djr
+
+    def get_ann(self, name=None) :
+        if name is not None :
+            anns = self.get_associated_files(13, mapped=1)
+            for ann in anns :
+                if ann.filename == name :
+                    self.ann = ann
+                    return ann
+            else :
+                raise ValueError('Could not file annotation file with name %s' % name)
+            
+        try : return self.ann
+        except AttributeError :
+            anns = self.get_associated_files(13, mapped=1)
+            if len(anns) == 1 :
+                ann = anns[0]
+            elif len(anns) > 1 :
+                ann = anns[0]
+                ann.message = 'Warning: %s has more than one annotation file; using %s' % \
+                              (self.filename, ann.filename)
+            else :
+                ann = Ann()
+                ann.message = 'No annotation file associated with this EEG; using default'
+
+        self.ann = ann
+        return ann
 
     def get_num_samples(self):
         self.load_data()
@@ -755,7 +747,6 @@ class EEGBase:
         self.baseline = median(data)
         #print self.baseline.shape, data.shape
 
-
     def get_baseline(self):
         try: return self.baseline
         except AttributeError:
@@ -763,13 +754,11 @@ class EEGBase:
             return self.baseline
 
     def get_data(self, tmin, tmax):
-
         if (self.lastDataQuery is not None and
             self.lastDataQuery[0] == (tmin, tmax) ):
             return self.lastDataQuery[1]
         assert(tmax>tmin)
 
-        
         #print 'filetype', type(self.file_type), self.file_type
         
         try: t, data = self.readmap[self.file_type](tmin, tmax)
@@ -784,8 +773,8 @@ class EEGBase:
 
     def _read_nicolet(self, tmin, tmax):
         """Load Nicolet BMSI data."""
-        if tmin<0: tmin=0
 
+        if tmin<0: tmin=0
 
         BYTES_PER_SAMPLE = self.channels*2
         indmin = int(self.freq*tmin)
@@ -804,7 +793,6 @@ class EEGBase:
 
         if self.scale is not None:
             data = self.scale*data
-
 
         t = (1/self.freq)*arange(indmin, indmax)
         return t, data
@@ -825,9 +813,6 @@ class EEGBase:
         """
 
         raise NotImplementedError('Derived must override')
-        
-
-
 
 class EEGWeb(EEGBase):
     def __init__(self, fields):
@@ -844,10 +829,7 @@ class EEGWeb(EEGBase):
             setattr(self, 'get_' + name, get_func)
             setattr(self, 'set_' + name, set_func)
 
-
     def load_data(self):
-
-
         try: self.fh
         except AttributeError: pass
         else: return
@@ -908,8 +890,6 @@ class EEGWeb(EEGBase):
             l.append(assoc_factory_web(entry))
 
         return l
-        
-
 
 def read_eeg_params(fh):
     cfuncs = {
@@ -933,12 +913,12 @@ def read_eeg_params(fh):
     return d
 
 class EEGFileSystem(EEGBase):
-
     def __init__(self, fullpath, params=None, get_params=None):
         """
         params is a dict
         get_params has dict signature dict = get_params(fullpath)
         """
+
         EEGBase.__init__(self)
         if not os.path.exists(fullpath):
             raise ValueError('%s does not exist' % fullpath)
@@ -958,8 +938,6 @@ class EEGFileSystem(EEGBase):
             
         self.__dict__.update(params) # sets filename and other attrs
 
-
-        
         def make_get_set(name, val):
             def get_func(): return params[name]
             def set_func(val): setattr(self, name, val)
@@ -970,28 +948,43 @@ class EEGFileSystem(EEGBase):
             setattr(self, 'get_' + name, get_func)
             setattr(self, 'set_' + name, set_func)
 
-
         self.eois = self._get_assocfiles('*.eoi')
         self.amps = self._get_assocfiles('*.amp')
         self.infos = self._get_assocfiles('*.info')
-        self.csvs = self._get_assocfiles('*.csv')
+        self.grds = self._get_assocfiles('*.grd.csv')
+        base, ext = os.path.splitext(self.filename)
+        self.anns = self._get_assocfiles('%s.ann.csv' % base)
+
+        # Warn if old-style CSV files found.
+        csvs = self._get_assocfiles('*.csv')
+        legit = Set(self.grds + self.anns)
+        bad = []
+        for csv in csvs:
+            if csv not in legit:
+                bad.append(csv)
+        if bad :
+            msg = "Found the following old-style CSV files:\n"
+            for csv in bad :
+                msg += "    %s\n" % csv
+            msg += "\nRename to *.grd.csv or *.ann.csv."
+            dlg = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
+                                    buttons=gtk.BUTTONS_OK,
+                                    message_format=msg)
+            dlg.set_title('Old CSV Files Found')
+            response = dlg.run()
+            dlg.destroy()
 
     def _get_assocfiles(self, pattern):
         return glob.glob(os.path.join(self.path, pattern))
-                         
-        
-        
-    def load_data(self):
 
+    def load_data(self):
         try: self.fh
         except AttributeError: pass
         else: return
 
-        
         try: self.fh = file(self.fullpath, 'rb')
         except IOError, msg:
             raise ValueError('Could not open %s for reading' % self.fullpath)
-
 
     def get_associated_files(self, atype, mapped=1, fname=None):
         """
@@ -999,13 +992,14 @@ class EEGFileSystem(EEGBase):
         true, only return files that are mapped to this eeg, else
         return all associated files of type for this patient
         """
-        BNI, AMP, EOI, CSV, INFO = 1, 3, 5, 8, 12
+
+        BNI, AMP, EOI, GRD, INFO, ANN = 1, 3, 5, 8, 12, 13
         assocmap = {AMP : self.amps,
                     EOI : self.eois,
-                    CSV : self.csvs,
+                    GRD : self.grds,
                     INFO : self.infos,
+                    ANN : self.anns,
                     }
-
 
         fnames = assocmap.get(atype, None)
         if fnames is None: raise ValueError('Cannot handle assoc type %d' % atype)
@@ -1016,11 +1010,6 @@ class EEGFileSystem(EEGBase):
             l.append(assoc_factory_filesystem(atype, fullpath))
 
         return l
-        
-
-
-
-
 
 def submit_form(host, path, fields, headers=None, fileInfo=None):
     """
@@ -1040,12 +1029,11 @@ def submit_form(host, path, fields, headers=None, fileInfo=None):
       'filename' : the upload file name
       'content'  : the data
 
-      """
+    """
 
     if headers is None: headers = {}
 
     sep = '10252023621350490027783368690'
-
 
     h = httplib.HTTP(host)
     h.putrequest('POST', path)
@@ -1071,9 +1059,7 @@ def submit_form(host, path, fields, headers=None, fileInfo=None):
         body.append(str(fileInfo['content']))
         body.append('')
 
-
     for key, val in fields.items():
-
         body.append(sep);
         body.append('Content-Disposition: form-data; name="%s"' % key)
         body.append('')
