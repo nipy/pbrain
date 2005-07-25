@@ -80,8 +80,6 @@ def get_w18_data(fh, indmin, indmax):
     return a.astype(Float)
     #return a
 
-
-
 def to_hertz(s):
     assert(s.find('Hz')>=0)
     val, hz = s.split()
@@ -222,6 +220,7 @@ class FileFormat_BNI:
         Return None if no label for that channel num
         """
         return self.labeld.get(cnum)
+
     def get_eeg(self, eegpath):
 
         assert(self.params.has_key('Filename'))

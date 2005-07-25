@@ -1,4 +1,4 @@
-# TODO: clear x,y lim and ticks when you change eegs
+#h TODO: clear x,y lim and ticks when you change eegs
 # TODO: fix vsteps for different numbers of electrodes
 # font sizes are different on ylabels
 from __future__ import division
@@ -1173,6 +1173,10 @@ class MainWindow(PrefixWrapper):
         menuItemNew.connect("activate", self.new_eoi)
         menuItemNew.show()
 
+        menuItemSep = gtk.MenuItem()
+        contextMenu.append(menuItemSep)
+        menuItemSep.show()
+
         label = "Annotate Highlighted Area"
         menuItemAnnotate = gtk.MenuItem(label)
         contextMenu.append(menuItemAnnotate)
@@ -1312,7 +1316,8 @@ class MainWindow(PrefixWrapper):
                 'color'         : params['color'],
                 'annotation'    : params['annotation']}
 
-            # xxx Write ann file.
+            # Write ann file.
+            ann.save_data()
 
             # Create new annotation box.
             self.eegPlot.update_annotations()
@@ -1360,13 +1365,14 @@ class MainWindow(PrefixWrapper):
         response = dlg.run()
         dlg.destroy()
 
-        if response == gtk.RESPONSE_OK :
+        if response == gtk.RESPONSE_YES :
             ann = self.eegPlot.eeg.get_ann()
             rect = ann[self.eegPlot.currRect]['rect']
-            # xxx how to delete Rectangle?
-#            del ann[self.eegPlot.currRect]
-#            del self.eegPlot.currRect
-
+            self.eegPlot.axes.patches.remove(rect)
+            del ann[self.eegPlot.currRect]
+            del self.eegPlot.currRect
+            self.eegPlot.draw()
+            
     def on_buttonSaveExcursion_clicked(self, event):
 
         self.eegPlot.save_excursion()
@@ -1398,11 +1404,8 @@ class MainWindow(PrefixWrapper):
     def realize(self, widget):
         return gtk.TRUE
 
-
-            
     def key_press_event(self, widget, event):
         print event, dir(event)
-
 
     def key_release_event(self, widget, event):
         print 'bye mom'
@@ -1510,7 +1513,6 @@ class MainWindow(PrefixWrapper):
             # right click brings up the context menu
             if self.axes.in_axes(x, y):
                 menu = self.eoiMenu
-                print menu
             elif self.axesSpec.in_axes(x,y):
                 menu = self.specMenu
             else:
@@ -1584,9 +1586,8 @@ class MainWindow(PrefixWrapper):
                 t, f = self.axesSpec.transData.inverse_xy_tup( (x,y) )
                 self.update_status_bar(
                     'Time  = %1.1f (s), Freq = %1.1f (Hz)' % (t,f))
-
-                
         else: print event.button
+
         return gtk.TRUE
 
     def button_release_event(self, widget, event):

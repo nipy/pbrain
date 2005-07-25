@@ -105,7 +105,6 @@ class Dialog_SelectElectrodes(gtk.Dialog):
             start, end = self.buffer.get_bounds()
             self.selected.description = self.buffer.get_text(start, end)
             ok_callback(self.selected)
-            
 
         def invert_selection(*args):
             iters = []
@@ -935,10 +934,18 @@ class Dialog_AnnBrowser(PrefixWrapper) :
         width = tmax - tmin
 	startTime, endTime = tmin, tmax
 	if newStartEndTime[0] < tmin or newStartEndTime[0] > tmax:
-	    startTime = newStartEndTime[0]
+            newWidth = newStartEndTime[1] - newStartEndTime[0]
+            if newWidth < width :
+                space = (width - newWidth) / 2.0
+                if newStartEndTime[0] - space < 0 :
+                    startTime = 0
+                else :
+                    startTime = newStartEndTime[0] - space
+            else :
+              startTime = newStartEndTime[0] - .5
 	if newStartEndTime[1] > tmax :
 	    if newStartEndTime[1] > startTime + width :
-                endTime = newStartEndTime[1]
+                endTime = newStartEndTime[1] + .5
             else :
                 endTime = startTime + width
         elif newStartEndTime[1] < tmin :
