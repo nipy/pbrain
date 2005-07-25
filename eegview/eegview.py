@@ -378,7 +378,8 @@ class AnnotationManager:
     def __init__(self, eegplot):
         self.eegplot = eegplot
         self.axes = self.eegplot.axes
-        self.selector = HorizontalSpanSelector(self.axes, self.onselect)
+        self.selector = HorizontalSpanSelector(self.axes, self.onselect,
+                                               useblit=True)
 
         self._highlight = None
 
