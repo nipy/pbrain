@@ -16,6 +16,7 @@ import file_formats
 import csv
 import gtk
 
+
 import servers
 e1020 = Set([
     'cz', 'c3', 'c4',
@@ -133,6 +134,30 @@ class AssociatedFile:
             url = dm.get_data_url(self.pid, 'assoc', self.filename)
             fh = urllib.urlopen(url)
             self._load_data(fh)
+
+    def save_data(self, useFile=None, append=False) :
+        if useFile is None and not self.is_web_file() :
+            try : self.fullpath
+            except :
+                useFile = ''
+            else :
+                useFile = self.fullpath
+
+        if useFile is not None :
+            fh = None
+            try :
+                if append :
+                    fh = file(useFile, 'a')
+                else :
+#                    fh = file(useFile, 'w')
+                    print "write", useFile
+            except IOError :
+                raise ValueError('Failed to open %s for writing/appending' % useFile)
+            self._save_data(fh, append)
+              
+        else :
+            # xxx Web save
+            print "web save"
 
     def update_web(self, fname=None):
         "Update the web version of the file and database"
@@ -252,7 +277,6 @@ class EOI(list, AssociatedFile):
     filetype = 5
 
     def __init__(self, dbaseFields=None, useFile=None, electrodes=None):
-
         AssociatedFile.__init__(self, dbaseFields, useFile)
         if electrodes is not None:
             self.set_electrodes(electrodes)
@@ -580,7 +604,7 @@ class Ann(dict, AssociatedFile) :
         AssociatedFile.__init__(self, dbaseFields, useFile)
         self.message = None
 
-    # xxx error checking
+    # xxx error checking of file format
     def _load_data(self, fh) :
         reader = csv.reader(fh)
         for line in reader :
@@ -595,6 +619,13 @@ class Ann(dict, AssociatedFile) :
                 'code'          : line[6],
                 'annotation'    : line[7]}
 
+    def _save_data(self, fh, append = False) :
+#        writer = csv.writer(fh)
+        startEndTimes = self.keys()
+        startEndTimes.sort()
+        for startEndTime in startEndTimes :
+            print self[startEndTime]
+          
 def assoc_factory_web(entry):
     typeMap = { 3 : Amp,
                 4 : Grids,
@@ -918,6 +949,8 @@ class EEGFileSystem(EEGBase):
         params is a dict
         get_params has dict signature dict = get_params(fullpath)
         """
+
+	print 'fullpath', fullpath
 
         EEGBase.__init__(self)
         if not os.path.exists(fullpath):

@@ -16,3 +16,15 @@ eegview.py
 data.py
   - warn if old-style CSV file found
   - name of annotation file should be <eeg file base>.ann.csv
+
+
+7.25.05 jowaxman
+
+eegview.py
+  - Delete annotations
+  - When you move to an annotation using the annotation browser, center
+    it in the axes
+  - also adjust limits to display annotation larger than current limits
+
+data.py
+  - starting to add support for saving files
