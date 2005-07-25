@@ -1,6 +1,4 @@
 import sys, os
-import pygtk
-pygtk.require('2.0')
 import gtk, gobject
 
 from Numeric import arange

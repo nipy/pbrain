@@ -1,14 +1,13 @@
 import os, sys
 import errno, StringIO, traceback
 
-import pygtk
-pygtk.require('2.0')
 import gtk
 from gtk import gdk
 import gobject
 import gtk
-from gtk import TRUE, FALSE
 
+from matplotlib.patches import Rectangle
+from matplotlib.transforms import blend_xy_sep_transform
 
 def is_string_like(obj):
     if hasattr(obj, 'shape'): return 0 # this is a workaround
@@ -363,7 +362,7 @@ def get_num_range(minLabel='Min', maxLabel='Max',
     entryMax = gtk.Entry()
     entryMax.show()
     entryMax.set_width_chars(10)
-    entryMax.set_activates_default(gtk.TRUE)
+    entryMax.set_activates_default(True)
     
     table = gtk.Table(2,2)
     table.show()
@@ -374,7 +373,7 @@ def get_num_range(minLabel='Min', maxLabel='Max',
     table.attach(labelMax, 1, 2, 0, 1)
     table.attach(entryMin, 0, 1, 1, 2)
     table.attach(entryMax, 1, 2, 1, 2)
-    dlg.vbox.pack_start(table, gtk.TRUE, gtk.TRUE)
+    dlg.vbox.pack_start(table, True, True)
 
     dlg.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
     dlg.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
@@ -421,11 +420,11 @@ def select_name(names, title='Select Name'):
         buttons.append(button)
         button.set_label(name)
         button.show()
-        vbox.pack_start(button, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(button, True, True)
         buttond[button] = name
     hbox = gtk.HBox()
     hbox.show()
-    vbox.pack_start(hbox, gtk.FALSE, gtk.FALSE)
+    vbox.pack_start(hbox, False, False)
 
     dlg.add_button('Cancel', gtk.RESPONSE_CANCEL)
     dlg.add_button('OK', gtk.RESPONSE_OK)
@@ -494,16 +493,16 @@ def get_num_value(labelStr='Value', title='Enter value', parent=None,
     entry = gtk.Entry()
     entry.show()
     entry.set_width_chars(10)
-    entry.set_activates_default(gtk.TRUE)
+    entry.set_activates_default(True)
     if default is not None:
         entry.set_text('%1.4f' % default)
 
     hbox = gtk.HBox()
     hbox.show()
-    hbox.pack_start(label, gtk.TRUE, gtk.TRUE)
-    hbox.pack_start(entry, gtk.TRUE, gtk.TRUE)
+    hbox.pack_start(label, True, True)
+    hbox.pack_start(entry, True, True)
     
-    dlg.vbox.pack_start(hbox, gtk.TRUE, gtk.TRUE)
+    dlg.vbox.pack_start(hbox, True, True)
 
     dlg.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
     dlg.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
@@ -546,7 +545,7 @@ def get_two_nums(label1Str='Min', label2Str='Max',
     entry2 = gtk.Entry()
     entry2.show()
     entry2.set_width_chars(10)
-    entry2.set_activates_default(gtk.TRUE)
+    entry2.set_activates_default(True)
     
     table = gtk.Table(2,2)
     table.show()
@@ -557,7 +556,7 @@ def get_two_nums(label1Str='Min', label2Str='Max',
     table.attach(label2, 1, 2, 0, 1)
     table.attach(entry1, 0, 1, 1, 2)
     table.attach(entry2, 1, 2, 1, 2)
-    dlg.vbox.pack_start(table, gtk.TRUE, gtk.TRUE)
+    dlg.vbox.pack_start(table, True, True)
 
     dlg.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
     dlg.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
@@ -587,22 +586,22 @@ def add_button_icon_pixmap(button, pixmap, orientation='left'):
 
     if orientation is None:
         box = gtk.HBox(spacing=0)
-        box.pack_start(pixmap, gtk.FALSE, gtk.FALSE, 0)        
+        box.pack_start(pixmap, False, False, 0)        
 
     if orientation in ('left', 'right'):
         box = gtk.HBox(spacing=5)
     elif orientation in ('top', 'bottom'):
         box = gtk.VBox(spacing=5)
     if orientation in ('left', 'top'):
-        box.pack_start(pixmap, gtk.FALSE, gtk.FALSE, 0)
-        box.pack_start(label, gtk.FALSE, gtk.FALSE, 0)
+        box.pack_start(pixmap, False, False, 0)
+        box.pack_start(label, False, False, 0)
     elif orientation in ('right', 'bottom'):
-        box.pack_start(label, gtk.FALSE, gtk.FALSE, 0)
-        box.pack_start(pixmap, gtk.FALSE, gtk.FALSE, 0)
+        box.pack_start(label, False, False, 0)
+        box.pack_start(pixmap, False, False, 0)
 
     hbox = gtk.HBox()
     if box is not None:
-        hbox.pack_start(box, gtk.TRUE, gtk.FALSE, 0)
+        hbox.pack_start(box, True, False, 0)
     hbox.show_all()
     button.add(hbox)
 
@@ -635,23 +634,23 @@ class OpenSaveSaveAsHBox(gtk.HBox):
 
         label = gtk.Label('File')
         label.show()
-        self.pack_start(label, gtk.FALSE, gtk.FALSE)
+        self.pack_start(label, False, False)
 
         button = gtk.Button(stock=gtk.STOCK_OPEN)
         button.show()
         button.connect('clicked', self.open)
-        self.pack_start(button, gtk.TRUE, gtk.TRUE)
+        self.pack_start(button, True, True)
 
         button = gtk.Button(stock=gtk.STOCK_SAVE)
         button.show()
         button.connect('clicked', self.save)
-        self.pack_start(button, gtk.TRUE, gtk.TRUE)
+        self.pack_start(button, True, True)
 
 
         button = gtk.Button(stock=gtk.STOCK_SAVE_AS)
         button.show()
         button.connect('clicked', self.save_as)
-        self.pack_start(button, gtk.TRUE, gtk.TRUE)
+        self.pack_start(button, True, True)
 
         
     def open(self, button):
@@ -734,12 +733,12 @@ gtk.main()
         self.set_title(title)
         self.set_border_width(8)
 
-        vbox = gtk.VBox(FALSE, 8)
+        vbox = gtk.VBox(False, 8)
         self.add(vbox)
 
         # todo add toolbar here
         toolbar = self.make_toolbar()
-        vbox.pack_start(toolbar, FALSE, FALSE)
+        vbox.pack_start(toolbar, False, False)
 
         sw = gtk.ScrolledWindow()
         sw.set_shadow_type(gtk.SHADOW_ETCHED_IN)
@@ -750,7 +749,7 @@ gtk.main()
         model = self.create_model()
 
         self.treeview = gtk.TreeView(model)
-        self.treeview.set_rules_hint(TRUE)
+        self.treeview.set_rules_hint(True)
         sw.add(self.treeview)
 
         self.add_columns()
@@ -815,3 +814,160 @@ gtk.main()
         for row in self.rows:
             print >>fh, ','.join(row)
         fh.close()
+
+
+class HorizontalSpanSelector:
+    """
+    Select a min/max range of the x axes for a matplotlib Axes
+
+    Example usage:
+
+      ax = subplot(111)
+      ax.plot(x,y)
+
+      def onselect(xmin, xmax):
+      print xmin, xmax
+      span = HorizontalSpanSelector(ax, onselect)
+
+    """
+    def __init__(self, ax, onselect, useblit=False, rectprops=None):
+        """
+        Create a span selector in ax.  When a selection is made, clear
+        the span and call onselect with
+
+          onselect(xmin, xmax)
+
+        and clear the span.
+
+        The span rect is drawn with rectprops; default
+          rectprops = dict(facecolor='red', alpha=0.5)
+
+        set the visible attribute to False if you want to turn off
+        the functionality of the span selector
+        """
+        if rectprops is None:
+            rectprops = dict(facecolor='red', alpha=0.5)        
+            
+        self.ax = ax
+        self.visible = True
+        self.canvas = ax.figure.canvas
+        self.canvas.mpl_connect('motion_notify_event', self.onmove)
+        self.canvas.mpl_connect('button_press_event', self.press)
+        self.canvas.mpl_connect('button_release_event', self.release)
+        self.rect = None
+        self.background = None
+        self.idleid = 0
+        self.rectprops = rectprops
+        self.onselect = onselect
+        self.useblit = useblit
+
+
+    def press(self, event):
+
+        if not self.visible or event.button !=1 or not event.inaxes: return 
+
+        self.background = self.canvas.copy_from_bbox(self.ax.bbox)
+
+        trans = blend_xy_sep_transform(self.ax.transData, self.ax.transAxes)
+        self.rect = Rectangle( (event.xdata,0), 0, 1,
+                               transform=trans,
+                               **self.rectprops
+                               )
+        self.ax.add_patch(self.rect)
+        self.canvas.draw()
+        self.pressx = event.xdata
+        return False
+
+    def release(self, event):
+        if not self.visible or event.button !=1: return 
+
+        self.background = None
+        self.ax.patches.remove(self.rect)
+        self.canvas.draw()
+        
+        xmin = self.rect.xy[0]
+        self.onselect(xmin, xmin + self.rect.get_width())
+        self.rect = None
+        return False
+
+    def update(self):
+        if self.useblit:
+            self.canvas.restore_region(self.background)
+            self.ax.draw_artist(self.rect)
+            self.canvas.blit(self.ax.bbox)
+            self.idleid = 0
+        else:
+            self.canvas.draw_idle()            
+        return False
+
+    def onmove(self, event):
+
+        if (not self.visible or self.background is None or
+            self.rect is None or event.button!=1 or not event.inaxes):
+            return
+        x,y = event.xdata, event.ydata
+
+
+        if x>self.pressx:
+            self.rect.set_width(x-self.pressx)
+        else:
+            self.rect.set_width(self.pressx-x)
+            self.rect.xy[0] = x 
+        if self.idleid==0:
+            self.idleid = gobject.idle_add(self.update)
+        return False
+
+
+class Cursor:
+    def __init__(self, ax, rgb=(1,0,0), linewidth=1):
+        self.ax = ax
+        self.canvas = ax.figure.canvas
+        self.rgb = rgb
+        self.linewidth = linewidth
+        self.canvas.mpl_connect('motion_notify_event', self.onmove)
+
+        self.idleid = 0
+        self.visible = True
+        self.horizOn = True
+        self.vertOn = True
+
+        self._lastvert = None
+        self._lasthoriz = None
+
+
+    def onmove(self, event):
+        if not self.visible or not event.inaxes: return
+        drawable = self.canvas.window
+        if drawable == None: return
+        gc = drawable.new_gc()
+        cmap = drawable.get_colormap()
+        r,g,b = self.rgb
+        gc.line_width = self.linewidth
+        gc.foreground = cmap.alloc_color( int((1-r)*65535),
+                                          int((1-g)*65535),
+                                          int((1-b)*65535))
+
+        
+        gc.function = gtk.gdk.XOR
+        figh = self.ax.figure.bbox.height()
+        l,b,w,h = self.ax.bbox.get_bounds()
+
+        b = figh-b
+        t = b-h
+        if self.vertOn:
+            if self._lastvert is not None:
+                drawable.draw_line(gc, *self._lastvert)
+            vertline = int(event.x), int(t), int(event.x), int(b)
+            drawable.draw_line(gc, *vertline)                           
+            self._lastvert = vertline
+
+
+        if self.horizOn:
+            if self._lasthoriz is not None:
+                drawable.draw_line(gc, *self._lasthoriz)
+            horizline = int(l), int(figh-event.y), int(l+w), int(figh-event.y)
+            drawable.draw_line(gc, *horizline)
+            self._lasthoriz = horizline
+
+                           
+        return False

@@ -124,7 +124,7 @@ CodeRegistry.register_code(
              ('EEG Filt' , 6),
              ('CT zip' , 9),
              ('MRI zip' , 10),
-             ('Annotation data', 13)
+             ('Annotation data', 13),
 
              ('Cohstat XYZ' , 7),
              ('Cohstat DAT' , 11),
