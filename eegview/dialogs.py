@@ -1311,7 +1311,7 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         
     def scroll(self, *args):
         fname = '%s%05d' % (self.entryMovie.get_text(), self.ind)
-        print 'fname', fname
+        #print 'fname', fname
         self.update_status_bar()
         if self.ind>=0 and self.ind<len(self.steps):
             thisMin = self.steps[self.ind]
@@ -1343,7 +1343,7 @@ class AutoPlayDialog(gtk.Dialog, Observer):
 
 
         self.steps = arange(valMin, valMax-self.twidth+0.001, valStep)
-        print valMin, valMax, valStep, self.twidth, len(self.steps)
+        #print valMin, valMax, valStep, self.twidth, len(self.steps)
         if self.steps != self.lastSteps:
             self.ind = 0
         self.lastSteps = self.steps
