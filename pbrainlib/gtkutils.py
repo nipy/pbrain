@@ -6,8 +6,6 @@ from gtk import gdk
 import gobject
 import gtk
 
-from matplotlib.patches import Rectangle
-from matplotlib.transforms import blend_xy_sep_transform
 
 def is_string_like(obj):
     if hasattr(obj, 'shape'): return 0 # this is a workaround
@@ -816,158 +814,9 @@ gtk.main()
         fh.close()
 
 
-class HorizontalSpanSelector:
-    """
-    Select a min/max range of the x axes for a matplotlib Axes
-
-    Example usage:
-
-      ax = subplot(111)
-      ax.plot(x,y)
-
-      def onselect(xmin, xmax):
-      print xmin, xmax
-      span = HorizontalSpanSelector(ax, onselect)
-
-    """
-    def __init__(self, ax, onselect, useblit=False, rectprops=None):
-        """
-        Create a span selector in ax.  When a selection is made, clear
-        the span and call onselect with
-
-          onselect(xmin, xmax)
-
-        and clear the span.
-
-        The span rect is drawn with rectprops; default
-          rectprops = dict(facecolor='red', alpha=0.5)
-
-        set the visible attribute to False if you want to turn off
-        the functionality of the span selector
-        """
-        if rectprops is None:
-            rectprops = dict(facecolor='red', alpha=0.5)        
-            
-        self.ax = ax
-        self.visible = True
-        self.canvas = ax.figure.canvas
-        self.canvas.mpl_connect('motion_notify_event', self.onmove)
-        self.canvas.mpl_connect('button_press_event', self.press)
-        self.canvas.mpl_connect('button_release_event', self.release)
-        self.rect = None
-        self.background = None
-        self.idleid = 0
-        self.rectprops = rectprops
-        self.onselect = onselect
-        self.useblit = useblit
 
 
-    def press(self, event):
-
-        if not self.visible or event.button !=1 or not event.inaxes: return 
-
-        self.background = self.canvas.copy_from_bbox(self.ax.bbox)
-
-        trans = blend_xy_sep_transform(self.ax.transData, self.ax.transAxes)
-        self.rect = Rectangle( (event.xdata,0), 0, 1,
-                               transform=trans,
-                               **self.rectprops
-                               )
-        self.ax.add_patch(self.rect)
-        self.canvas.draw()
-        self.pressx = event.xdata
-        return False
-
-    def release(self, event):
-        if not self.visible or event.button !=1: return 
-
-        self.background = None
-        self.ax.patches.remove(self.rect)
-        self.canvas.draw()
-        
-        xmin = self.rect.xy[0]
-        self.onselect(xmin, xmin + self.rect.get_width())
-        self.rect = None
-        return False
-
-    def update(self):
-        if self.useblit:
-            self.canvas.restore_region(self.background)
-            self.ax.draw_artist(self.rect)
-            self.canvas.blit(self.ax.bbox)
-            self.idleid = 0
-        else:
-            self.canvas.draw_idle()            
-        return False
-
-    def onmove(self, event):
-
-        if (not self.visible or self.background is None or
-            self.rect is None or event.button!=1 or not event.inaxes):
-            return
-        x,y = event.xdata, event.ydata
 
 
-        if x>self.pressx:
-            self.rect.set_width(x-self.pressx)
-        else:
-            self.rect.set_width(self.pressx-x)
-            self.rect.xy[0] = x 
-        if self.idleid==0:
-            self.idleid = gobject.idle_add(self.update)
-        return False
-
-
-class Cursor:
-    def __init__(self, ax, rgb=(1,0,0), linewidth=1):
-        self.ax = ax
-        self.canvas = ax.figure.canvas
-        self.rgb = rgb
-        self.linewidth = linewidth
-        self.canvas.mpl_connect('motion_notify_event', self.onmove)
-
-        self.idleid = 0
-        self.visible = True
-        self.horizOn = True
-        self.vertOn = True
-
-        self._lastvert = None
-        self._lasthoriz = None
-
-
-    def onmove(self, event):
-        if not self.visible or not event.inaxes: return
-        drawable = self.canvas.window
-        if drawable == None: return
-        gc = drawable.new_gc()
-        cmap = drawable.get_colormap()
-        r,g,b = self.rgb
-        gc.line_width = self.linewidth
-        gc.foreground = cmap.alloc_color( int((1-r)*65535),
-                                          int((1-g)*65535),
-                                          int((1-b)*65535))
 
         
-        gc.function = gtk.gdk.XOR
-        figh = self.ax.figure.bbox.height()
-        l,b,w,h = self.ax.bbox.get_bounds()
-
-        b = figh-b
-        t = b-h
-        if self.vertOn:
-            if self._lastvert is not None:
-                drawable.draw_line(gc, *self._lastvert)
-            vertline = int(event.x), int(t), int(event.x), int(b)
-            drawable.draw_line(gc, *vertline)                           
-            self._lastvert = vertline
-
-
-        if self.horizOn:
-            if self._lasthoriz is not None:
-                drawable.draw_line(gc, *self._lasthoriz)
-            horizline = int(l), int(figh-event.y), int(l+w), int(figh-event.y)
-            drawable.draw_line(gc, *horizline)
-            self._lasthoriz = horizline
-
-                           
-        return False
