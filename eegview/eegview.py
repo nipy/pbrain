@@ -1,3 +1,19 @@
+# begin jonanthan -
+#
+#  * I think it might be more intuitive to make a rect selected upon
+#    annotation
+#
+#  * The delete annotation appears broken
+#
+#  * the rect drawing is fucked w/ or w/o use blit but I think I can
+#  fix this reasonably soon
+# 
+#  * add toggle cursor visibility to context menu
+#
+#  * add toggle annotation visibility to context menu
+#
+# end jonanthan
+#
 # TODO: fix vsteps for different numbers of electrodes
 # font sizes are different on ylabels
 from __future__ import division
@@ -14,8 +30,9 @@ from Numeric import fromstring, arange, Int16, Float, log10
 import MLab
 from matplotlib.cbook import enumerate, exception_to_str, popd
 from pbrainlib.gtkutils import str2num_or_err, simple_msg, error_msg, \
-     not_implemented, yes_or_no, FileManager, select_name, get_num_range,\
-     Cursor, HorizontalSpanSelector
+     not_implemented, yes_or_no, FileManager, select_name, get_num_range
+
+from matplotlib.widgets import Cursor, HorizontalSpanSelector
 
 from data import EEGWeb, EEGFileSystem, EOI, Amp, Grids
 from file_formats import FileFormat_BNI, W18Header, FileFormat_BNI
@@ -378,8 +395,10 @@ class AnnotationManager:
     def __init__(self, eegplot):
         self.eegplot = eegplot
         self.axes = self.eegplot.axes
+        self.canvas = self.axes.figure.canvas
         self.selector = HorizontalSpanSelector(self.axes, self.onselect,
-                                               useblit=True)
+                                               minspan=0.01, 
+                                               useblit=False)
 
         self._highlight = None
 
@@ -391,13 +410,12 @@ class AnnotationManager:
         self.selectedkey = None
 
     def onselect(self, xmin, xmax):
-    
-        self._highlight = self._new_rect(xmin, xmax, 
-                                         facecolor='#bbbbff',
-                                         edgecolor='k',
-                                         linewidth=2,
-                                         alpha=0.5,
-                                         )
+        self._highlight = xmin, xmax, self._new_rect(xmin, xmax, 
+                                                     facecolor='#bbbbff',
+                                                     edgecolor='k',
+                                                     linewidth=2,
+                                                     alpha=0.5,
+                                                     )
         
 
     def _new_rect(self, xmin, xmax, **props):
@@ -412,31 +430,46 @@ class AnnotationManager:
         
     def over_annotation(self, t):
         """
-        if you are over an annotation, return it's key, else None
+        If you are over an annotation, return it's key
+
+        If you are over multiple annotations, return the one who's
+        center is closest to point
+
+        If not over annotation, return None
         """
         ann = self.eegplot.eeg.get_ann()
 
-        #todo/xxx: what to do about overlapping windows
+        ret = []
         for s,e in ann.keys(): 
-            if t>=s and t<=e: return s,e
-        return None
+            if t>=s and t<=e:
+                middle = 0.5*(e+s)
+                d = abs(t-middle)
+                ret.append( (d, (s,e) ) )
+        ret.sort()
+        if not len(ret): return None
+        return ret[0][1]  
         
             
     def remove_highlight(self):
         if self._highlight is not None:
-            self.axes.patches.remove(self._highlight)
+            xmin, xmax, rect = self._highlight
+            self.axes.patches.remove(rect)
         self._highlight = None
+        self.canvas.draw()
+        self.selector.update_background()
 
     def get_highlight(self):
-        'return a Rectangle instance if a rect is highlighted'
+        """
+        return (xmin, xmax, Rectangle instance) if a rect is highlighted
+        Otherwise return None
+        """
         return self._highlight 
 
     def highlight_span(self):
         'return the min/max of current highlight or raise if not highlight'
         if self._highlight is None:
             raise RuntimeError('No highlight fool!')
-        xmin = self._highlight.xy[0]
-        xmax = xmin + self._highlight.get_width()
+        xmin, xmax, rect = self._highlight
         return xmin, xmax
 
     def remove_selected(self):
@@ -444,10 +477,11 @@ class AnnotationManager:
         the plot stff and redraw"""
 
         ann = self.eegplot.eeg.get_ann()
-        rect = popd(ann, self.selectedkey, None)
-        if rect is None: return
+        thisann = popd(ann, self.selectedkey, None)
+        if thisann is None:
+            return
 
-        self.eegplot.axes.patches.remove(rect)
+        self.eegplot.axes.patches.remove(thisann['rect'])
         self.selectedkey = None
         self.eegplot.draw()
         
@@ -455,8 +489,10 @@ class AnnotationManager:
 
     def set_selected(self, newkey) :
         'selected is a start, end key; make that annotation the selected one'
+        #xxx/jdh what if newkey is None?
+
         if newkey==self.selectedkey: return
-        
+            
         ann = self.eegplot.eeg.get_ann()
         
         if self.selectedkey is not None:
@@ -465,11 +501,12 @@ class AnnotationManager:
             rect.set_edgecolor('k')
             rect.set_linewidth(1)            
 
-        # now set the props of the new one
-        rect = ann[newkey]['rect']
-        rect.set_edgecolor('r')
-        rect.set_linewidth(3)
-        
+        if newkey is not None:
+            # now set the props of the new one
+            rect = ann[newkey]['rect']
+            rect.set_edgecolor('r')
+            rect.set_linewidth(3)
+            self.canvas.draw()
         self.selectedkey = newkey
 
     def update_annotations(self) :
@@ -490,8 +527,8 @@ class AnnotationManager:
             # Draw/Update annotation box.
             rect = ann[key].get('rect')
             if rect is None:
-                rect = self._new_rect(start, end)
-                ann[startEndTime]['rect'] = rect
+                rect = self._new_rect(start, end, alpha=0.5)
+                ann[key]['rect'] = rect
 
             rect.set_facecolor(ann[key]['color'])
 
@@ -545,7 +582,7 @@ class EEGPlot(Observer):
 
         # lock the selected electrode
         self.lock_trode = False
-        #self.cursor = Cursor(self.axes, linewidth=2, rgb=(1,0,0))
+        self.cursor = Cursor(self.axes, useblit=True, linewidth=1, color='red')
         #self.cursor.horizOn = False
 
         self.annman = AnnotationManager(self)
@@ -904,9 +941,11 @@ class EEGPlot(Observer):
         
         ys = zeros( (len(self.lines), ), typecode = Int16)
 
-
+        xdata = self.lines[0].get_xdata()
+        if ind>=len(xdata): return None
+        thisx = xdata[ind]
         for i, line in enumerate(self.lines):
-            thisx = line.get_xdata()[ind]
+
             thisy = line.get_ydata()[ind]
             trans = line.get_transform()
             xt, yt = trans.xy_tup((thisx, thisy))
@@ -957,6 +996,7 @@ class SpecPlot(Observer):
         # min and max power
 
     def make_spec(self, *args):
+
         selected = self.eegplot.get_selected()
         if selected is None:
             self.axes.cla()
@@ -1103,19 +1143,9 @@ class MainWindow(PrefixWrapper):
         
         win = self['windowMain']
         win.move(0,0)
-        self.canvas.set_events(
-            gdk.KEY_PRESS_MASK |
-            gdk.KEY_RELEASE_MASK |
-            gdk.EXPOSURE_MASK |
-            gdk.LEAVE_NOTIFY_MASK |
-            gdk.BUTTON_PRESS_MASK |
-            gdk.BUTTON_RELEASE_MASK |
-            gdk.POINTER_MOTION_MASK )
-        self.canvas.connect('key_press_event', self.key_press_event)
-        self.canvas.connect('key_release_event', self.key_release_event)
-        self.canvas.connect('motion_notify_event', self.motion_notify_event)
-        self.canvas.connect('button_press_event', self.button_press_event)
-        self.canvas.connect('button_release_event', self.button_release_event)
+        self.canvas.mpl_connect('motion_notify_event', self.motion_notify_event)
+        self.canvas.mpl_connect('button_press_event', self.button_press_event)
+        self.canvas.mpl_connect('button_release_event', self.button_release_event)
 
 
         self['vboxMain'].pack_start(self.canvas, True, True)
@@ -1390,7 +1420,7 @@ class MainWindow(PrefixWrapper):
             params = dlgAnnotate.get_params()
             ann = self.eegplot.eeg.get_ann()
 
-            hlight =  annman.get_highlighted()
+            hlight =  annman.get_highlight()
 
             if hlight is None: # selected
                 created = ann[startEndTime]['created']
@@ -1480,32 +1510,30 @@ class MainWindow(PrefixWrapper):
     def realize(self, widget):
         return False
 
-    def key_press_event(self, widget, event):
-        pass
-
-    def key_release_event(self, widget, event):
-        pass
         
-    def motion_notify_event(self, widget, event):
+    def motion_notify_event(self, event):
         try: self.eegplot
         except : return False
 
-        height = self.canvas.figure.bbox.height()
-        x, y = event.x, height-event.y
+        if not event.inaxes: return
+        
+
 
 
         # Motion within EEG axes
-        if self.axes.in_axes(x, y):
-            t, yt = self.axes.transData.inverse_xy_tup((x, y))
+        if event.inaxes == self.axes:
+            t, yt = event.xdata, event.ydata
 
             # Update status bar with time and electrode name and number
-            gname, gnum = self.eegplot.get_channel_at_point(event.x, event.y, False)
-            self.update_status_bar(
-                'Time  = %1.1f (s), Electrode %s%d' % (t, gname, gnum))
+            trode = self.eegplot.get_channel_at_point(event.x, event.y, False)
+            if trode is not None:
+                gname, gnum = trode
+                self.update_status_bar(
+                    'Time  = %1.1f (s), Electrode %s%d' % (t, gname, gnum))
 
         # Motion within spectrum axes
-        elif self.axesSpec.in_axes(x,y):
-            t, f = self.axesSpec.transData.inverse_xy_tup((x, y))
+        elif event.inaxes == self.axesSpec:
+            t, f = event.xdata, event.ydata
             self.update_status_bar(
                 'Time  = %1.1f (s), Freq = %1.1f (Hz)' % (t, f))
 
@@ -1531,22 +1559,22 @@ class MainWindow(PrefixWrapper):
         self.canvas.draw()
 
         
-    def button_press_event(self, widget, event):
+    def button_press_event(self, event):
 
         try: self.eegplot
         except AttributeError: return False
 
-        win = widget.window
+        if not event.inaxes: return
+        
         self.buttonDown = event.button
-        height = self.canvas.figure.bbox.height()
-        x, y = event.x, height-event.y
-
         annman = self.eegplot.annman
+
+        
         if event.button==3:
             # right click brings up the context menu
-            if self.axes.in_axes(x, y):
+            if event.inaxes == self.axes:
                 menu = self.eoiMenu
-            elif self.axesSpec.in_axes(x,y):
+            elif event.inaxes == self.axesSpec:
                 menu = self.specMenu
             else:
                 return False
@@ -1557,11 +1585,11 @@ class MainWindow(PrefixWrapper):
             menuItemDelAnn = menuItems[-1]
 
         
-            highsens =  annman.get_highlighted() is not None
+            highsens =  annman.get_highlight() is not None
             selsens = self.eegplot.annman.selectedkey is not None
 
             menuItemAnnotate.set_sensitive(highsens or selsens)
-            menuItemDelAnn.set_sensitive(setsens)
+            menuItemDelAnn.set_sensitive(selsens)
             
             if highsens: title = 'Create New Annotation'
             else: title = 'Edit Selected Annotation'
@@ -1574,34 +1602,35 @@ class MainWindow(PrefixWrapper):
 
         if event.button==1:
 
-            if self.axesSpec.in_axes(x,y):
-                t, f = self.axesSpec.transData.inverse_xy_tup( (x,y) )
+            if event.inaxes == self.axesSpec:
+                t, f = event.xdata, event.ydata
                 self.update_status_bar(
                     'Time  = %1.1f (s), Freq = %1.1f (Hz)' % (t,f))
                 return False
 
-            if self.axes.in_axes(x, y):
-                t, yt = self.axes.transData.inverse_xy_tup( (x,y) )
+            if event.inaxes == self.axes:
+                self.eegplot.cursor.visible = False
+                t, yt = event.xdata, event.ydata
 
-
-                annman.remove_highlight()
-
+                
                 selected = annman.over_annotation(t)
                 annman.set_selected(selected)
                 annman.dlgbrowser.update_ann_info(selected)
-
+                annman.remove_highlight()
 
                 # Select an electrode if not locked.
                 if not self.eegplot.lock_trode :                        
                     trode = self.eegplot.get_channel_at_point(event.x, event.y)
-                    gname, gnum = trode
-                    self.update_status_bar('Electrode: %s%d' % (gname, gnum))
+                    if trode is not None:
+                        gname, gnum = trode
+                        self.update_status_bar('Electrode: %s%d' % (gname, gnum))
 
 
 
         return False
 
-    def button_release_event(self, widget, event):
+    def button_release_event(self, event):
+        self.eegplot.cursor.visible = True
         self.buttonDown = None
 
     def on_menuFilePreferences_activate(self, event=None):
@@ -1668,6 +1697,16 @@ class MainWindow(PrefixWrapper):
             pars =  dlg.get_params()
             return pars
 
+    def autoload(self, fullpath):
+        """DEBUG only"""
+        eeg = load_bmsi(fullpath)
+        self.eegplot = EEGPlot(eeg, self.canvas)
+
+        self.toolbar.set_eegplot(self.eegplot)
+        self.eegplot.plot()
+        eois = eeg.get_associated_files(atype=5, mapped=1)
+        self.eoiMenu = self.make_context_menu(eois)
+        return False
 
     def on_menuFileOpen_activate(self, event):
         dlg = gtk.FileSelection('Select EEG param file')
@@ -1877,7 +1916,10 @@ def update_rc_and_die(*args):
 if __name__=='__main__':
     Shared.windowMain = MainWindow()
     Shared.windowMain.show_widget()
+
+
     Shared.windowMain.on_menuFilePreferences_activate(None)
+    #Shared.windowMain.autoload('/home/jdhunter/seizure/data/DolanC/SZ1cd/data.bni')
     Shared.windowMain.widget.connect('destroy', update_rc_and_die)
     Shared.windowMain.widget.connect('delete_event', update_rc_and_die)
 
