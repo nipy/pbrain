@@ -20,6 +20,8 @@ from __future__ import division
 import sys, os, copy, traceback
 import distutils.sysconfig
 
+import eegview
+
 import pygtk
 pygtk.require('2.0')
 
@@ -582,8 +584,7 @@ class EEGPlot(Observer):
 
         # Create a vertical cursor.
         self.cursor = Cursor(self.axes, useblit=True, linewidth=1, color='red')
-        self.cursor.horizOn = False
-        self.cursor.visible = True
+        #self.cursor.horizOn = False
 
         self.annman = AnnotationManager(self)
 
@@ -1907,7 +1908,7 @@ if __name__=='__main__':
     Shared.windowMain.show_widget()
 
 
-    #Shared.windowMain.on_menuFilePreferences_activate(None)
+    Shared.windowMain.on_menuFilePreferences_activate(None)
 
     fullpath = ''
     args = sys.argv

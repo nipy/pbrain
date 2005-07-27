@@ -1,6 +1,7 @@
 import sys, os
 import gtk, gobject
 
+
 from Numeric import arange
 
 from matplotlib.cbook import enumerate, exception_to_str
@@ -11,7 +12,7 @@ from pbrainlib.gtkutils import str2num_or_err, donothing_callback, \
      simple_msg, ignore_or_act, not_implemented, \
      make_option_menu_from_strings
 
-from CodeRegistry import get_code_from_registry
+import CodeRegistry
 from data import EOI
 from utils import export_to_cohstat, filter_grand_mean, \
      all_pairs_eoi, cohere_bands, cohere_pairs_eeg, export_cohstat_xyz
@@ -769,8 +770,8 @@ class Dialog_Annotate(PrefixWrapper) :
         # Set combo options
         # xxx is all this necessay to add combo box entries?
         if self['comboBoxEntryCode'].get_model() == None :
-#            codes = get_code_from_registry('EEG classification').descs
-            codes = ['code1', 'code2', 'code3']
+            codes = CodeRegistry.get_code_from_registry('EEG classification').descs
+#            codes = ['code1', 'code2', 'code3']
             model = gtk.ListStore(str)
             for code in codes :
                 model.append([code])
@@ -1078,9 +1079,9 @@ class Dialog_EEGParams(PrefixWrapper):
         PrefixWrapper.__init__(self)
         
         self.callback = callback
-        self.ftypeCode = get_code_from_registry('EEG file type')
-        self.stypeCode = get_code_from_registry('EEG type')
-        self.stateCode = get_code_from_registry('Behavioral State')
+        self.ftypeCode = CodeRegistry.get_code_from_registry('EEG file type')
+        self.stypeCode = CodeRegistry.get_code_from_registry('EEG type')
+        self.stateCode = CodeRegistry.get_code_from_registry('Behavioral State')
         
 
         self.stypeMenu = self['optionmenuSeizuretype']
