@@ -485,8 +485,6 @@ class AnnotationManager:
         self.eegplot.axes.patches.remove(thisann['rect'])
         self.selectedkey = None
         self.eegplot.draw()
-        
-
 
     def set_selected(self, newkey) :
         'selected is a start, end key; make that annotation the selected one'
@@ -576,15 +574,16 @@ class EEGPlot(Observer):
         self.voltInd = 18
         self.maxLabels = 36
 
-
-
         self.filterGM = Shared.windowMain.toolbar.buttonGM.get_active()
         self._selectedCache = None, None
 
-        # lock the selected electrode
+        # Lock the selected electrode.
         self.lock_trode = False
+
+        # Create a vertical cursor.
         self.cursor = Cursor(self.axes, useblit=True, linewidth=1, color='red')
-        #self.cursor.horizOn = False
+        self.cursor.horizOn = False
+        self.cursor.visible = True
 
         self.annman = AnnotationManager(self)
 
@@ -1146,7 +1145,6 @@ class MainWindow(PrefixWrapper):
         self.canvas.mpl_connect('button_press_event', self.button_press_event)
         self.canvas.mpl_connect('button_release_event', self.button_release_event)
 
-
         self['vboxMain'].pack_start(self.canvas, True, True)
         self['vboxMain'].show()
         
@@ -1556,10 +1554,8 @@ class MainWindow(PrefixWrapper):
         self.axesSpec.set_position([l2, b2, w2, h2])
 
         self.canvas.draw()
-
         
     def button_press_event(self, event):
-
         try: self.eegplot
         except AttributeError: return False
 
@@ -1568,7 +1564,6 @@ class MainWindow(PrefixWrapper):
         self.buttonDown = event.button
         annman = self.eegplot.annman
 
-        
         if event.button==3:
             # right click brings up the context menu
             if event.inaxes == self.axes:
@@ -1583,7 +1578,6 @@ class MainWindow(PrefixWrapper):
             menuItemAnnotate = menuItems[-2]
             menuItemDelAnn = menuItems[-1]
 
-        
             highsens =  annman.get_highlight() is not None
             selsens = self.eegplot.annman.selectedkey is not None
 
@@ -1595,12 +1589,11 @@ class MainWindow(PrefixWrapper):
 
             menuItemAnnotate.get_children()[0].set_text(title)
 
-
             menu.popup(None, None, None, 0, 0)
+
             return False
 
         if event.button==1:
-
             if event.inaxes == self.axesSpec:
                 t, f = event.xdata, event.ydata
                 self.update_status_bar(
@@ -1611,7 +1604,6 @@ class MainWindow(PrefixWrapper):
                 self.eegplot.cursor.visible = False
                 t, yt = event.xdata, event.ydata
 
-                
                 selected = annman.over_annotation(t)
                 annman.set_selected(selected)
                 annman.dlgbrowser.update_ann_info(selected)
@@ -1624,8 +1616,6 @@ class MainWindow(PrefixWrapper):
                         gname, gnum = trode
                         self.update_status_bar('Electrode: %s%d' % (gname, gnum))
 
-
-
         return False
 
     def button_release_event(self, event):
@@ -1633,8 +1623,6 @@ class MainWindow(PrefixWrapper):
         self.buttonDown = None
 
     def on_menuFilePreferences_activate(self, event=None):
-
-        
         def mysql_callback(dbname, host, user, passwd, port):
             servers.sql.init(dbname, host, user, passwd, port)
             self.make_patients_menu()
@@ -1698,13 +1686,15 @@ class MainWindow(PrefixWrapper):
 
     def autoload(self, fullpath):
         """DEBUG only"""
-        eeg = load_bmsi(fullpath)
-        self.eegplot = EEGPlot(eeg, self.canvas)
+        if fullpath :
+            eeg = load_bmsi(fullpath)
+            self.eegplot = EEGPlot(eeg, self.canvas)
 
-        self.toolbar.set_eegplot(self.eegplot)
-        self.eegplot.plot()
-        eois = eeg.get_associated_files(atype=5, mapped=1)
-        self.eoiMenu = self.make_context_menu(eois)
+            self.toolbar.set_eegplot(self.eegplot)
+            self.eegplot.plot()
+            eois = eeg.get_associated_files(atype=5, mapped=1)
+            self.eoiMenu = self.make_context_menu(eois)
+
         return False
 
     def on_menuFileOpen_activate(self, event):
@@ -1917,8 +1907,13 @@ if __name__=='__main__':
     Shared.windowMain.show_widget()
 
 
-    Shared.windowMain.on_menuFilePreferences_activate(None)
-    #Shared.windowMain.autoload('/home/jdhunter/seizure/data/DolanC/SZ1cd/data.bni')
+    #Shared.windowMain.on_menuFilePreferences_activate(None)
+
+    fullpath = ''
+    args = sys.argv
+    if len(args) > 1 :
+        fullpath = args[1]
+    Shared.windowMain.autoload(fullpath)
     Shared.windowMain.widget.connect('destroy', update_rc_and_die)
     Shared.windowMain.widget.connect('delete_event', update_rc_and_die)
     #Shared.windowMain['menubarMain'].hide()

@@ -600,15 +600,16 @@ class Ann(dict, AssociatedFile) :
     extension = 'ann.csv'
     filetype  = 13
 
-    def __init__(self, dbaseFields=None, useFile=None) :
+    def __init__(self, dbaseFields=None, useFile=None, message=None) :
         AssociatedFile.__init__(self, dbaseFields, useFile)
-        self.message = None
+        self.message = message
 
     # xxx error checking of file format
     def _load_data(self, fh) :
         reader = csv.reader(fh)
         for line in reader :
-            if not line : next
+            if not line : continue
+
             self[(float(line[0]), float(line[1]))] = {
                 'startTime'     : float(line[0]),
                 'endTime'       : float(line[1]),
@@ -754,8 +755,7 @@ class EEGBase:
                 ann.message = 'Warning: %s has more than one annotation file; using %s' % \
                               (self.filename, ann.filename)
             else :
-                ann = Ann()
-                ann.message = 'No annotation file associated with this EEG; using default'
+                ann = Ann(message='No annotation file associated with this EEG; using default')
 
         self.ann = ann
         return ann
@@ -949,8 +949,6 @@ class EEGFileSystem(EEGBase):
         params is a dict
         get_params has dict signature dict = get_params(fullpath)
         """
-
-	print 'fullpath', fullpath
 
         EEGBase.__init__(self)
         if not os.path.exists(fullpath):

@@ -1,6 +1,4 @@
 import sys, os
-import pygtk
-pygtk.require('2.0')
 import gtk, gobject
 
 from Numeric import arange
@@ -771,16 +769,14 @@ class Dialog_Annotate(PrefixWrapper) :
         # Set combo options
         # xxx is all this necessay to add combo box entries?
         if self['comboBoxEntryCode'].get_model() == None :
-#            codes = get_code_from_registry('EEG classification').descs
-            codes = ['code1', 'code2', 'code3']
-
+            codes = get_code_from_registry('EEG classification').descs
+#            codes = ['code1', 'code2', 'code3']
             model = gtk.ListStore(str)
             for code in codes :
                 model.append([code])
             self['comboBoxEntryCode'].set_model(model)
-            cell = gtk.CellRendererText()
-            self['comboBoxEntryCode'].pack_start(cell, True)
-            self['comboBoxEntryCode'].add_attribute(cell, 'text', 0)
+            self['comboBoxEntryCode'].set_text_column(0)
+            self['comboBoxEntryCode'].set_active(0)
 
         self.set_params(params)
 
@@ -1313,7 +1309,7 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         
     def scroll(self, *args):
         fname = '%s%05d' % (self.entryMovie.get_text(), self.ind)
-        print 'fname', fname
+        #print 'fname', fname
         self.update_status_bar()
         if self.ind>=0 and self.ind<len(self.steps):
             thisMin = self.steps[self.ind]
@@ -1345,7 +1341,7 @@ class AutoPlayDialog(gtk.Dialog, Observer):
 
 
         self.steps = arange(valMin, valMax-self.twidth+0.001, valStep)
-        print valMin, valMax, valStep, self.twidth, len(self.steps)
+        #print valMin, valMax, valStep, self.twidth, len(self.steps)
         if self.steps != self.lastSteps:
             self.ind = 0
         self.lastSteps = self.steps

@@ -1,10 +1,11 @@
 import os, sys
 import errno, StringIO, traceback
 
-import pygtk
-pygtk.require('2.0')
 import gtk
 from gtk import gdk
+import gobject
+import gtk
+
 
 def is_string_like(obj):
     if hasattr(obj, 'shape'): return 0 # this is a workaround
@@ -359,7 +360,7 @@ def get_num_range(minLabel='Min', maxLabel='Max',
     entryMax = gtk.Entry()
     entryMax.show()
     entryMax.set_width_chars(10)
-    entryMax.set_activates_default(gtk.TRUE)
+    entryMax.set_activates_default(True)
     
     table = gtk.Table(2,2)
     table.show()
@@ -370,7 +371,7 @@ def get_num_range(minLabel='Min', maxLabel='Max',
     table.attach(labelMax, 1, 2, 0, 1)
     table.attach(entryMin, 0, 1, 1, 2)
     table.attach(entryMax, 1, 2, 1, 2)
-    dlg.vbox.pack_start(table, gtk.TRUE, gtk.TRUE)
+    dlg.vbox.pack_start(table, True, True)
 
     dlg.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
     dlg.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
@@ -417,11 +418,11 @@ def select_name(names, title='Select Name'):
         buttons.append(button)
         button.set_label(name)
         button.show()
-        vbox.pack_start(button, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(button, True, True)
         buttond[button] = name
     hbox = gtk.HBox()
     hbox.show()
-    vbox.pack_start(hbox, gtk.FALSE, gtk.FALSE)
+    vbox.pack_start(hbox, False, False)
 
     dlg.add_button('Cancel', gtk.RESPONSE_CANCEL)
     dlg.add_button('OK', gtk.RESPONSE_OK)
@@ -490,16 +491,16 @@ def get_num_value(labelStr='Value', title='Enter value', parent=None,
     entry = gtk.Entry()
     entry.show()
     entry.set_width_chars(10)
-    entry.set_activates_default(gtk.TRUE)
+    entry.set_activates_default(True)
     if default is not None:
         entry.set_text('%1.4f' % default)
 
     hbox = gtk.HBox()
     hbox.show()
-    hbox.pack_start(label, gtk.TRUE, gtk.TRUE)
-    hbox.pack_start(entry, gtk.TRUE, gtk.TRUE)
+    hbox.pack_start(label, True, True)
+    hbox.pack_start(entry, True, True)
     
-    dlg.vbox.pack_start(hbox, gtk.TRUE, gtk.TRUE)
+    dlg.vbox.pack_start(hbox, True, True)
 
     dlg.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
     dlg.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
@@ -542,7 +543,7 @@ def get_two_nums(label1Str='Min', label2Str='Max',
     entry2 = gtk.Entry()
     entry2.show()
     entry2.set_width_chars(10)
-    entry2.set_activates_default(gtk.TRUE)
+    entry2.set_activates_default(True)
     
     table = gtk.Table(2,2)
     table.show()
@@ -553,7 +554,7 @@ def get_two_nums(label1Str='Min', label2Str='Max',
     table.attach(label2, 1, 2, 0, 1)
     table.attach(entry1, 0, 1, 1, 2)
     table.attach(entry2, 1, 2, 1, 2)
-    dlg.vbox.pack_start(table, gtk.TRUE, gtk.TRUE)
+    dlg.vbox.pack_start(table, True, True)
 
     dlg.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
     dlg.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
@@ -583,22 +584,22 @@ def add_button_icon_pixmap(button, pixmap, orientation='left'):
 
     if orientation is None:
         box = gtk.HBox(spacing=0)
-        box.pack_start(pixmap, gtk.FALSE, gtk.FALSE, 0)        
+        box.pack_start(pixmap, False, False, 0)        
 
     if orientation in ('left', 'right'):
         box = gtk.HBox(spacing=5)
     elif orientation in ('top', 'bottom'):
         box = gtk.VBox(spacing=5)
     if orientation in ('left', 'top'):
-        box.pack_start(pixmap, gtk.FALSE, gtk.FALSE, 0)
-        box.pack_start(label, gtk.FALSE, gtk.FALSE, 0)
+        box.pack_start(pixmap, False, False, 0)
+        box.pack_start(label, False, False, 0)
     elif orientation in ('right', 'bottom'):
-        box.pack_start(label, gtk.FALSE, gtk.FALSE, 0)
-        box.pack_start(pixmap, gtk.FALSE, gtk.FALSE, 0)
+        box.pack_start(label, False, False, 0)
+        box.pack_start(pixmap, False, False, 0)
 
     hbox = gtk.HBox()
     if box is not None:
-        hbox.pack_start(box, gtk.TRUE, gtk.FALSE, 0)
+        hbox.pack_start(box, True, False, 0)
     hbox.show_all()
     button.add(hbox)
 
@@ -631,23 +632,23 @@ class OpenSaveSaveAsHBox(gtk.HBox):
 
         label = gtk.Label('File')
         label.show()
-        self.pack_start(label, gtk.FALSE, gtk.FALSE)
+        self.pack_start(label, False, False)
 
         button = gtk.Button(stock=gtk.STOCK_OPEN)
         button.show()
         button.connect('clicked', self.open)
-        self.pack_start(button, gtk.TRUE, gtk.TRUE)
+        self.pack_start(button, True, True)
 
         button = gtk.Button(stock=gtk.STOCK_SAVE)
         button.show()
         button.connect('clicked', self.save)
-        self.pack_start(button, gtk.TRUE, gtk.TRUE)
+        self.pack_start(button, True, True)
 
 
         button = gtk.Button(stock=gtk.STOCK_SAVE_AS)
         button.show()
         button.connect('clicked', self.save_as)
-        self.pack_start(button, gtk.TRUE, gtk.TRUE)
+        self.pack_start(button, True, True)
 
         
     def open(self, button):
@@ -704,3 +705,118 @@ class ButtonAltLabel(gtk.Button):
         image, label = hbox.get_children()
         label.set_text(labelStr)
     
+
+class SpreadSheet(gtk.Window):
+    """
+Example usage
+
+data = (
+    ('First', 'Last', 'Age', 'Weight'),
+    ('John', 'Hunter', '33', '165'),
+    ('Miriam', 'Sierig', '56', '187'),
+    )
+sheet = SpreadSheet(data)
+sheet.show_all()
+gtk.main()
+    
+    """
+    def __init__(self, rows, fmanager, title='Spreadsheet'):
+        gtk.Window.__init__(self)
+        
+        self.rows = rows
+        self.fmanager = fmanager
+        self.numRows = len(rows)
+        self.numCols = len(rows[0])
+
+        self.set_title(title)
+        self.set_border_width(8)
+
+        vbox = gtk.VBox(False, 8)
+        self.add(vbox)
+
+        # todo add toolbar here
+        toolbar = self.make_toolbar()
+        vbox.pack_start(toolbar, False, False)
+
+        sw = gtk.ScrolledWindow()
+        sw.set_shadow_type(gtk.SHADOW_ETCHED_IN)
+        sw.set_policy(gtk.POLICY_NEVER,
+                      gtk.POLICY_AUTOMATIC)
+        vbox.pack_start(sw, True, True)
+
+        model = self.create_model()
+
+        self.treeview = gtk.TreeView(model)
+        self.treeview.set_rules_hint(True)
+        sw.add(self.treeview)
+
+        self.add_columns()
+
+        self.set_default_size(600, 600)
+
+        self.add_events(gdk.BUTTON_PRESS_MASK |
+                       gdk.KEY_PRESS_MASK|
+                       gdk.KEY_RELEASE_MASK)
+
+
+
+
+    def add_columns(self):
+        model = self.treeview.get_model()
+        renderer = gtk.CellRendererText()
+
+        for i in range(self.numCols):
+            column = gtk.TreeViewColumn('%d'%i, gtk.CellRendererText(), text=i)
+            self.treeview.append_column(column)
+
+    def create_model(self):
+        types = [gobject.TYPE_STRING]*self.numCols
+        store = gtk.ListStore(*types)
+
+        for row in self.rows:
+            iter = store.append()
+            pairs = []
+            for i, entry in enumerate(row): pairs.extend((i, entry))
+            store.set(iter, *pairs)
+        return store
+
+
+    def make_toolbar(self):
+
+        toolbar  = gtk.Toolbar()
+        iconSize = gtk.ICON_SIZE_SMALL_TOOLBAR
+        toolbar.set_border_width(5)
+        toolbar.set_style(gtk.TOOLBAR_ICONS)
+        toolbar.set_orientation(gtk.ORIENTATION_HORIZONTAL)
+
+
+        iconw = gtk.Image() # icon widget
+        iconw.set_from_stock(gtk.STOCK_SAVE, iconSize)
+        button = toolbar.append_item(
+            'Save',
+            'Save as CSV',
+            'Private',
+            iconw,
+            self.save)
+        return toolbar
+    
+    def save(self, *args):
+        filename = self.fmanager.get_filename()
+        if filename is None: return
+        lines = []
+        basename, ext = os.path.splitext(filename)
+        if ext.lower() != '.csv':
+            filename += '.csv'
+        # todo: add csv extension
+        fh = file(filename, 'w', False)
+        for row in self.rows:
+            print >>fh, ','.join(row)
+        fh.close()
+
+
+
+
+
+
+
+        

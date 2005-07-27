@@ -1,6 +1,3 @@
-import pygtk
-pygtk.require('2.0')
-
 import gtk.glade
 import os, re
 from borgs import Shared

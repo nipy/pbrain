@@ -28,6 +28,7 @@ def register_code(id, code):
 def get_code_from_registry( id ):
     """Get the code from the registry with given id"""
     #print "Trying to get code with key %s" % id
+    print 'codes:', _theRegistry.codes
     return _theRegistry.get_code( id )
 
 def get_registry_codes(  ):

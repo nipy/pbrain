@@ -771,14 +771,12 @@ class Dialog_Annotate(PrefixWrapper) :
         if self['comboBoxEntryCode'].get_model() == None :
 #            codes = get_code_from_registry('EEG classification').descs
             codes = ['code1', 'code2', 'code3']
-
             model = gtk.ListStore(str)
             for code in codes :
                 model.append([code])
             self['comboBoxEntryCode'].set_model(model)
-            cell = gtk.CellRendererText()
-            self['comboBoxEntryCode'].pack_start(cell, True)
-            self['comboBoxEntryCode'].add_attribute(cell, 'text', 0)
+            self['comboBoxEntryCode'].set_text_column(0)
+            self['comboBoxEntryCode'].set_active(0)
 
         self.set_params(params)
 
