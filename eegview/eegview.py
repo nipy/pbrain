@@ -1904,6 +1904,7 @@ def update_rc_and_die(*args):
     gtk.main_quit()
 
 if __name__=='__main__':
+    __import__('__init__')
     Shared.windowMain = MainWindow()
     Shared.windowMain.show_widget()
 
