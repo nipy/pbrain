@@ -398,7 +398,7 @@ class AnnotationManager:
         self.canvas = self.axes.figure.canvas
         self.selector = HorizontalSpanSelector(self.axes, self.onselect,
                                                minspan=0.01, 
-                                               useblit=False)
+                                               useblit=True)
 
         self._highlight = None
 
@@ -410,6 +410,8 @@ class AnnotationManager:
         self.selectedkey = None
 
     def onselect(self, xmin, xmax):
+        if self._highlight is not None:
+            self.remove_highlight()
         self._highlight = xmin, xmax, self._new_rect(xmin, xmax, 
                                                      facecolor='#bbbbff',
                                                      edgecolor='k',
@@ -456,7 +458,6 @@ class AnnotationManager:
             self.axes.patches.remove(rect)
         self._highlight = None
         self.canvas.draw()
-        self.selector.update_background()
 
     def get_highlight(self):
         """
@@ -1918,11 +1919,11 @@ if __name__=='__main__':
     Shared.windowMain.show_widget()
 
 
-    Shared.windowMain.on_menuFilePreferences_activate(None)
-    #Shared.windowMain.autoload('/home/jdhunter/seizure/data/DolanC/SZ1cd/data.bni')
+    #Shared.windowMain.on_menuFilePreferences_activate(None)
+    Shared.windowMain.autoload('/home/jdhunter/seizure/data/DolanC/SZ1cd/data.bni')
     Shared.windowMain.widget.connect('destroy', update_rc_and_die)
     Shared.windowMain.widget.connect('delete_event', update_rc_and_die)
-
+    Shared.windowMain['menubarMain'].hide()
     try: gtk.main()
     except KeyboardInterrupt:
         update_rc_and_die()
