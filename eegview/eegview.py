@@ -933,8 +933,6 @@ class EEGPlot(Observer):
         tmin, tmax = self.get_time_lim()
         dt = 1/self.decfreq
 
-
-        height = self.canvas.figure.bbox.height()
         t, yt = self.axes.transData.inverse_xy_tup( (x,y) )
 
         ind = int((t-tmin)/dt)
@@ -950,7 +948,7 @@ class EEGPlot(Observer):
             thisy = line.get_ydata()[ind]
             trans = line.get_transform()
             xt, yt = trans.xy_tup((thisx, thisy))
-            ys[i] = height-yt
+            ys[i] = yt
 
         ys = absolute(ys-y)
         matches = nonzero(ys==min(ys))
@@ -1919,11 +1917,11 @@ if __name__=='__main__':
     Shared.windowMain.show_widget()
 
 
-    #Shared.windowMain.on_menuFilePreferences_activate(None)
-    Shared.windowMain.autoload('/home/jdhunter/seizure/data/DolanC/SZ1cd/data.bni')
+    Shared.windowMain.on_menuFilePreferences_activate(None)
+    #Shared.windowMain.autoload('/home/jdhunter/seizure/data/DolanC/SZ1cd/data.bni')
     Shared.windowMain.widget.connect('destroy', update_rc_and_die)
     Shared.windowMain.widget.connect('delete_event', update_rc_and_die)
-    Shared.windowMain['menubarMain'].hide()
+    #Shared.windowMain['menubarMain'].hide()
     try: gtk.main()
     except KeyboardInterrupt:
         update_rc_and_die()
