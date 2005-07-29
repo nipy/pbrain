@@ -28,3 +28,12 @@ eegview.py
 
 data.py
   - starting to add support for saving files
+
+7.28.05 jowaxman
+
+- ann browser now uses annman
+- set zorder of new rects to 3 and matched color of highlight and its rect
+- added show/hide buttons to ann browser
+- added annotations menu
+- added turn on/off horiz/vert cursor; save in .rc
+- un/select annotations using either left or right mouse button
