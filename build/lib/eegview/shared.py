@@ -8,7 +8,7 @@ class RC:
     if os.environ.has_key('HOME'):
         path = os.environ['HOME']
     elif sys.platform=='win32':
-        path = os.path.join(distutils.sysconfig.PREFIX, 'share', 'eegtools')
+        path = os.path.join(distutils.sysconfig.PREFIX, 'share', 'pbrain')
     elif sys.platform=='linux':
         path  = '/tmp/'
     else:
@@ -33,7 +33,9 @@ class RC:
         'sqlpasswd',
         'sqlhost',
         'sqlport',
-        'sqldatabase',        
+        'sqldatabase',
+        'horizcursor',
+        'vertcursor'
         )
 
     def __init__(self):
@@ -66,7 +68,10 @@ class RC:
         self.sqlhost = 'localhost'
         self.sqldatabase = 'seizure'        
         self.sqlport = 3306
-        
+
+        self.horizcursor = True
+        self.vertcursor = True
+
     def loadrc(self):
         
         for line in file(self.filename):
@@ -81,7 +86,6 @@ class RC:
             fh = file(self.filename, 'w')
             
             for attr in self.attrs:
-
                 func = self.convertToFile.get(attr, str)
                 val = func(self.__dict__[attr])
                 fh.write('%s : %s\n' % (attr, val))

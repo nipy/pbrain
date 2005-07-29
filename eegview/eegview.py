@@ -3,13 +3,9 @@
 #  * I think it might be more intuitive to make a rect selected upon
 #    annotation
 #
-#  * The delete annotation appears broken
-#
 #  * the rect drawing is fucked w/ or w/o use blit but I think I can
 #  fix this reasonably soon
 # 
-#  * add toggle cursor visibility to context menu
-#
 #  * add toggle annotation visibility to context menu
 #
 # end jonanthan
@@ -19,8 +15,6 @@
 from __future__ import division
 import sys, os, copy, traceback
 import distutils.sysconfig
-
-import eegview
 
 import pygtk
 pygtk.require('2.0')
@@ -139,7 +133,6 @@ extmap = { '.w18' : load_w18,
            }
 
 class EEGNavBar(gtk.Toolbar, Observer):
-    
     def __init__(self, eegplot=None, win=None):
         """
         eegplot is the EEGPlot instance that the toolboar controls
@@ -154,7 +147,6 @@ class EEGNavBar(gtk.Toolbar, Observer):
         iconSize = gtk.ICON_SIZE_SMALL_TOOLBAR
         self.set_border_width(5)
         self.set_style(gtk.TOOLBAR_ICONS)
-
 
         iconw = gtk.Image()
         iconw.set_from_stock(gtk.STOCK_GOTO_FIRST, iconSize)
@@ -237,7 +229,6 @@ class EEGNavBar(gtk.Toolbar, Observer):
             self.zoomy,
             1)
         self.bUp.connect("scroll_event", self.zoomy)
-
 
         iconw = gtk.Image()
         iconw.set_from_stock(gtk.STOCK_GO_DOWN, iconSize)
@@ -342,8 +333,6 @@ class EEGNavBar(gtk.Toolbar, Observer):
         fs.cancel_button.connect("clicked", lambda b: fs.destroy())
         fs.show()
 
-
-
     def set_eegplot(self, eegplot):
         self.eegplot = eegplot
         
@@ -398,18 +387,28 @@ class AnnotationManager:
         self.eegplot = eegplot
         self.axes = self.eegplot.axes
         self.canvas = self.axes.figure.canvas
+        rectprops = dict(facecolor='#bbbbff',
+                         alpha=0.5)
         self.selector = HorizontalSpanSelector(self.axes, self.onselect,
                                                minspan=0.01, 
-                                               useblit=True)
+                                               useblit=True,
+                                               rectprops=rectprops)
 
         self._highlight = None
-
 
         def ok_callback(*args) :
             self.dlgbrowser.hide_widget()
             
-        self.dlgbrowser = Dialog_AnnBrowser(eegplot, ok_callback)
         self.selectedkey = None
+        self.dlgbrowser = Dialog_AnnBrowser(eegplot, self, ok_callback)
+
+        # Update Annotations menuitems sensitivity.
+        menuItemAnnBrowser = Shared.widgets.get_widget('menuItemAnnBrowser')
+        menuItemAnnBrowser.set_sensitive(1)
+        menuItemAnnHorizCursor = Shared.widgets.get_widget('menuItemAnnHorizCursor')
+        menuItemAnnHorizCursor.set_sensitive(1)
+        menuItemAnnVertCursor = Shared.widgets.get_widget('menuItemAnnVertCursor')
+        menuItemAnnVertCursor.set_sensitive(1)
 
     def onselect(self, xmin, xmax):
         if self._highlight is not None:
@@ -419,8 +418,26 @@ class AnnotationManager:
                                                      edgecolor='k',
                                                      linewidth=2,
                                                      alpha=0.5,
+                                                     zorder=3
                                                      )
-        
+
+        # Update Annotations menuitems sensitivity
+        label = 'Create New'
+        menuItemAnnCreateEdit = Shared.widgets.get_widget('menuItemAnnCreateEdit')
+        print menuItemAnnCreateEdit
+        menuItemAnnCreateEdit.get_children()[0].set_text(label)
+        menuItemAnnCreateEdit.set_sensitive(1)
+        menuItemAnnDelete = Shared.widgets.get_widget('menuItemAnnDelete')
+        menuItemAnnDelete.set_sensitive(0)
+
+        # Update eoi context menu
+#        menu = self.eegplot.eoiMenu
+#        menuItems = menu.get_children()
+#        menuItemAnnCreateEdit = menuItems[-2]
+#        menuItemAnnCreateEdit.get_children()[0].set_text(text)
+#        menuItemAnnCreateEdit.set_sensitive(1)
+#        menuItemAnnDelete = menuItems[-1]
+#        menuItemAnnDelete.set_sensitive(0)
 
     def _new_rect(self, xmin, xmax, **props):
         trans = blend_xy_sep_transform( self.axes.transData,
@@ -452,14 +469,23 @@ class AnnotationManager:
         ret.sort()
         if not len(ret): return None
         return ret[0][1]  
-        
-            
+
+    def is_over_highlight(self, t) :
+        xmin, xmax = self.highlight_span()
+        return t >= xmin and t <= xmax
+
     def remove_highlight(self):
         if self._highlight is not None:
             xmin, xmax, rect = self._highlight
             self.axes.patches.remove(rect)
         self._highlight = None
         self.canvas.draw()
+
+        # Update Annotations menuitems sensitivity
+        menuItemAnnCreateEdit = Shared.widgets.get_widget('menuItemAnnCreateEdit')
+        menuItemAnnCreateEdit.set_sensitive(0)
+        menuItemAnnDelete = Shared.widgets.get_widget('menuItemAnnDelete')
+        menuItemAnnDelete.set_sensitive(0)
 
     def get_highlight(self):
         """
@@ -470,8 +496,7 @@ class AnnotationManager:
 
     def highlight_span(self):
         'return the min/max of current highlight or raise if not highlight'
-        if self._highlight is None:
-            raise RuntimeError('No highlight fool!')
+        if self._highlight is None: return None, None
         xmin, xmax, rect = self._highlight
         return xmin, xmax
 
@@ -488,6 +513,12 @@ class AnnotationManager:
         self.selectedkey = None
         self.eegplot.draw()
 
+        # Update Annotations menuitems sensitivity
+        menuItemAnnCreateEdit = Shared.widgets.get_widget('menuItemAnnCreateEdit')
+        menuItemAnnCreateEdit.set_sensitive(0)
+        menuItemAnnDelete = Shared.widgets.get_widget('menuItemAnnDelete')
+        menuItemAnnDelete.set_sensitive(0)
+        
     def set_selected(self, newkey) :
         'selected is a start, end key; make that annotation the selected one'
         #xxx/jdh what if newkey is None?
@@ -496,18 +527,31 @@ class AnnotationManager:
             
         ann = self.eegplot.eeg.get_ann()
         
+        menuItemAnnCreateEdit = Shared.widgets.get_widget('menuItemAnnCreateEdit')
+        menuItemAnnDelete = Shared.widgets.get_widget('menuItemAnnDelete')
+
         if self.selectedkey is not None:
             # unselect the old one if there is one
             rect = ann[self.selectedkey]['rect']
             rect.set_edgecolor('k')
             rect.set_linewidth(1)            
 
-        if newkey is not None:
+        if newkey is None:
+            # Update Annotations menuitems sensitivity
+            menuItemAnnCreateEdit.set_sensitive(0)
+            menuItemAnnDelete.set_sensitive(0)
+        else :
             # now set the props of the new one
             rect = ann[newkey]['rect']
             rect.set_edgecolor('r')
             rect.set_linewidth(3)
             self.canvas.draw()
+
+            # Update Annotations menuitems sensitivity
+            menuItemAnnCreateEdit.get_children()[0].set_text('Edit Selected')
+            menuItemAnnCreateEdit.set_sensitive(1)
+            menuItemAnnDelete.set_sensitive(1)
+
         self.selectedkey = newkey
 
     def update_annotations(self) :
@@ -520,6 +564,8 @@ class AnnotationManager:
         keys = ann.keys()
         keys.sort()
         for key in keys :
+            if not ann[key].get('visible') : continue
+
             start, end = key
             # Start or end of annotation box is in view
             if not ( (start > tmin and start < tmax) or
@@ -528,11 +574,9 @@ class AnnotationManager:
             # Draw/Update annotation box.
             rect = ann[key].get('rect')
             if rect is None:
-                rect = self._new_rect(start, end, alpha=0.5)
+                rect = self._new_rect(start, end, alpha=0.5, zorder=3)
                 ann[key]['rect'] = rect
-
             rect.set_facecolor(ann[key]['color'])
-
         
 class EEGPlot(Observer):
     timeSets = ((1.,.1), (2.,.2), (5.,.5), (10.,1.), (20.,2.),
@@ -570,7 +614,6 @@ class EEGPlot(Observer):
             
         self._selected = eoi[0]
         self.set_eoi(eoi)
-        
 
         self.timeInd = 3
         self.voltInd = 18
@@ -584,7 +627,14 @@ class EEGPlot(Observer):
 
         # Create a vertical cursor.
         self.cursor = Cursor(self.axes, useblit=True, linewidth=1, color='red')
-        #self.cursor.horizOn = False
+        if eegviewrc.horizcursor == 'True' :
+            self.cursor.horizOn = True
+        else :
+            self.cursor.horizOn = False
+        if eegviewrc.vertcursor == 'True' :
+            self.cursor.vertOn = True
+        else :
+            self.cursor.vertOn = False
 
         self.annman = AnnotationManager(self)
 
@@ -1085,15 +1135,12 @@ class SpecPlot(Observer):
                 dlg.hide()
                 break
 
-        
-    
 class MainWindow(PrefixWrapper):
     prefix = ''
     widgetName = 'windowMain'
     gladeFile = 'main.glade'
 
     def __init__(self):
-    
         if os.path.exists(self.gladeFile):
             theFile=self.gladeFile
         else:
@@ -1160,20 +1207,35 @@ class MainWindow(PrefixWrapper):
         self.update_status_bar('')
         self.buttonDown = None
 
+        # Init Annotations menu sensitivity.
+        menuItemAnnBrowser = Shared.widgets.get_widget('menuItemAnnBrowser')
+        menuItemAnnBrowser.set_sensitive(0)
+        menuItemAnnCreateEdit = Shared.widgets.get_widget('menuItemAnnCreateEdit')
+        menuItemAnnCreateEdit.set_sensitive(0)
+        menuItemAnnDelete = Shared.widgets.get_widget('menuItemAnnDelete')
+        menuItemAnnDelete.set_sensitive(0)
+        menuItemAnnHorizCursor = Shared.widgets.get_widget('menuItemAnnHorizCursor')
+        menuItemAnnHorizCursor.set_sensitive(0)
+        if eegviewrc.horizcursor == 'True' :
+            menuItemAnnHorizCursor.set_active(1)
+        else :
+            menuItemAnnHorizCursor.set_active(0)
+        menuItemAnnVertCursor = Shared.widgets.get_widget('menuItemAnnVertCursor')
+        menuItemAnnVertCursor.set_sensitive(0)
+        if eegviewrc.vertcursor == 'True' :
+            menuItemAnnVertCursor.set_active(1)
+        else :
+            menuItemAnnVertCursor.set_active(0)
 
     def update_status_bar(self, msg):
-
         self.statbar.pop(self.statbarCID) 
         mid = self.statbar.push(self.statbarCID, 'Message: ' + msg)
-
-        
 
     def menu_select_eeg(self, eeg):
         amp = eeg.get_amp()
         if amp.message is not None:
             simple_msg(amp.message, title='Warning',
                        parent=Shared.windowMain.widget)
-            
 
         try: self.eegplot
         except AttributeError: pass
@@ -1192,9 +1254,7 @@ class MainWindow(PrefixWrapper):
         self.eegplot.plot()
         return False
 
-                  
     def make_patients_menu(self):
-
         entries = servers.sql.eeg.select(
             where='file_type in (1,4)')
         eegMap = {}
@@ -1229,7 +1289,6 @@ class MainWindow(PrefixWrapper):
             menuPatients.append(menuItemPatient)
         menuItemPatients.set_submenu(menuPatients)
 
-        
     def load_eoi(self, eoi):
         success = self.eegplot.set_eoi(eoi)
         
@@ -1263,7 +1322,6 @@ class MainWindow(PrefixWrapper):
             menuEOIS.append(item)
         menuItemLoad.set_submenu(menuEOIS)
 
-    
         label = "Save EOI"
         menuItemSave = gtk.MenuItem(label)
         contextMenu.append(menuItemSave)
@@ -1292,17 +1350,17 @@ class MainWindow(PrefixWrapper):
         contextMenu.append(menuItemSep)
         menuItemSep.show()
 
-        label = "Annotate Highlighted Area"
-        menuItemAnnotate = gtk.MenuItem(label)
-        contextMenu.append(menuItemAnnotate)
-        menuItemAnnotate.connect("activate", self.annotate)
-        menuItemAnnotate.show()
+        label = "Create New Annotation"
+        menuItemAnnCreateEdit = gtk.MenuItem(label)
+        menuItemAnnCreateEdit.connect("activate", self.on_menuItemAnnCreateEdit_activate)
+        menuItemAnnCreateEdit.show()
+        contextMenu.append(menuItemAnnCreateEdit)
 
         label = "Delete Annotation"
-        menuItemDelAnn = gtk.MenuItem(label)
-        contextMenu.append(menuItemDelAnn)
-        menuItemDelAnn.connect("activate", self.del_ann)
-        menuItemDelAnn.show()
+        menuItemAnnDelete = gtk.MenuItem(label)
+        menuItemAnnDelete.connect("activate", self.on_menuItemAnnDelete_activate)
+        menuItemAnnDelete.show()
+        contextMenu.append(menuItemAnnDelete)
 
         return contextMenu
 
@@ -1406,8 +1464,7 @@ class MainWindow(PrefixWrapper):
         dlgSave.get_widget().set_transient_for(self.widget)
         dlgSave.show_widget()
 
-    def annotate(self, *args) :
-
+    def on_menuItemAnnCreateEdit_activate(self, event) :
         annman = self.eegplot.annman
         
         def ok_callback(params) :
@@ -1435,6 +1492,7 @@ class MainWindow(PrefixWrapper):
                 'username'      : params['username'],
                 'code'          : params['code'],
                 'color'         : params['color'],
+                'visible'	: ann[startEndTime]['visible'],
                 'annotation'    : params['annotation']}
 
             # Write ann file.
@@ -1453,7 +1511,6 @@ class MainWindow(PrefixWrapper):
 
         ann = self.eegplot.eeg.get_ann()
 
-
         if annman.selectedkey is not None:
             params = ann[annman.selectedkey]
         else:
@@ -1461,12 +1518,11 @@ class MainWindow(PrefixWrapper):
             start, end = annman.highlight_span()
             params = dict(startTime=start, endTime=end)
 
-
         dlgAnnotate = Dialog_Annotate(params, ok_callback)
         dlgAnnotate.get_widget().set_transient_for(self.widget)
         dlgAnnotate.show_widget()
 
-    def del_ann(self, *args) :
+    def on_menuItemAnnDelete_activate(self, event) :
         dlg = gtk.MessageDialog(type=gtk.MESSAGE_QUESTION,
                                 buttons=gtk.BUTTONS_YES_NO,
                                 message_format='Are you sure you wish to delete this annotation?')
@@ -1477,19 +1533,36 @@ class MainWindow(PrefixWrapper):
         if response == gtk.RESPONSE_YES :
             self.eegplot.annman.remove_selected()
             
-    def on_buttonSaveExcursion_clicked(self, event):
+    def on_menuItemAnnHorizCursor_activate(self, checkMenuItem) :
+        if checkMenuItem.get_active() :
+            self.eegplot.cursor.horizOn = True
+            eegviewrc.horizcursor = True
+        else :
+            self.eegplot.cursor.horizOn = False
+            eegviewrc.horizcursor = False
 
+        return False
+
+    def on_menuItemAnnVertCursor_activate(self, checkMenuItem) :
+        if checkMenuItem.get_active() :
+            self.eegplot.cursor.vertOn = True
+            eegviewrc.vertcursor = True
+        else :
+            self.eegplot.cursor.vertOn = False
+            eegviewrc.vertcursor = False
+
+        return False
+
+    def on_buttonSaveExcursion_clicked(self, event):
         self.eegplot.save_excursion()
         return False
     
     def on_buttonRestoreExcursion_clicked(self, event):
-
         self.eegplot.restore_excursion()
         self.eegplot.draw()
         return False
     
     def on_buttonJumpToTime_clicked(self, event):
-
         val = str2num_or_err(self['entryJumpToTime'].get_text(),
                             parent=self.widget)
 
@@ -1514,9 +1587,6 @@ class MainWindow(PrefixWrapper):
         except : return False
 
         if not event.inaxes: return
-        
-
-
 
         # Motion within EEG axes
         if event.inaxes == self.axes:
@@ -1565,6 +1635,16 @@ class MainWindow(PrefixWrapper):
         self.buttonDown = event.button
         annman = self.eegplot.annman
 
+        if event.button == 1 or event.button == 3 :
+            if event.inaxes == self.axes:
+                t, yt = event.xdata, event.ydata
+
+                if not annman.is_over_highlight(t) :                
+                    selected = annman.over_annotation(t)
+                    annman.remove_highlight()
+                    annman.set_selected(selected)
+                    annman.dlgbrowser.update_ann_info(selected)
+
         if event.button==3:
             # right click brings up the context menu
             if event.inaxes == self.axes:
@@ -1575,40 +1655,26 @@ class MainWindow(PrefixWrapper):
                 return False
 
             # Update popup menu items
-            menuItems = menu.get_children()
-            menuItemAnnotate = menuItems[-2]
-            menuItemDelAnn = menuItems[-1]
-
             highsens =  annman.get_highlight() is not None
             selsens = self.eegplot.annman.selectedkey is not None
+            if highsens: label = 'Create New Annotation'
+            else: label = 'Edit Selected Annotation'
 
-            menuItemAnnotate.set_sensitive(highsens or selsens)
-            menuItemDelAnn.set_sensitive(selsens)
-            
-            if highsens: title = 'Create New Annotation'
-            else: title = 'Edit Selected Annotation'
-
-            menuItemAnnotate.get_children()[0].set_text(title)
+            menuItems = menu.get_children()
+            menuItemAnnCreateEdit = menuItems[-2]
+            menuItemAnnCreateEdit.set_sensitive(highsens or selsens)
+            menuItemAnnCreateEdit.get_children()[0].set_text(label)
+            menuItemAnnDelete = menuItems[-1]
+            menuItemAnnDelete.set_sensitive(selsens)
 
             menu.popup(None, None, None, 0, 0)
 
             return False
 
         if event.button==1:
-            if event.inaxes == self.axesSpec:
-                t, f = event.xdata, event.ydata
-                self.update_status_bar(
-                    'Time  = %1.1f (s), Freq = %1.1f (Hz)' % (t,f))
-                return False
-
             if event.inaxes == self.axes:
                 self.eegplot.cursor.visible = False
                 t, yt = event.xdata, event.ydata
-
-                selected = annman.over_annotation(t)
-                annman.set_selected(selected)
-                annman.dlgbrowser.update_ann_info(selected)
-                annman.remove_highlight()
 
                 # Select an electrode if not locked.
                 if not self.eegplot.lock_trode :                        
@@ -1620,6 +1686,9 @@ class MainWindow(PrefixWrapper):
         return False
 
     def button_release_event(self, event):
+        try: self.eegplot
+        except AttributeError: return False
+        
         self.eegplot.cursor.visible = True
         self.buttonDown = None
 
@@ -1661,12 +1730,10 @@ class MainWindow(PrefixWrapper):
         d.show_widget()
         d.get_widget().set_transient_for(self.widget)
 
-        
         return False
 
     def on_menuFileQuit_activate(self, event):
         update_rc_and_die()
-
 
     def on_menuFileNew_activate(self, event):
         not_implemented(self.widget)
@@ -1787,16 +1854,21 @@ class MainWindow(PrefixWrapper):
             self.eoiMenu = self.make_context_menu(eois)
             return False
 
-
     def on_menuFileSave_activate(self, event):
         not_implemented(self.widget)
+
+    def on_menuItemAnnBrowser_activate(self, event) :
+        try : self.eegplot
+        except : pass
+        else :
+            self.eegplot.annman.dlgbrowser.show_widget()
+
+        return False
 
     def on_menuHelpAbout_activate(self, event):
         not_implemented(self.widget)
 
-
     def on_menuChannelWindow_activate(self, event):
-
         try: self.eegplot
         except AttributeError:
             simple_msg(
@@ -1809,7 +1881,6 @@ class MainWindow(PrefixWrapper):
         win.show()
 
     def on_menuHistogramWindow_activate(self, event):
-
         try: self.eegplot
         except AttributeError:
             simple_msg(
@@ -1822,7 +1893,6 @@ class MainWindow(PrefixWrapper):
         win.show()
 
     def on_menuAcorrWindow_activate(self, event):
-
         try: self.eegplot
         except AttributeError:
             simple_msg(
@@ -1834,7 +1904,6 @@ class MainWindow(PrefixWrapper):
         win.show()
 
     def on_menuEmbedWindow_activate(self, event):
-
         try: self.eegplot
         except AttributeError:
             simple_msg(
@@ -1892,11 +1961,6 @@ class MainWindow(PrefixWrapper):
         
         return False
 
-    def on_menuAnnBrowser_activate(self, event) :
-        self.eegplot.annman.dlgbrowser.show_widget()
-
-        return False
-
 def update_rc_and_die(*args):
     eegviewrc.lastdir = fmanager.get_lastdir()
     #eegviewrc.figsize = Shared.windowMain.fig.get_size_inches()
@@ -1907,7 +1971,6 @@ if __name__=='__main__':
     __import__('__init__')
     Shared.windowMain = MainWindow()
     Shared.windowMain.show_widget()
-
 
     Shared.windowMain.on_menuFilePreferences_activate(None)
 

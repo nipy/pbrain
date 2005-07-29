@@ -747,7 +747,6 @@ class Dialog_SaveEOI(PrefixWrapper):
             self['comboExisting'].set_popdown_strings(names)
         self['comboExisting'].entry.set_text(eoiActive.filename)
 
-
     def on_buttonOK_clicked(self, event):
         storeParamsOnOK[self.widgetName] = self.get_params()
         self.okCallback(self.get_params())        
@@ -758,7 +757,6 @@ class Dialog_SaveEOI(PrefixWrapper):
     def get_params(self):
         return {'filename': self['comboExisting'].entry.get_text()}
 
-
 class Dialog_Annotate(PrefixWrapper) :
     prefix = 'dlgAnnotate_'
     widgetName = 'dialogAnnotate'
@@ -768,10 +766,8 @@ class Dialog_Annotate(PrefixWrapper) :
         self.ok_callback = ok_callback
 
         # Set combo options
-        # xxx is all this necessay to add combo box entries?
         if self['comboBoxEntryCode'].get_model() == None :
             codes = CodeRegistry.get_code_from_registry('EEG classification').descs
-#            codes = ['code1', 'code2', 'code3']
             model = gtk.ListStore(str)
             for code in codes :
                 model.append([code])
@@ -828,16 +824,17 @@ class Dialog_AnnBrowser(PrefixWrapper) :
     prefix = 'dlgAnnBrowser_'
     widgetName = 'dialogAnnBrowser'
 
-    def __init__(self, eegPlot, ok_callback=donothing_callback) :
+    def __init__(self, eegplot, annman, ok_callback=donothing_callback) :
         PrefixWrapper.__init__(self)
         self.ok_callback = ok_callback
 
-        self.eegPlot = eegPlot
+        self.eegplot = eegplot
+        self.annman = annman
 
         # Set combo box username options
         if self['comboBoxEntryUsername'].get_model() == None :
             usernames = ['Any']
-            ann = self.eegPlot.eeg.get_ann()
+            ann = self.eegplot.eeg.get_ann()
             for a in ann.values() :
                 if a['username'] not in usernames :
                   usernames.append(a['username'])
@@ -850,7 +847,7 @@ class Dialog_AnnBrowser(PrefixWrapper) :
 
         # Set combo box code options
         if self['comboBoxEntryCode'].get_model() == None :
-            codes = ['Any', 'code1', 'code2', 'code3']
+            codes = ['Any'] + CodeRegistry.get_code_from_registry('EEG classification').descs
             model = gtk.ListStore(str)
             for code in codes :
                 model.append([code])
@@ -859,11 +856,7 @@ class Dialog_AnnBrowser(PrefixWrapper) :
             self['comboBoxEntryCode'].set_active(0)
 
         # Update annotation info if an annotation is currently selected.
-        try : self.eegPlot.currRect
-        except :
-          self.update_ann_info()
-        else :
-          self.update_ann_info(self.eegPlot.currRect)
+        self.update_ann_info(self.annman.selectedkey)
 
     def get_username(self) :
         username = None
@@ -892,7 +885,7 @@ class Dialog_AnnBrowser(PrefixWrapper) :
         return code
 
     def update_ann_info(self, startEndTime=None) :
-        ann = self.eegPlot.eeg.get_ann()
+        ann = self.eegplot.eeg.get_ann()
 
         if startEndTime :
             # Make widgets sensitive
@@ -927,7 +920,7 @@ class Dialog_AnnBrowser(PrefixWrapper) :
             self['textViewAnnotation'].get_buffer().set_text('')
 
     def jump_to_annotation(self, newStartEndTime) :
-        tmin, tmax = self.eegPlot.get_time_lim()
+        tmin, tmax = self.eegplot.get_time_lim()
         width = tmax - tmin
 	startTime, endTime = tmin, tmax
 	if newStartEndTime[0] < tmin or newStartEndTime[0] > tmax:
@@ -948,16 +941,22 @@ class Dialog_AnnBrowser(PrefixWrapper) :
         elif newStartEndTime[1] < tmin :
             endTime = startTime + width
 
-        self.eegPlot.set_time_lim(startTime, endTime, updateData = True)
-	self.eegPlot.update_annotations()
-        self.eegPlot.set_curr_annotation(newStartEndTime)
-        self.eegPlot.draw()
+        self.eegplot.set_time_lim(startTime, endTime, updateData = True)
+	self.annman.update_annotations()
+        self.annman.set_selected(newStartEndTime)
+#        self.eegplot.draw()
+
+    def on_buttonShow_clicked(self, event) :
+        print 'show'
+
+    def on_buttonHide_clicked(self, event) :
+        print 'hide'
 
     def on_buttonFirst_clicked(self, event) :
         # Get first annotation
         username = self.get_username()
         code = self.get_code()
-        ann = self.eegPlot.eeg.get_ann()
+        ann = self.eegplot.eeg.get_ann()
         newStartEndTime = None
         startEndTimes = ann.keys()
         startEndTimes.sort()
@@ -980,16 +979,14 @@ class Dialog_AnnBrowser(PrefixWrapper) :
             self.jump_to_annotation(newStartEndTime)
 
     def on_buttonPrev_clicked(self, event) :
-        try : self.eegPlot.currRect
-        except : pass # xxx warn to select a rect?
-        else :
+        if self.annman.selectedkey :
             username = self.get_username()
             code = self.get_code()
-            ann = self.eegPlot.eeg.get_ann()
+            ann = self.eegplot.eeg.get_ann()
             newStartEndTime = None
             startEndTimes = ann.keys()
             startEndTimes.sort()
-            ind = startEndTimes.index(self.eegPlot.currRect)
+            ind = startEndTimes.index(self.annman.selectedkey)
             if ind > 0 :
                 if username == None  and code == None:
                     newStartEndTime = startEndTimes[ind - 1]
@@ -1011,16 +1008,14 @@ class Dialog_AnnBrowser(PrefixWrapper) :
                 self.jump_to_annotation(newStartEndTime)
 
     def on_buttonNext_clicked(self, event) :
-        try : self.eegPlot.currRect
-        except : pass # xxx warn to select a rect?
-        else :
+        if self.annman.selectedkey :
             username = self.get_username()
             code = self.get_code()
-            ann = self.eegPlot.eeg.get_ann()
+            ann = self.eegplot.eeg.get_ann()
             newStartEndTime = None
             startEndTimes = ann.keys()
             startEndTimes.sort()
-            ind = startEndTimes.index(self.eegPlot.currRect)
+            ind = startEndTimes.index(self.annman.selectedkey)
             if ind < len(startEndTimes) - 1 :
                 if username == None and code == None :
                     newStartEndTime = startEndTimes[ind + 1]
@@ -1045,7 +1040,7 @@ class Dialog_AnnBrowser(PrefixWrapper) :
         # Get last annotation of given code
         username = self.get_username()
         code = self.get_code()
-        ann = self.eegPlot.eeg.get_ann()
+        ann = self.eegplot.eeg.get_ann()
         newStartEndTime = None
         startEndTimes = ann.keys()
         startEndTimes.sort()

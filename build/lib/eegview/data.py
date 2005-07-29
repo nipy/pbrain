@@ -1,5 +1,3 @@
-# 7.13.05 jwaxma2@uic.edu
-#   Added .ann annotation file.
 from __future__ import division
 
 import os, sys, re, glob, urllib, httplib
@@ -618,7 +616,8 @@ class Ann(dict, AssociatedFile) :
                 'username'      : line[4],
                 'color'         : line[5],
                 'code'          : line[6],
-                'annotation'    : line[7]}
+                'visible'	: int(line[7]),
+                'annotation'    : line[8]}
 
     def _save_data(self, fh, append = False) :
 #        writer = csv.writer(fh)
