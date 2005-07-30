@@ -95,22 +95,22 @@ class View3(gtk.Window, Observer):
     banddict =  {'delta':0, 'theta':1, 'alpha':2,
                  'beta':3, 'gamma':4, 'high':5}
 
-    def __init__(self, eegPlot):
+    def __init__(self, eegplot):
         gtk.Window.__init__(self)
 
         
         self.ok = False  # do not show if false
         
-        self.eegPlot = eegPlot
-        self.eeg = eegPlot.get_eeg()
+        self.eegplot = eegplot
+        self.eeg = eegplot.get_eeg()
         self.amp = self.eeg.get_amp()
         self.cnumDict = self.amp.get_channel_num_dict()
-        self.eoi = eegPlot.get_eoi()
+        self.eoi = eegplot.get_eoi()
         self.eoiPairs = all_pairs_eoi(self.eoi)
         self.selected = None
         self.cohCache = None  # cache coherence results from other window
         
-        self.filterGM = eegPlot.filterGM
+        self.filterGM = eegplot.filterGM
         self.gridManager = None
         seen = {}
         for key in self.eoi:
@@ -454,7 +454,7 @@ class View3(gtk.Window, Observer):
             if not button.get_active():
                 self.selected = None
             else:
-                selected = self.eegPlot.get_selected()
+                selected = self.eegplot.get_selected()
                 if selected is not None:
                     torig, data, trode = selected
                     gname, gnum = trode
@@ -565,7 +565,7 @@ class View3(gtk.Window, Observer):
 
     def auto_play(self, *args):
         
-        tmin, tmax = self.eegPlot.get_time_lim()
+        tmin, tmax = self.eegplot.get_time_lim()
         twidth = tmax-tmin
         maxTime = self.eeg.get_tmax()
         dlg = AutoPlayView3Dialog(self, tmin, maxTime, twidth)
@@ -687,7 +687,7 @@ class View3(gtk.Window, Observer):
         
 
         if setTime is None:
-            tmin, tmax = self.eegPlot.get_time_lim()
+            tmin, tmax = self.eegplot.get_time_lim()
         else:
             tmin, tmax = setTime
 
@@ -701,7 +701,7 @@ class View3(gtk.Window, Observer):
                 return
 
         
-        eeg = self.eegPlot.get_eeg()
+        eeg = self.eegplot.get_eeg()
         dt = 1.0/eeg.freq
 
         t, data = self.eeg.get_data(tmin, tmax)

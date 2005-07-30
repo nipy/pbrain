@@ -21,13 +21,13 @@ from dialogs import SpecProps
 
 class EmbedWin(gtk.Window, Observer):
 
-    def __init__(self, eegPlot):
+    def __init__(self, eegplot):
         gtk.Window.__init__(self)
         Observer.__init__(self)
         self.set_size_request(300, 300)
-        self.eegPlot = eegPlot
-        self.eeg = eegPlot.get_eeg()
-        self.eoi = eegPlot.get_eoi()
+        self.eegplot = eegplot
+        self.eeg = eegplot.get_eeg()
+        self.eoi = eegplot.get_eoi()
         
 
 
@@ -122,7 +122,7 @@ class EmbedWin(gtk.Window, Observer):
         if self.scatterActor is not None:
             self.renderer.RemoveActor(self.scatterActor)            
 
-        selected = self.eegPlot.get_selected()
+        selected = self.eegplot.get_selected()
         if selected is None:
             error_msg('You must first select an EEG channel by clicking on it',
                       parent=self)
@@ -131,7 +131,7 @@ class EmbedWin(gtk.Window, Observer):
         gname, gnum = trode
         label = '%s %d' % (gname, gnum)
 
-        Fs = self.eegPlot.eeg.freq
+        Fs = self.eegplot.eeg.freq
         dt = 1.0/Fs
 
         try: lag = int(self.entryLag.get_text())

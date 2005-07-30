@@ -766,7 +766,7 @@ class Dialog_Annotate(PrefixWrapper) :
         self.ok_callback = ok_callback
 
         # Set combo options
-        if self['comboBoxEntryCode'].get_model() == None :
+        if self['comboBoxEntryCode'].get_model() is None :
             codes = CodeRegistry.get_code_from_registry('EEG classification').descs
             model = gtk.ListStore(str)
             for code in codes :
@@ -832,7 +832,7 @@ class Dialog_AnnBrowser(PrefixWrapper) :
         self.annman = annman
 
         # Set combo box username options
-        if self['comboBoxEntryUsername'].get_model() == None :
+        if self['comboBoxEntryUsername'].get_model() is None :
             usernames = ['Any']
             ann = self.eegplot.eeg.get_ann()
             for a in ann.values() :
@@ -846,7 +846,7 @@ class Dialog_AnnBrowser(PrefixWrapper) :
             self['comboBoxEntryUsername'].set_active(0)
 
         # Set combo box code options
-        if self['comboBoxEntryCode'].get_model() == None :
+        if self['comboBoxEntryCode'].get_model() is None :
             codes = ['Any'] + CodeRegistry.get_code_from_registry('EEG classification').descs
             model = gtk.ListStore(str)
             for code in codes :
@@ -858,7 +858,7 @@ class Dialog_AnnBrowser(PrefixWrapper) :
         # Update annotation info if an annotation is currently selected.
         self.update_ann_info(self.annman.selectedkey)
 
-    def get_username(self) :
+    def get_search(self) :
         username = None
         c = self['comboBoxEntryUsername']
         model = c.get_model()
@@ -869,9 +869,6 @@ class Dialog_AnnBrowser(PrefixWrapper) :
         else :
             username = None
 
-        return username
-
-    def get_code(self) :
         code = None
         c = self['comboBoxEntryCode']
         model = c.get_model()
@@ -882,12 +879,12 @@ class Dialog_AnnBrowser(PrefixWrapper) :
         else :
             code = None
 
-        return code
+        return username, code
 
-    def update_ann_info(self, startEndTime=None) :
+    def update_ann_info(self, key=None) :
         ann = self.eegplot.eeg.get_ann()
 
-        if startEndTime :
+        if key :
             # Make widgets sensitive
             for widget in ['label1', 'label2', 'label3', 'label4', 'label5', 'label6',
                            'labelStartTime', 'labelEndTime',
@@ -896,12 +893,14 @@ class Dialog_AnnBrowser(PrefixWrapper) :
                 self[widget].set_sensitive(True)
 
             # Update text
-            self['labelStartTime'].set_text(str(startEndTime[0]))
-            self['labelEndTime'].set_text(str(startEndTime[1]))
-            self['labelUsername'].set_text(ann[startEndTime]['username'])
-            self['labelColor'].set_text(ann[startEndTime]['color'])
-            self['labelCode'].set_text(ann[startEndTime]['code'])
-            self['textViewAnnotation'].get_buffer().set_text(ann[startEndTime]['annotation'])
+            s = '%1.1f' % ann[key]['startTime']
+            self['labelStartTime'].set_text(s)
+            e = '%1.1f' % ann[key]['endTime']
+            self['labelEndTime'].set_text(e)
+            self['labelUsername'].set_text(ann[key]['username'])
+            self['labelColor'].set_text(ann[key]['color'])
+            self['labelCode'].set_text(ann[key]['code'])
+            self['textViewAnnotation'].get_buffer().set_text(ann[key]['annotation'])
 
         else :
             # Make widgets not sensitive
@@ -919,149 +918,184 @@ class Dialog_AnnBrowser(PrefixWrapper) :
             self['labelCode'].set_text('none')
             self['textViewAnnotation'].get_buffer().set_text('')
 
-    def jump_to_annotation(self, newStartEndTime) :
+    def jump_to_annotation(self, key) :
+        ann = self.eegplot.eeg.get_ann()
+        s = ann[key]['startTime']
+        e = ann[key]['endTime']
+
         tmin, tmax = self.eegplot.get_time_lim()
         width = tmax - tmin
-	startTime, endTime = tmin, tmax
-	if newStartEndTime[0] < tmin or newStartEndTime[0] > tmax:
-            newWidth = newStartEndTime[1] - newStartEndTime[0]
+        news, newe = tmin, tmax
+	if s < tmin or s > tmax:
+            newWidth = e - s
             if newWidth < width :
                 space = (width - newWidth) / 2.0
-                if newStartEndTime[0] - space < 0 :
-                    startTime = 0
+                if s - space < 0 :
+                    news = 0
                 else :
-                    startTime = newStartEndTime[0] - space
+                    news = s - space
             else :
-              startTime = newStartEndTime[0] - .5
-	if newStartEndTime[1] > tmax :
-	    if newStartEndTime[1] > startTime + width :
-                endTime = newStartEndTime[1] + .5
+              news = s - .5
+	if e > tmax :
+	    if e > news + width :
+                newe = e + .5
             else :
-                endTime = startTime + width
-        elif newStartEndTime[1] < tmin :
-            endTime = startTime + width
+                newe = news + width
+        elif e < tmin :
+            newe = news + width
 
-        self.eegplot.set_time_lim(startTime, endTime, updateData = True)
+        self.eegplot.set_time_lim(news, newe, updateData = True)
 	self.annman.update_annotations()
-        self.annman.set_selected(newStartEndTime)
-#        self.eegplot.draw()
+        self.annman.set_selected(key)
 
     def on_buttonShow_clicked(self, event) :
-        print 'show'
+        ann = self.eegplot.eeg.get_ann()
+        username, code = self.get_search()
+        for key, annInfo in ann.items() :
+            ok = 1
+            if (username is not None
+                and ann[key]['username'] <> username) :
+                ok = 0
+            if ok and (code is not None
+                       and ann[key]['code'] <> code) :
+                ok = 0
+            if ok :
+                ann[key]['visible'] = 1
+
+        self.eegplot.annman.update_annotations()
+
+        return False
 
     def on_buttonHide_clicked(self, event) :
-        print 'hide'
+        ann = self.eegplot.eeg.get_ann()
+        username, code = self.get_search()
+        for key, annInfo in ann.items() :
+            ok = 1
+            if (username is not None
+                and ann[key]['username'] <> username) :
+                ok = 0
+            if ok and (code is not None
+                       and ann[key]['code'] <> code) :
+                ok = 0
+            if ok :
+                ann[key]['visible'] = 0
+
+        self.eegplot.annman.update_annotations()
+
+        return False
 
     def on_buttonFirst_clicked(self, event) :
         # Get first annotation
-        username = self.get_username()
-        code = self.get_code()
+        username, code = self.get_search()
         ann = self.eegplot.eeg.get_ann()
-        newStartEndTime = None
-        startEndTimes = ann.keys()
-        startEndTimes.sort()
-        if username == None and code == None :
-            newStartEndTime = startEndTimes[0]
+        newkey = None
+        keys = ann.keys()
+        keys.sort()
+        if username is None and code is None :
+            newkey = keys[0]
         else :
-            for startEndTime in startEndTimes :
+            for key in keys :
+                if not ann[key]['visible'] : continue
                 ok = 1
-                if username <> None and ann[startEndTime]['username'] <> username :
+                if (username is not None
+                    and ann[key]['username'] <> username) :
                     ok = 0
-                if ok and (code <> None and ann[startEndTime]['code'] <> code) :
+                if ok and (code is not None
+                           and ann[key]['code'] <> code) :
                     ok = 0
                 if ok :
-                    newStartEndTime = startEndTime
+                    newkey = key
                     break
 
         # Jump to annotation
-        if newStartEndTime <> None :
-	    self.update_ann_info(newStartEndTime)
-            self.jump_to_annotation(newStartEndTime)
+        if newkey is not None :
+	    self.update_ann_info(newkey)
+            self.jump_to_annotation(newkey)
 
     def on_buttonPrev_clicked(self, event) :
         if self.annman.selectedkey :
-            username = self.get_username()
-            code = self.get_code()
+            username, code = self.get_search()
             ann = self.eegplot.eeg.get_ann()
-            newStartEndTime = None
-            startEndTimes = ann.keys()
-            startEndTimes.sort()
-            ind = startEndTimes.index(self.annman.selectedkey)
+            newkey = None
+            keys = ann.keys()
+            keys.sort()
+            ind = keys.index(self.annman.selectedkey)
             if ind > 0 :
-                if username == None  and code == None:
-                    newStartEndTime = startEndTimes[ind - 1]
-                else :
-                    ind -= 1
-                    while ind >= 0 :
+                ind -= 1
+                while ind >= 0 :
+                    if ann[keys[ind]]['visible'] :
                         ok = 1
-                        if username <> None and ann[startEndTimes[ind]]['username'] <> username :
+                        if (username is not None
+                            and ann[keys[ind]]['username'] <> username) :
                             ok = 0
-                        if ok and (code <> None and ann[startEndTimes[ind]]['code'] <> code) :
+                        if ok and (code is not None
+                                   and ann[keys[ind]]['code'] <> code) :
                             ok = 0
                         if ok :
-                            newStartEndTime = startEndTimes[ind]
+                            newkey = keys[ind]
                             break
-                        ind -= 1
+                    ind -= 1
 
-            if newStartEndTime <> None :
-                self.update_ann_info(newStartEndTime)
-                self.jump_to_annotation(newStartEndTime)
+            if newkey is not None :
+                self.update_ann_info(newkey)
+                self.jump_to_annotation(newkey)
 
     def on_buttonNext_clicked(self, event) :
         if self.annman.selectedkey :
-            username = self.get_username()
-            code = self.get_code()
+            username, code = self.get_search()
             ann = self.eegplot.eeg.get_ann()
-            newStartEndTime = None
-            startEndTimes = ann.keys()
-            startEndTimes.sort()
-            ind = startEndTimes.index(self.annman.selectedkey)
-            if ind < len(startEndTimes) - 1 :
-                if username == None and code == None :
-                    newStartEndTime = startEndTimes[ind + 1]
-                else :
-                    ind += 1
-                    while ind < len(startEndTimes) :
+            newkey = None
+            keys = ann.keys()
+            keys.sort()
+            ind = keys.index(self.annman.selectedkey)
+            if ind < len(keys) - 1 :
+                ind += 1
+                while ind < len(keys) :
+                    if ann[keys[ind]]['visible'] :
                         ok = 1
-                        if username <> None and ann[startEndTimes[ind]]['username'] <> username :
+                        if (username is not None
+                            and ann[keys[ind]]['username'] <> username) :
                             ok = 0
-                        if ok and (code <> None and ann[startEndTimes[ind]]['code'] <> code) :
+                        if ok and (code is not None
+                                   and ann[keys[ind]]['code'] <> code) :
                             ok = 0
                         if ok :
-                            newStartEndTime = startEndTimes[ind]
+                            newkey = keys[ind]
                             break
-                        ind += 1
+                    ind += 1
 
-            if newStartEndTime <> None :
-                self.update_ann_info(newStartEndTime)
-                self.jump_to_annotation(newStartEndTime)
+            if newkey is not None :
+                self.update_ann_info(newkey)
+                self.jump_to_annotation(newkey)
 
     def on_buttonLast_clicked(self, event) :
         # Get last annotation of given code
-        username = self.get_username()
-        code = self.get_code()
+        username, code = self.get_search()
         ann = self.eegplot.eeg.get_ann()
-        newStartEndTime = None
-        startEndTimes = ann.keys()
-        startEndTimes.sort()
-        startEndTimes.reverse()
-        if username == None and code == None :
-            newStartEndTime = startEndTimes[0]
+        newkey = None
+        keys = ann.keys()
+        keys.sort()
+        keys.reverse()
+        if username is None and code is None :
+            newkey = keys[0]
         else :
-            for startEndTime in startEndTimes :
+            for key in keys :
+                if not ann[key]['visible'] : continue
                 ok = 1
-                if username <> None and ann[startEndTime]['userrname'] <> username :
+                if (username is not None
+                    and ann[key]['userrname'] <> username) :
                     ok = 0
-                if ok and (code <> None and ann[startEndTime]['code'] <> code) :
+                if ok and (code is not None
+                           and ann[key]['code'] <> code) :
                     ok = 0
                 if ok :
-                    newStartEndTime = startEndTime
+                    newkey = key
                     break
 
         # Jump to annotation
-        if newStartEndTime <> None :
-            self.update_ann_info(newStartEndTime)
-            self.jump_to_annotation(newStartEndTime)
+        if newkey is not None :
+            self.update_ann_info(newkey)
+            self.jump_to_annotation(newkey)
 
     def on_buttonClose_clicked(self, event) :
         self.ok_callback()

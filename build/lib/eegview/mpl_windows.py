@@ -155,18 +155,18 @@ class MPLWin(gtk.Window, Observer):
 
 
 
-    def __init__(self, eegPlot, packstart=None, packend=None):    
+    def __init__(self, eegplot, packstart=None, packend=None):    
         gtk.Window.__init__(self)
         Observer.__init__(self)
         self.set_size_request(*self._size)
 
-        self.eegPlot = eegPlot
-        self.eeg = eegPlot.get_eeg()
-        self.eoi = eegPlot.get_eoi()
+        self.eegplot = eegplot
+        self.eeg = eegplot.get_eeg()
+        self.eoi = eegplot.get_eoi()
 
         self._filterButter = Filter(self)
         self._filter       = FilterBase()   # no filtering
-        self._filterGM = self.eegPlot.filterGM
+        self._filterGM = self.eegplot.filterGM
         
         vbox = gtk.VBox()
         vbox.show()
@@ -182,7 +182,7 @@ class MPLWin(gtk.Window, Observer):
         self.canvas = FigureCanvas(self.fig)  # a gtk.DrawingArea
         self.canvas.set_size_request(0,0)
         self.canvas.show()
-        vbox.pack_start(self.canvas, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(self.canvas, True, True)
 
         if packend is not None:
             for w, expand, fill in packend:
@@ -190,22 +190,17 @@ class MPLWin(gtk.Window, Observer):
 
         hbox = gtk.HBox()
         hbox.show()
-        vbox.pack_start(hbox, gtk.FALSE, gtk.FALSE)
-
+        vbox.pack_start(hbox, False, False)
 
         self.toolbar = self.make_toolbar()
         self.toolbar.show()
-        hbox.pack_start(self.toolbar, gtk.FALSE, gtk.FALSE)
-
-
-
+        hbox.pack_start(self.toolbar, False, False)
 
         #self.statbar = gtk.Statusbar()
         #self.statbar.show()
         #self.statbarCID = self.statbar.get_context_id('channel bar')
         #hbox.pack_start(self.statbar, gtk.TRUE, gtk.TRUE)
         #self.update_status_bar('')
-
 
         self.set_title(self._title)
         self.set_border_width(10)
@@ -219,8 +214,6 @@ class MPLWin(gtk.Window, Observer):
         def remove(*args):
             Observer.observers.remove(self)        
         self.connect('delete-event', remove)
-
-
 
     def make_context_menu(self):
         contextMenu = gtk.Menu()
@@ -342,7 +335,7 @@ class MPLWin(gtk.Window, Observer):
 
     def get_data(self):
         'return t, data, dt, label, with t filtered according to selections'
-        selected = self.eegPlot.get_selected(self._filterGM)
+        selected = self.eegplot.get_selected(self._filterGM)
         if selected is None:
             error_msg('You must first select an EEG channel by clicking on it',
                       parent=self)
@@ -365,10 +358,10 @@ class MPLWin(gtk.Window, Observer):
         
 class ChannelWin(MPLWin):
     _title = "Single Channel"
-    
-    def __init__(self, eegPlot):
+
+    def __init__(self, eegplot):
         self.ylim = None
-        MPLWin.__init__(self, eegPlot)
+        MPLWin.__init__(self, eegplot)
 
 
     def get_msg(self, x,y):
@@ -404,7 +397,7 @@ class VoltageMapWin(MPLWin):
         self.scrollbar.show()
 
         packend = [(self.scrollbar, gtk.FALSE, gtk.FALSE)]
-        MPLWin.__init__(self, view3.eegPlot, packend=packend)
+        MPLWin.__init__(self, view3.eegplot, packend=packend)
         self.scrollbar.connect('value_changed', self.update_map)        
         self.axes.connect('xlim_changed', self.update_scrolllim)
 
@@ -415,7 +408,7 @@ class VoltageMapWin(MPLWin):
         if thist<xmin or thist>xmax: return
         
 
-        t, data = self.eegPlot.eeg.get_data(xmin, xmax)
+        t, data = self.eegplot.eeg.get_data(xmin, xmax)
         if self._filterGM:
             data = filter_grand_mean(data)
         
@@ -429,8 +422,8 @@ class VoltageMapWin(MPLWin):
         # we do this here rather than in the eegview win so that we
         # can use this windows filter params
         slice = {}
-        for trode, eoiInd in self.eegPlot.eoiIndDict.items():
-            indData = self.eegPlot.indices[eoiInd]
+        for trode, eoiInd in self.eegplot.eoiIndDict.items():
+            indData = self.eegplot.indices[eoiInd]
             slice[trode] = -data[indTime, indData]
             
         self.view3.gridManager.set_scalar_data(slice)
@@ -456,7 +449,7 @@ class VoltageMapWin(MPLWin):
             canvas.window.draw_line(gc, thist, ymin, thist, ymax)
 
         make_line(self.axes, self.canvas)
-        make_line(self.eegPlot.axes, self.eegPlot.canvas)
+        make_line(self.eegplot.axes, self.eegplot.canvas)
 
     def get_msg(self, x,y):
         return  't = %1.2f, v=%1.2f' % (x, y)
@@ -505,9 +498,9 @@ class VoltageMapWin(MPLWin):
 class AcorrWin(MPLWin):
     _title = "Autocorrelation"
 
-    def __init__(self, eegPlot):
+    def __init__(self, eegplot):
         self._haveData = False
-        MPLWin.__init__(self, eegPlot)
+        MPLWin.__init__(self, eegplot)
     
     def get_msg(self, x,y):
         if not hasattr(self, '_dt'):
@@ -619,13 +612,13 @@ class SpecWin(MPLWin):
         if tup is None: return 
         torig, data, dt, label = tup
 
-        # use this instead of self.eegPlot.eeg.freq in case filter decimates
+        # use this instead of self.eegplot.eeg.freq in case filter decimates
         Fs = 1.0/dt  
         NFFT, Noverlap = 512, 477
 
 
         self.axes.clear()
-        xmin, xmax = self.eegPlot.axes.get_xlim()
+        xmin, xmax = self.eegplot.axes.get_xlim()
         Pxx, freqs, t, im = self.axes.specgram(
             data, NFFT=NFFT, Fs=Fs, noverlap=Noverlap,
             cmap=self.cmap, xextent=(xmin, xmax))
@@ -641,7 +634,7 @@ class SpecWin(MPLWin):
         
 
         self.axes.set_xlim( [xmin, xmax] )
-        self.axes.set_xticks( self.eegPlot.axes.get_xticks()  )
+        self.axes.set_xticks( self.eegplot.axes.get_xticks()  )
         self.axes.set_title('Spectrogram for electrode %s' % label)
         self.axes.set_xlabel('TIME (s)')
         self.axes.set_ylabel('FREQUENCY (Hz)')

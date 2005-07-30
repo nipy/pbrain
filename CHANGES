@@ -37,3 +37,9 @@ data.py
 - added annotations menu
 - added turn on/off horiz/vert cursor; save in .rc
 - un/select annotations using either left or right mouse button
+
+7.29.05 jowaxman
+- added hide/show in ann browser
+- renamed eegPlot to eegplot everywhere (there were some mismatches in 
+  named params)
+- resizing of annotations

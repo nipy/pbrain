@@ -608,7 +608,7 @@ class Ann(dict, AssociatedFile) :
         for line in reader :
             if not line : continue
 
-            self[(float(line[0]), float(line[1]))] = {
+            self['%1.1f' % float(line[0]), '%1.1f' % float(line[1])] = {
                 'startTime'     : float(line[0]),
                 'endTime'       : float(line[1]),
                 'created'       : line[2],
