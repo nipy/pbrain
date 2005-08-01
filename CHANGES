@@ -48,3 +48,6 @@ data.py
 - resizing of annotations
 - commented out all pygtk.require('2.0')
 - save ann file after changes (edit, delete, resize)
+- turn off selection if starting a highlight from within an annotation
+- now you can add a new annotation by selecting 'Create New' when 
+  nothing is selected

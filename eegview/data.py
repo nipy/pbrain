@@ -138,10 +138,8 @@ class AssociatedFile:
             try : self.fullpath
             except :
                 useFile = ''
-                print '1', useFile
             else :
                 useFile = self.fullpath
-                print '2', useFile
 
         if useFile is not None :
             fh = None

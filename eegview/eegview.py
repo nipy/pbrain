@@ -405,6 +405,8 @@ class AnnotationManager:
         # Update Annotations menuitems sensitivity.
         menuItemAnnBrowser = Shared.widgets.get_widget('menuItemAnnBrowser')
         menuItemAnnBrowser.set_sensitive(1)
+        menuItemAnnCreateEdit = Shared.widgets.get_widget('menuItemAnnCreateEdit')
+        menuItemAnnCreateEdit.set_sensitive(1)
         menuItemAnnHorizCursor = Shared.widgets.get_widget('menuItemAnnHorizCursor')
         menuItemAnnHorizCursor.set_sensitive(1)
         menuItemAnnVertCursor = Shared.widgets.get_widget('menuItemAnnVertCursor')
@@ -425,7 +427,6 @@ class AnnotationManager:
         label = 'Create New'
         menuItemAnnCreateEdit = Shared.widgets.get_widget('menuItemAnnCreateEdit')
         menuItemAnnCreateEdit.get_children()[0].set_text(label)
-        menuItemAnnCreateEdit.set_sensitive(1)
         menuItemAnnDelete = Shared.widgets.get_widget('menuItemAnnDelete')
         menuItemAnnDelete.set_sensitive(0)
 
@@ -487,8 +488,9 @@ class AnnotationManager:
         self.canvas.draw()
 
         # Update Annotations menuitems sensitivity
+        label = 'Create New'
         menuItemAnnCreateEdit = Shared.widgets.get_widget('menuItemAnnCreateEdit')
-        menuItemAnnCreateEdit.set_sensitive(0)
+        menuItemAnnCreateEdit.get_children()[0].set_text(label)
         menuItemAnnDelete = Shared.widgets.get_widget('menuItemAnnDelete')
         menuItemAnnDelete.set_sensitive(0)
 
@@ -511,7 +513,7 @@ class AnnotationManager:
         the plot stff and redraw
         """
 
-        thisann = popd(ann, self.selectedkey, None)
+        thisann = popd(self.eegplot.annman.ann, self.selectedkey, None)
         if thisann is None:
             return
 
@@ -520,8 +522,9 @@ class AnnotationManager:
         self.eegplot.draw()
 
         # Update Annotations menuitems sensitivity
+        label = 'Create New'
         menuItemAnnCreateEdit = Shared.widgets.get_widget('menuItemAnnCreateEdit')
-        menuItemAnnCreateEdit.set_sensitive(0)
+        menuItemAnnCreateEdit.get_children()[0].set_text(label)
         menuItemAnnDelete = Shared.widgets.get_widget('menuItemAnnDelete')
         menuItemAnnDelete.set_sensitive(0)
 
@@ -541,7 +544,6 @@ class AnnotationManager:
 
         if newkey is None:
             # Update Annotations menuitems sensitivity
-            menuItemAnnCreateEdit.set_sensitive(0)
             menuItemAnnDelete.set_sensitive(0)
         else :
             # now set the props of the new one
@@ -552,7 +554,6 @@ class AnnotationManager:
 
             # Update Annotations menuitems sensitivity
             menuItemAnnCreateEdit.get_children()[0].set_text('Edit Selected')
-            menuItemAnnCreateEdit.set_sensitive(1)
             menuItemAnnDelete.set_sensitive(1)
 
         self.selectedkey = newkey
@@ -1517,11 +1518,10 @@ class MainWindow(PrefixWrapper):
             params = dlgAnnotate.get_params()
 
             # Set created and edited times.
-            hlight =  annman.get_highlight()
-            if hlight is None: # selected
+            if annman.selectedkey is not None:
                 created = annman.ann[key]['created']
                 edited = datetime.today()
-            else :             # highlighted
+            else :
                 created = datetime.today()
                 edited = created
 
@@ -1558,12 +1558,17 @@ class MainWindow(PrefixWrapper):
 
             return
 
+        params = {}
         if annman.selectedkey is not None:
             params = annman.ann[annman.selectedkey]
         else:
             # Create new annotation
-            start, end = annman.highlight_span()
-            params = dict(startTime=start, endTime=end)
+            hlight = annman.get_highlight()
+            if hlight is None :
+                params = {}
+            else :
+                start, end = annman.highlight_span()
+                params = dict(startTime=start, endTime=end)
 
         dlgAnnotate = Dialog_Annotate(params, ok_callback)
         dlgAnnotate.get_widget().set_transient_for(self.widget)
@@ -1629,7 +1634,6 @@ class MainWindow(PrefixWrapper):
     def realize(self, widget):
         return False
 
-        
     def motion_notify_event(self, event):
         try: self.eegplot
         except : return False
@@ -1653,7 +1657,8 @@ class MainWindow(PrefixWrapper):
                         e = t
                     if s < e :
                         annman.resize_selected(s, e)
-                    
+                else :
+                    annman.set_selected()    
             else :
                 # Change mouse cursor if over an annotation edge.
                 selected, side = annman.over_edge(t)
@@ -1751,7 +1756,6 @@ class MainWindow(PrefixWrapper):
 
             menuItems = menu.get_children()
             menuItemAnnCreateEdit = menuItems[-2]
-            menuItemAnnCreateEdit.set_sensitive(highsens or selsens)
             menuItemAnnCreateEdit.get_children()[0].set_text(label)
             menuItemAnnDelete = menuItems[-1]
             menuItemAnnDelete.set_sensitive(selsens)
