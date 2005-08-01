@@ -1174,7 +1174,7 @@ class SpecPlot(Observer):
 class MainWindow(PrefixWrapper):
     prefix = ''
     widgetName = 'windowMain'
-    gladeFile = '/home/jowaxman/devel/pbrain/gui/main.glade'
+    gladeFile = 'gui/main.glade'
 
     def __init__(self):
         if os.path.exists(self.gladeFile):
@@ -1635,7 +1635,7 @@ class MainWindow(PrefixWrapper):
         # Motion within EEG axes
         if event.inaxes == self.axes:
             t, yt = event.xdata, event.ydata
-#            t = float('%1.1f' % t)
+            #t = float('%1.1f' % t)
             annman = self.eegplot.annman
 
             # Resize annotation.
@@ -1645,13 +1645,13 @@ class MainWindow(PrefixWrapper):
                     s = ann[annman.selectedkey]['startTime']
                     e = ann[annman.selectedkey]['endTime']
                     if t < s : s = t
-                    if t > e : e = t
+                    #if t > e : e = t
                     print 'resize', annman.selectedkey, 'to', s, e
                     annman.resize_selected(s, e)
             else :
                 # Change mouse cursor if over an annotation edge.
                 selected = annman.over_edge(t)
-                print selected
+                #print selected
                 if selected[0] is not None :
                     self.widget.window.set_cursor(gdk.Cursor(gdk.SB_H_DOUBLE_ARROW))
                 else :
