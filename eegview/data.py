@@ -138,8 +138,10 @@ class AssociatedFile:
             try : self.fullpath
             except :
                 useFile = ''
+                print '1', useFile
             else :
                 useFile = self.fullpath
+                print '2', useFile
 
         if useFile is not None :
             fh = None
@@ -147,8 +149,7 @@ class AssociatedFile:
                 if append :
                     fh = file(useFile, 'a')
                 else :
-#                    fh = file(useFile, 'w')
-                    print "write", useFile
+                    fh = file(useFile, 'w')
             except IOError :
                 raise ValueError('Failed to open %s for writing/appending' % useFile)
             self._save_data(fh, append)
@@ -620,12 +621,21 @@ class Ann(dict, AssociatedFile) :
                 'annotation'    : line[8]}
 
     def _save_data(self, fh, append = False) :
-#        writer = csv.writer(fh)
-        startEndTimes = self.keys()
-        startEndTimes.sort()
-        for startEndTime in startEndTimes :
-            print self[startEndTime]
-          
+        writer = csv.writer(fh)
+        keys = self.keys()
+        keys.sort()
+        for key in keys :
+            line = [self[key]['startTime'],
+                    self[key]['endTime'],
+                    self[key]['created'],
+                    self[key]['edited'],
+                    self[key]['username'],
+                    self[key]['color'],
+                    self[key]['code'],
+                    self[key]['visible'],
+                    self[key]['annotation']]
+            writer.writerow(line)
+
 def assoc_factory_web(entry):
     typeMap = { 3 : Amp,
                 4 : Grids,

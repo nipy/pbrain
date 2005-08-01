@@ -43,3 +43,8 @@ data.py
 - renamed eegPlot to eegplot everywhere (there were some mismatches in 
   named params)
 - resizing of annotations
+
+8.1.05 jowaxman
+- resizing of annotations
+- commented out all pygtk.require('2.0')
+- save ann file after changes (edit, delete, resize)
