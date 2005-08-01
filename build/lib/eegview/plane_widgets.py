@@ -4,7 +4,7 @@ from __future__ import division
 import vtk
 
 import pygtk
-pygtk.require('2.0')
+#pygtk.require('2.0')
 import gtk
 
 import re, time

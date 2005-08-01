@@ -176,7 +176,7 @@ CodeRegistry.register_code(
 def register_stock_icons():
     try:
         import pygtk
-        pygtk.require('2.0')
+#        pygtk.require('2.0')
         import gtk
     except: return
     items = [

@@ -11,8 +11,8 @@ from __future__ import division
 import sys, os, copy, traceback
 import distutils.sysconfig
 
-import pygtk
-pygtk.require('2.0')
+#import pygtk
+#pygtk.require('2.0')
 
 import gtk
 from gtk import gdk
@@ -391,6 +391,7 @@ class AnnotationManager:
 
         self._highlight = None
         self.resize = False
+        self.background = None
 
         def ok_callback(*args) :
             self.dlgbrowser.hide_widget()
@@ -465,11 +466,14 @@ class AnnotationManager:
       """
       ann = self.eegplot.eeg.get_ann ()
       for key, info in ann.items() :
-          if t == info['startTime'] or t == info['endTime'] :
-              return key
-              break
+          s = info['startTime']
+          e = info['endTime']
+          if t > s - .05 and t < s + .05 :
+              return key, 0
+          elif t > e - .05 and t < e + .05 :
+              return key, 1
 
-      return None, None
+      return (None, None), None
 
     def is_over_highlight(self, t) :
         xmin, xmax = self.highlight_span()
@@ -554,28 +558,35 @@ class AnnotationManager:
 
         self.selectedkey = newkey
 
-    def start_resize(self) :
+    def start_resize(self, side) :
         self.resize = True
+        self.resize_side = side
 
     def end_resize(self) :
         self.resize = False
         
     def resize_selected(self, s, e) :
         ann = self.eegplot.eeg.get_ann()
-        print ann
         rect = ann[self.selectedkey]['rect']
         rect.set_x(s)
         rect.set_width(e - s)
 
+        # Update key if it changed.
         newkey = '%1.1f' % s, '%1.1f' % e
-        ann[newkey] = ann[self.selectedkey]
-        ann[newkey]['startTime'] = s
-        ann[newkey]['endTime'] = e
-        del ann[self.selectedkey]
+        if newkey <> self.selectedkey :
+            ann[newkey] = ann[self.selectedkey]
+            ann[newkey]['startTime'] = s
+            ann[newkey]['endTime'] = e
+            del ann[self.selectedkey]
 
-        self.selectedkey = newkey
+            self.selectedkey = newkey
 
-        self.eegplot.draw()
+#        self.eegplot.draw()
+#        if self.background is not None:
+#            self.eegplot.canvas.restore_region(self.background)
+        self.eegplot.axes.draw_artist(rect)
+        self.eegplot.canvas.blit(self.eegplot.axes.bbox)
+#        self.background = self.eegplot.canvas.copy_from_bbox(self.eegplot.axes.bbox)
 
     def update_annotations(self) :
         """
@@ -1170,7 +1181,7 @@ class SpecPlot(Observer):
 class MainWindow(PrefixWrapper):
     prefix = ''
     widgetName = 'windowMain'
-    gladeFile = 'main.glade'
+    gladeFile = '/home/jowaxman/devel/pbrain/gui/main.glade'
 
     def __init__(self):
         if os.path.exists(self.gladeFile):
@@ -1640,13 +1651,15 @@ class MainWindow(PrefixWrapper):
                     ann = self.eegplot.eeg.get_ann()
                     s = ann[annman.selectedkey]['startTime']
                     e = ann[annman.selectedkey]['endTime']
-                    if t < s : s = t
-                    if t > e : e = t
-                    print 'resize', annman.selectedkey, 'to', (s, e)
+                    if annman.resize_side == 0 :
+                        s = t
+                    else :
+                        e = t
                     annman.resize_selected(s, e)
+                    
             else :
                 # Change mouse cursor if over an annotation edge.
-                selected = annman.over_edge(t)
+                selected, side = annman.over_edge(t)
                 if selected[0] is not None :
                     self.widget.window.set_cursor(gdk.Cursor(gdk.SB_H_DOUBLE_ARROW))
                 else :
@@ -1710,12 +1723,12 @@ class MainWindow(PrefixWrapper):
             if event.inaxes == self.axes:
                 self.eegplot.cursor.visible = False
                 t, yt = event.xdata, event.ydata
-                t = float('%1.1f' % t)
+#                t = float('%1.1f' % t)
 
                 # Start resize if edge of an annotation clicked.
-                selected = annman.over_edge(t)
+                selected, side = annman.over_edge(t)
                 if selected[0] is not None :
-                    self.eegplot.annman.start_resize()
+                    self.eegplot.annman.start_resize(side)
                     self.eegplot.annman.selector.visible = False
 
                 # Select an electrode if not locked.

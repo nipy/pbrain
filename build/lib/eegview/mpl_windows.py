@@ -6,7 +6,7 @@ import os
 
 
 import pygtk
-pygtk.require('2.0')
+#pygtk.require('2.0')
 import gtk
 from scipy.signal import buttord, butter, lfilter
 
