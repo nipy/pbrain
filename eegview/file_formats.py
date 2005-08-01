@@ -154,7 +154,7 @@ class FileFormat_BNI:
         self.labeld = {} # a dict from cnum to label
         channeld = {} # mapping from anum->(gname, gnum)        
 
-        seenanum = Set([])
+        seenanum = {}
         for line in bnih:
             vals = line.split('=',1)
             if len(vals)==2 and vals[0].strip() in self.keys:
@@ -180,10 +180,11 @@ class FileFormat_BNI:
             
             if len(vals)==8:
                 anum = int(vals[0])
-                if anum in seenanum:
+                if anum in seenanum.keys():
                     print 'duplicate amp num', anum
-                    print '\t', line
-                seenanum.add(anum)
+                    print '\tNew: ', line
+                    print '\tOld: ', seenanum[anum]
+                seenanum[anum] = line
                 trode = vals[1]
                 if len(trode) and trode[0]=='0':
                     trode = 'O' + trode[1:]
