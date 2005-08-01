@@ -142,7 +142,7 @@ class FileFormat_BNI:
 
     def __init__(self, bnifile):
         "Parse a bni file; bnih is a bni filename"
-        self.channels = []
+
         self.params = {}
 
         assert(os.path.exists(bnifile))
@@ -152,6 +152,9 @@ class FileFormat_BNI:
         seen = {}  # make sure there are no duplicate labels
         errors = []
         self.labeld = {} # a dict from cnum to label
+        channeld = {} # mapping from anum->(gname, gnum)        
+
+        seenanum = Set([])
         for line in bnih:
             vals = line.split('=',1)
             if len(vals)==2 and vals[0].strip() in self.keys:
@@ -177,6 +180,10 @@ class FileFormat_BNI:
             
             if len(vals)==8:
                 anum = int(vals[0])
+                if anum in seenanum:
+                    print 'duplicate amp num', anum
+                    print '\t', line
+                seenanum.add(anum)
                 trode = vals[1]
                 if len(trode) and trode[0]=='0':
                     trode = 'O' + trode[1:]
@@ -186,6 +193,7 @@ class FileFormat_BNI:
                     gname = m.group(1)
                     num = m.group(2)
                     if len(num): gnum = int(num)
+                    elif gname[-1]=='Z': gnum = 0
                     else:
                         errors.append('Empty electrode num on line\n\t%s' % line)
                         continue
@@ -196,20 +204,24 @@ class FileFormat_BNI:
                             errors.append('Duplicate label %s %d on line %s' %(gname, gnum, line))
                             continue
                     else: seen[key]=1
-                    self.channels.append( (anum, gname, gnum) )
+                    channeld[anum] = (gname, gnum) 
                 else:
                     errors.append("Error parsing BNI file on line: %s\n  Electrode labeled '%s' doesn't match pattern" % (line, trode))
-            elif len(self.channels):
+            elif len(channeld):
                 # end of the first montage
                 break
             
-            if len(self.channels)>=self.params['NchanFile']:
+            if len(channeld)>=self.params['NchanFile']:
+                print >> sys.stderr, 'Found more channels than indicated; bni file says %d'%self.params['NchanFile']
                 break
         
         if len(errors):
             print >>sys.stderr, 'Found the following nonfatal errors'
             for msg in errors:
                 print msg
+
+        self.channels = [ (key, val[0], val[1]) for key, val in channeld.items()]
+        self.channels.sort()
 
     def get_label(self, cnum):
         """
