@@ -779,7 +779,7 @@ class Dialog_Annotate(PrefixWrapper) :
 
     def set_params(self, params) :
         self['entryStartTime'].set_text('%1.1f' % params.get('startTime', 0.0))
-        self['entryEndTime'].set_text('%1.1f' % params.get('endTime', 0.0))
+        self['entryEndTime'].set_text('%1.1f' % params.get('endTime', 1.0))
         self['entryUsername'].set_text(params.get('username', 'unknown'))
         self['colorButton'].set_color(gtk.gdk.color_parse(params.get('color', '#ddddff')))
         self['textViewAnnotation'].get_buffer().set_text(params.get('annotation', ''))
