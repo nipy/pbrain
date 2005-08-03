@@ -767,13 +767,23 @@ class Dialog_Annotate(PrefixWrapper) :
 
         # Set combo options
         if self['comboBoxEntryCode'].get_model() is None :
-            codes = CodeRegistry.get_code_from_registry('EEG classification').descs
+            codes = CodeRegistry.get_code_from_registry('Annotation code').descs
             model = gtk.ListStore(str)
             for code in codes :
                 model.append([code])
             self['comboBoxEntryCode'].set_model(model)
             self['comboBoxEntryCode'].set_text_column(0)
             self['comboBoxEntryCode'].set_active(0)
+
+        # Set behavioral state options
+        if self['comboBoxEntryState'].get_model() is None :
+            states = CodeRegistry.get_code_from_registry('Behavioral State').descs
+            model = gtk.ListStore(str)
+            for state in states :
+                model.append([state])
+            self['comboBoxEntryState'].set_model(model)
+            self['comboBoxEntryState'].set_text_column(0)
+            self['comboBoxEntryState'].set_active(0)
 
         self.set_params(params)
 
@@ -782,14 +792,23 @@ class Dialog_Annotate(PrefixWrapper) :
         self['entryEndTime'].set_text('%1.1f' % params.get('endTime', 1.0))
         self['entryUsername'].set_text(params.get('username', 'unknown'))
         self['colorButton'].set_color(gtk.gdk.color_parse(params.get('color', '#ddddff')))
+        self['hscaleAlpha'].set_value(params.get('alpha', 0.0))
         self['textViewAnnotation'].get_buffer().set_text(params.get('annotation', ''))
 
-        # Set active combo box entry
+        # Set active code combo box entry
         model = self['comboBoxEntryCode'].get_model()
         n = 0
         for rw in model :
             if rw[0] == params.get('code', '') :
                 self['comboBoxEntryCode'].set_active(n)
+            n += 1
+
+        # Set active behavioral state combo box entry
+        model = self['comboBoxEntryState'].get_model()
+        n = 0
+        for rw in model :
+            if rw[0] == params.get('state', '') :
+                self['comboBoxEntryState'].set_active(n)
             n += 1
 
     def get_params(self) :
@@ -806,10 +825,19 @@ class Dialog_Annotate(PrefixWrapper) :
         else :
             params['code'] = ''
 
+        c = self['comboBoxEntryState']
+        model = c.get_model()
+        active = c.get_active()
+        if active >= 0 :
+            params['state'] = model[active][0]
+        else :
+            params['state'] = ''
+
         color = self['colorButton'].get_color()
         params['color'] = '#%.2X%.2X%.2X' % (color.red / 256,
                                              color.green / 256,
                                              color.blue / 256)
+        params['alpha'] = self['hscaleAlpha'].get_value()
 
         start, end = self['textViewAnnotation'].get_buffer().get_bounds()
         params['annotation'] = self['textViewAnnotation'].get_buffer().get_text(start, end)
@@ -847,7 +875,7 @@ class Dialog_AnnBrowser(PrefixWrapper) :
 
         # Set combo box code options
         if self['comboBoxEntryCode'].get_model() is None :
-            codes = ['Any'] + CodeRegistry.get_code_from_registry('EEG classification').descs
+            codes = ['Any'] + CodeRegistry.get_code_from_registry('Annotation code').descs
             model = gtk.ListStore(str)
             for code in codes :
                 model.append([code])

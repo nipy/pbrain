@@ -561,9 +561,9 @@ class AnnotationManager:
     def start_resize(self, side) :
         self.resize = True
         self.resize_side = side
-#        self.ann[self.selectedkey]['rect'].set_visible(False)
+        self.ann[self.selectedkey]['rect'].set_visible(False)
         self.background = self.eegplot.canvas.copy_from_bbox(self.eegplot.axes.bbox)
-#        self.ann[self.selectedkey]['rect'].set_visible(True)
+        self.ann[self.selectedkey]['rect'].set_visible(True)
 
     def end_resize(self) :
         self.resize = False

@@ -15,7 +15,6 @@ CodeRegistry.register_code(
             
             ] ) )
 
-
 CodeRegistry.register_code(
     'sex',
     Code( [ ('M', 0),
@@ -172,6 +171,10 @@ CodeRegistry.register_code(
             
             ] ) )
 
+CodeRegistry.register_code(
+    'Annotation code',
+    Code([('Unknown', 99),
+          ('Other', 98)]))
         
 def register_stock_icons():
     try:
@@ -200,8 +203,4 @@ def register_stock_icons():
         factory.add(new_stock, icon_set)
     
 register_stock_icons()            
-        
-        
-        
-    
-    
+
