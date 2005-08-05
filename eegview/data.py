@@ -1,6 +1,6 @@
 from __future__ import division
 
-import os, sys, re, glob, urllib, httplib
+import os, sys, re, glob, urllib, httplib, warnings
 from cStringIO import StringIO
 from sets import Set
 from matplotlib.cbook import mkdirs, listFiles
@@ -13,7 +13,6 @@ from utils import all_pairs_ij, all_pairs_eoi
 import file_formats
 import csv
 import gtk
-
 
 import servers
 e1020 = Set([
@@ -87,6 +86,10 @@ class Grid(dict):
     
 class AssociatedFile:
     def __init__(self, dbaseFields=None, useFile=None):
+        self.eeg = None
+        self.filename = None
+        self.fullpath = None
+
         if dbaseFields is None:
             import mx.DateTime
             now = mx.DateTime.now()
@@ -96,7 +99,8 @@ class AssociatedFile:
                            'filename': 'none.' + self.extension}
             self.existsWeb = 0
             self.__dict__.update(dbaseFields)
-            if useFile is not None:
+
+            if useFile is not None :
                 basepath, fname = os.path.split(useFile)
                 self.filename = fname
                 self.fullpath = useFile
@@ -106,6 +110,17 @@ class AssociatedFile:
             self.set_exists_web(pid=dbaseFields['pid'],
                                 filename=dbaseFields['filename'])
             self.load_data()
+
+    def set_active_eeg(self, eeg) :
+        self.eeg = eeg
+
+        # Set default file name if necessary.
+        if not self.is_web_file() and self.filename == 'none.' + self.extension :
+            # Set path to eeg_root.ext.
+            root, ext = os.path.splitext(eeg.fullpath)
+            self.fullpath = root + '.' + self.extension
+            basepath, fname = os.path.split(self.fullpath)
+            self.filename = fname
 
     def set_exists_web(self, pid, filename):
         self.dbaseFilename = filename
@@ -134,27 +149,23 @@ class AssociatedFile:
             self._load_data(fh)
 
     def save_data(self, useFile=None, append=False) :
-        if useFile is None and not self.is_web_file() :
-            try : self.fullpath
-            except :
-                useFile = ''
-            else :
+        if self.is_web_file() :
+            # xxx web save
+            print "web save"
+        else :
+            if useFile is None :
                 useFile = self.fullpath
 
-        if useFile is not None :
-            fh = None
-            try :
-                if append :
-                    fh = file(useFile, 'a')
-                else :
-                    fh = file(useFile, 'w')
-            except IOError :
-                raise ValueError('Failed to open %s for writing/appending' % useFile)
-            self._save_data(fh, append)
-              
-        else :
-            # xxx Web save
-            print "web save"
+            if useFile is not None :
+                fh = None
+                try :
+                    if append :
+                        fh = file(useFile, 'a')
+                    else :
+                        fh = file(useFile, 'w')
+                except IOError :
+                    raise ValueError('Failed to open %s for writing/appending' % useFile)
+                self._save_data(fh, append)
 
     def update_web(self, fname=None):
         "Update the web version of the file and database"
@@ -596,8 +607,11 @@ class Grids(AssociatedFile, dict):
 class Ann(dict, AssociatedFile) :
     extension = 'ann.csv'
     filetype  = 13
+    currVersion = 1.0
 
     def __init__(self, dbaseFields=None, useFile=None, message=None) :
+        self.eois = {}
+
         AssociatedFile.__init__(self, dbaseFields, useFile)
         self.message = message
 
@@ -607,29 +621,66 @@ class Ann(dict, AssociatedFile) :
         for line in reader :
             if not line : continue
 
-            self['%1.1f' % float(line[0]), '%1.1f' % float(line[1])] = {
-                'startTime'     : float(line[0]),
-                'endTime'       : float(line[1]),
-                'created'       : line[2],
-                'edited'        : line[3],
-                'username'      : line[4],
-                'color'         : line[5],
-                'code'          : line[6],
-                'visible'	: int(line[7]),
-                'annotation'    : line[8]}
+            version = float(line[0])
+            if version == 1.0 :
+                # Get electrodes in eoi
+                trodes = []
+                description = line[5]
+                eoiLine = line[6]
+                r = re.compile(';\s*')
+                for trode in r.split(eoiLine) :
+                    grid, num = trode.split('-')
+                    trodes.append((grid, num))
+
+                # Check for EOIs with the same name but different electrodes.
+                # Create a new EOI or use previously created one.
+                if self.eois.get(description) :
+                    if self.eois[description] <> trodes :
+                        print 'WARNING: EOIs with description, %s, have different electrodes; using first set of electrodes.' % description
+                    eoi = self.eois[description]
+                else :
+                    eoi = EOI(electrodes=trodes)
+                    eoi.set_description(description)
+                    self.eois[description] = eoi
+
+                self['%1.1f' % float(line[1]), '%1.1f' % float(line[2])] = {
+                    'version'		: float(line[0]),
+                    'startTime'		: float(line[1]),
+                    'endTime'		: float(line[2]),
+                    'created'		: line[3],
+                    'edited'		: line[4],
+                    'eoi'		: eoi,
+                    'username'		: line[7],
+                    'color'		: line[8],
+                    'alpha'		: float(line[9]),
+                    'code'		: line[10],
+                    'state'		: line[11],
+                    'visible'		: int(line[12]),
+                    'annotation'	: line[13]}
+            else :
+                print "WARNING: Unsupported annotation version: ", line
+                # XXX what to do - don't lost the entry!
 
     def _save_data(self, fh, append = False) :
         writer = csv.writer(fh)
         keys = self.keys()
         keys.sort()
         for key in keys :
-            line = [self[key]['startTime'],
+            eoi = self[key]['eoi']
+            trodes = ';'.join(['%s-%s' % (grid, num) for grid, num in eoi])
+
+            line = [self.currVersion,
+                    self[key]['startTime'],
                     self[key]['endTime'],
                     self[key]['created'],
                     self[key]['edited'],
+                    eoi.description,
+                    trodes,
                     self[key]['username'],
                     self[key]['color'],
+                    self[key]['alpha'],
                     self[key]['code'],
+                    self[key]['state'],
                     self[key]['visible'],
                     self[key]['annotation']]
             writer.writerow(line)
@@ -682,6 +733,7 @@ class EEGBase:
             raise ValueError, 'Found multiple EOIS %d with filename %s' % \
                   (self.pid, fname)
         else:
+            eois[0].set_active_eeg(eeg)
             return eois[0]
 
     def get_amp(self, name=None):
@@ -689,19 +741,21 @@ class EEGBase:
             amps = self.get_associated_files(3, mapped=1)
             for amp in amps:
                 if amp.filename == name:
+                    amp.set_active_eeg(self)
                     self.amp = amp
-                    return amp
+                    break
             else:
                 raise ValueError('Could not find amp file with name %s' % name)
 
-        try:
-            return self.amp
+        try: return self.amp
         except AttributeError:
-            amp = self.get_associated_files(3, mapped=1)
-            if len(amp)==1:
-                amp = amp[0]
-            elif len(amp)>1:
-                amp = amp[0]
+            amps = self.get_associated_files(3, mapped=1)
+            for amp in amps :
+                amp.set_active_eeg(self)
+            if len(amps)==1:
+                amp = amps[0]
+            elif len(amps)>1:
+                amp = amps[0]
                 amp.message =  'Warning: %s has more than one amp file; using %s' %\
                       (self.filename, amp.filename)
             else:
@@ -713,22 +767,25 @@ class EEGBase:
                     channels.append((i+1, 'NA', i+1))
                 amp.set_channels(channels)
 
+        amp.set_active_eeg(self)
         self.amp = amp
         return amp
 
     def get_grd(self):
         try: return self.grd
         except AttributeError:
-            grd = self.get_associated_files(4, mapped=1)
-            if len(grd)==1:
-                grd = grd[0]
-            elif len(grd)>1:
-                grd = grd[0]
+            grds = self.get_associated_files(4, mapped=1)
+            if len(grds)==1:
+                grd = grds[0]
+            elif len(grds)>1:
+                grd = grds[0]
                 # xxx popup select dialog
                 print 'Warning: %s has more than one grd file; using %s' %\
                       (self.filename, grd.filename)
-            elif len(grd)==0:
+            elif len(grds)==0:
                 return None
+
+        grd.set_active_eeg(self)
         self.grd = grd
         return grd
 
@@ -736,10 +793,12 @@ class EEGBase:
         try: return self.loc3djr
         except AttributeError: pass
         
-        loc3djr = self.get_associated_files(8, mapped=0)
-        if not len(loc3djr):
+        loc3djrs = self.get_associated_files(8, mapped=0)
+        if not len(loc3djrs):
             return None
-        self.loc3djr = loc3djr[0]
+        self.loc3djr = loc3djrs[0]
+
+        self.loc3djr.set_active_eeg(self)
         return self.loc3djr
 
     def get_ann(self, name=None) :
@@ -747,11 +806,12 @@ class EEGBase:
             anns = self.get_associated_files(13, mapped=1)
             for ann in anns :
                 if ann.filename == name :
+                    ann.set_active_eeg(self)
                     self.ann = ann
-                    return ann
+                    break
             else :
                 raise ValueError('Could not file annotation file with name %s' % name)
-            
+
         try : return self.ann
         except AttributeError :
             anns = self.get_associated_files(13, mapped=1)
@@ -764,6 +824,7 @@ class EEGBase:
             else :
                 ann = Ann(message='No annotation file associated with this EEG; using default')
 
+        ann.set_active_eeg(self)
         self.ann = ann
         return ann
 

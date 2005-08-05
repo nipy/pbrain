@@ -385,6 +385,10 @@ class AnnotationManager:
 
         self.ann = self.eegplot.eeg.get_ann()
 
+        # Create list of eois.  Add eois from ann.
+        self.eois = {'All' : self.eegplot.get_eeg().get_amp().to_eoi()}
+        self.eois.update(self.ann.eois)
+
         rectprops = dict(facecolor='#bbbbff',
                          alpha=0.5)
         self.selector = HorizontalSpanSelector(self.axes, self.onselect,
@@ -616,12 +620,16 @@ class AnnotationManager:
             # Draw/Update annotation box.
             rect = self.ann[key].get('rect')
             if rect is None:
-                rect = self._new_rect(s, e, alpha=0.5, zorder=3)
+                rect = self._new_rect(s, e, zorder=3)
                 self.ann[key]['rect'] = rect
             rect.set_facecolor(self.ann[key]['color'])
+            rect.set_alpha(self.ann[key]['alpha'])
 
         self.eegplot.draw()
-        
+
+    def add_eoi(self, eoi) :
+        self.eois[eoi.description] = eoi
+
 class EEGPlot(Observer):
     timeSets = ((1.,.1), (2.,.2), (5.,.5), (10.,1.), (20.,2.),
                 (50.,5.), (100., 10.), (200., 20.))
@@ -1519,11 +1527,11 @@ class MainWindow(PrefixWrapper):
 
             # Set created and edited times.
             if annman.selectedkey is not None:
-                created = annman.ann[key]['created']
-                edited = datetime.today()
+                params['created'] = annman.ann[key]['created']
+                params['edited'] = datetime.today()
             else :
-                created = datetime.today()
-                edited = created
+                params['created'] = datetime.today()
+                params['edited'] = params['created']
 
             # Keep some current values if they exist.
             visible, rect = 1, None
@@ -1531,18 +1539,11 @@ class MainWindow(PrefixWrapper):
             if old is not None :
                 visible = old.get('visible')
                 rect = old.get('rect')
+            params['visible'] = visible
+            params['rect'] = rect
 
-            annman.ann[key] = {
-                'startTime'     : params['startTime'],
-                'endTime'       : params['endTime'],
-                'created'       : created,
-                'edited'        : edited,
-                'username'      : params['username'],
-                'code'          : params['code'],
-                'color'         : params['color'],
-                'visible'	: visible,
-                'annotation'    : params['annotation'],
-                'rect'		: rect}
+            annman.ann[key] = params
+            # xxx add eoi to ann
 
             # Write ann file.
             annman.ann.save_data()
@@ -1568,9 +1569,11 @@ class MainWindow(PrefixWrapper):
                 params = {}
             else :
                 start, end = annman.highlight_span()
-                params = dict(startTime=start, endTime=end)
+                params = dict(startTime=start, endTime=end, eoi=annman.eois['All'])
 
-        dlgAnnotate = Dialog_Annotate(params, ok_callback)
+        dlgAnnotate = Dialog_Annotate(self.eegplot, params, ok_callback)
+        # xxx doesn't update when i set the hscale value in the constructor...
+        dlgAnnotate['hscaleAlpha'].set_value(.5)
         dlgAnnotate.get_widget().set_transient_for(self.widget)
         dlgAnnotate.show_widget()
 
@@ -1585,6 +1588,7 @@ class MainWindow(PrefixWrapper):
         if response == gtk.RESPONSE_YES :
             self.eegplot.annman.remove_selected()
             self.eegplot.annman.ann.save_data()
+            self.eegplot.annman.dlgbrowser.update_ann_info()
 
     def on_menuItemAnnHorizCursor_activate(self, checkMenuItem) :
         if checkMenuItem.get_active() :
@@ -1950,7 +1954,7 @@ class MainWindow(PrefixWrapper):
         try : self.eegplot
         except : pass
         else :
-            self.eegplot.annman.dlgbrowser.show_widget()
+            self.eegplot.annman.dlgbrowser.show()
 
         return False
 

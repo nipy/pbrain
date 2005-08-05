@@ -64,7 +64,7 @@ class Dialog_SelectElectrodes(gtk.Dialog):
 
         # set up the treeview to do multiple selection
         treeview = gtk.TreeView(model)
-        treeview.set_rules_hint(gtk.TRUE)    
+        treeview.set_rules_hint(True)
 
         column = gtk.TreeViewColumn('Grid Name', gtk.CellRendererText(),
                                     text=COLUMN_GRDNAME)
@@ -100,6 +100,7 @@ class Dialog_SelectElectrodes(gtk.Dialog):
             trodes = []
             treeview.get_selection().selected_foreach(return_foreach, trodes)
             #print 'len trodes', len(trodes)
+            print trodes
             self.selected.set_electrodes(trodes)
             start, end = self.buffer.get_bounds()
             self.selected.description = self.buffer.get_text(start, end)
@@ -121,7 +122,7 @@ class Dialog_SelectElectrodes(gtk.Dialog):
             
         label = gtk.Label('Select electrodes from list')
         label.show()
-        self.vbox.pack_start(label, gtk.FALSE, gtk.FALSE)
+        self.vbox.pack_start(label, False, False)
     
         sw = gtk.ScrolledWindow()
         sw.set_shadow_type(gtk.SHADOW_ETCHED_IN)
@@ -134,7 +135,7 @@ class Dialog_SelectElectrodes(gtk.Dialog):
         frame = gtk.Frame('Select')
         frame.show()
         frame.set_border_width(5)
-        self.vbox.pack_start(frame, gtk.FALSE, gtk.FALSE)
+        self.vbox.pack_start(frame, False, False)
 
         hbox = gtk.HBox()
         hbox.show()
@@ -157,7 +158,7 @@ class Dialog_SelectElectrodes(gtk.Dialog):
         frame = gtk.Frame('Description')
         frame.show()
         frame.set_border_width(5)
-        self.vbox.pack_start(frame, gtk.FALSE, gtk.FALSE)
+        self.vbox.pack_start(frame, False, False)
 
         textView = gtk.TextView()
         textView.show()
@@ -165,8 +166,8 @@ class Dialog_SelectElectrodes(gtk.Dialog):
         self.buffer = gtk.TextBuffer()
         self.buffer.set_text(self.selected.description)
         textView.set_buffer(self.buffer)
-        textView.set_editable(gtk.TRUE)
-        textView.set_cursor_visible(gtk.TRUE)
+        textView.set_editable(True)
+        textView.set_cursor_visible(True)
         frame.add(textView)
 
         vbox = gtk.VBox()
@@ -189,7 +190,7 @@ class Dialog_SelectElectrodes(gtk.Dialog):
 
         vbox.pack_end(self.statbar)
 
-        self.vbox.pack_end(vbox, gtk.FALSE)
+        self.vbox.pack_end(vbox, False)
 
         self.set_default_size(175, 500)
         self.show_all()
@@ -260,8 +261,6 @@ class Dialog_CohstatExport(PrefixWrapper):
             self.eoi64.set_electrodes(selected)
             #print 'sett eoi64', len(self.eoi64)
             d.destroy_dialog()
-                            
-
 
         d = Dialog_SelectElectrodes(
             trodes=self.eeg.get_amp().to_eoi(),
@@ -761,29 +760,72 @@ class Dialog_Annotate(PrefixWrapper) :
     prefix = 'dlgAnnotate_'
     widgetName = 'dialogAnnotate'
 
-    def __init__(self, params={}, ok_callback=donothing_callback) :
+    def __init__(self, eegplot, params={}, ok_callback=donothing_callback) :
         PrefixWrapper.__init__(self)
-        self.ok_callback = ok_callback
 
-        # Set combo options
-        if self['comboBoxEntryCode'].get_model() is None :
-            codes = CodeRegistry.get_code_from_registry('Annotation code').descs
+        self.ok_callback = ok_callback
+        self.eegplot = eegplot
+
+        def select_eoi(*args) :
+            def ok_callback(eoi) :
+                if eoi.description == '' :
+                    # Require a description.
+                    mdlg = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
+                                            buttons=gtk.BUTTONS_OK,
+                                            message_format='Please give a short description.')
+                    mdlg.set_title('Warning')
+                    mdlg.run()
+                    mdlg.destroy()
+                    return
+
+                if not self.eegplot.annman.eois.get(eoi.description) :
+                    model = self['comboBoxEntryEOI'].get_model()
+                    model.append([eoi.description])
+                    self['comboBoxEntryEOI'].set_active(len(model) - 1)
+
+                self.eegplot.annman.add_eoi(eoi)
+
+                dlg.destroy_dialog()
+                return
+
+            eoiAll = self.eegplot.get_eeg().get_amp().to_eoi()
+            eoiActive = params['eoi']
+            dlg = Dialog_SelectElectrodes(trodes=eoiAll,
+                                          ok_callback=ok_callback,
+                                          selected=eoiActive)
+            dlg.set_transient_for(self.widget)
+
+        # Set EOI combo options
+        if self['comboBoxEntryEOI'].get_model() is None :
             model = gtk.ListStore(str)
-            for code in codes :
+            for eoi in self.eegplot.annman.eois.keys() :
+                model.append([eoi])
+            self['comboBoxEntryEOI'].set_model(model)
+            self['comboBoxEntryEOI'].set_text_column(0)
+            self['comboBoxEntryEOI'].set_active(0)
+
+        self['buttonEOISelect'].connect('clicked', select_eoi)
+
+        # Set code combo options
+        if self['comboBoxEntryCode'].get_model() is None :
+            model = gtk.ListStore(str)
+            for code in CodeRegistry.get_code_from_registry('Annotation code').descs :
                 model.append([code])
             self['comboBoxEntryCode'].set_model(model)
             self['comboBoxEntryCode'].set_text_column(0)
             self['comboBoxEntryCode'].set_active(0)
 
-        # Set behavioral state options
+        # Set behavioral state combo options
         if self['comboBoxEntryState'].get_model() is None :
-            states = CodeRegistry.get_code_from_registry('Behavioral State').descs
             model = gtk.ListStore(str)
-            for state in states :
+            for state in CodeRegistry.get_code_from_registry('Behavioral State').descs :
                 model.append([state])
             self['comboBoxEntryState'].set_model(model)
             self['comboBoxEntryState'].set_text_column(0)
             self['comboBoxEntryState'].set_active(0)
+
+        # Doesn't seem to update; do it in eegview.py instead (before show)
+        #self['hscaleAlpha'].set_value(.5)
 
         self.set_params(params)
 
@@ -795,27 +837,58 @@ class Dialog_Annotate(PrefixWrapper) :
         self['hscaleAlpha'].set_value(params.get('alpha', 0.0))
         self['textViewAnnotation'].get_buffer().set_text(params.get('annotation', ''))
 
+        # Set active eoi combo box entry
+        if params.get('eoi') :
+            print '*', params['eoi']
+            model = self['comboBoxEntryEOI'].get_model()
+            n = 0
+            for rw in model :
+                if rw[0] == params['eoi'].get_description() :
+                    self['comboBoxEntryEOI'].set_active(n)
+                n += 1
+        else :
+            self['comboBoxEntryEOI'].set_active(0)
+
         # Set active code combo box entry
-        model = self['comboBoxEntryCode'].get_model()
-        n = 0
-        for rw in model :
-            if rw[0] == params.get('code', '') :
-                self['comboBoxEntryCode'].set_active(n)
-            n += 1
+        if params.get('code') :
+            model = self['comboBoxEntryCode'].get_model()
+            n = 0
+            for rw in model :
+                if rw[0] == params.get('code', '') :
+                    self['comboBoxEntryCode'].set_active(n)
+                n += 1
+        else :
+            self['comboBoxEntryCode'].set_active(0)
 
         # Set active behavioral state combo box entry
-        model = self['comboBoxEntryState'].get_model()
-        n = 0
-        for rw in model :
-            if rw[0] == params.get('state', '') :
-                self['comboBoxEntryState'].set_active(n)
-            n += 1
+        if params.get('state') :
+            model = self['comboBoxEntryState'].get_model()
+            n = 0
+            for rw in model :
+                if rw[0] == params.get('state', '') :
+                    self['comboBoxEntryState'].set_active(n)
+                n += 1
+        else :
+            self['comboBoxEntryState'].set_active(0)
 
     def get_params(self) :
         params = {}
         params['startTime'] = float(self['entryStartTime'].get_text())
         params['endTime'] = float(self['entryEndTime'].get_text())
         params['username'] = self['entryUsername'].get_text()
+
+        # Get eoi description to look up in annman's eoi list.
+        description = ''
+        c = self['comboBoxEntryEOI']
+        model = c.get_model()
+        active = c.get_active()
+        if active >= 0 :
+            description = model[active][0]
+        try : self.eegplot
+        except :
+            params['eoi'] = None
+        else :
+            params['eoi'] = self.eegplot.annman.eois[description]
 
         c = self['comboBoxEntryCode']
         model = c.get_model()
@@ -837,7 +910,7 @@ class Dialog_Annotate(PrefixWrapper) :
         params['color'] = '#%.2X%.2X%.2X' % (color.red / 256,
                                              color.green / 256,
                                              color.blue / 256)
-        params['alpha'] = self['hscaleAlpha'].get_value()
+        params['alpha'] = float(self['hscaleAlpha'].get_value())
 
         start, end = self['textViewAnnotation'].get_buffer().get_bounds()
         params['annotation'] = self['textViewAnnotation'].get_buffer().get_text(start, end)
@@ -859,17 +932,27 @@ class Dialog_AnnBrowser(PrefixWrapper) :
         self.eegplot = eegplot
         self.annman = annman
 
+        self.update_combo_entry_boxes()
+
+        # Update annotation info if an annotation is currently selected.
+        self.update_ann_info(self.annman.selectedkey)
+
+    def show(self) :
+        self.update_combo_entry_boxes()
+        self.show_widget()
+
+    def update_combo_entry_boxes(self) :
         # Set combo box username options
-        if self['comboBoxEntryUsername'].get_model() is None :
-            usernames = ['Any']
-            ann = self.eegplot.eeg.get_ann()
-            for a in ann.values() :
-                if a['username'] not in usernames :
-                  usernames.append(a['username'])
-            model = gtk.ListStore(str)
-            for username in usernames :
-                model.append([username])
-            self['comboBoxEntryUsername'].set_model(model)
+        usernames = ['Any']
+        ann = self.eegplot.eeg.get_ann()
+        for a in ann.values() :
+            if a['username'] not in usernames :
+              usernames.append(a['username'])
+        model = gtk.ListStore(str)
+        for username in usernames :
+            model.append([username])
+        self['comboBoxEntryUsername'].set_model(model)
+        if self['comboBoxEntryCode'].get_model() is None :
             self['comboBoxEntryUsername'].set_text_column(0)
             self['comboBoxEntryUsername'].set_active(0)
 
@@ -882,9 +965,6 @@ class Dialog_AnnBrowser(PrefixWrapper) :
             self['comboBoxEntryCode'].set_model(model)
             self['comboBoxEntryCode'].set_text_column(0)
             self['comboBoxEntryCode'].set_active(0)
-
-        # Update annotation info if an annotation is currently selected.
-        self.update_ann_info(self.annman.selectedkey)
 
     def get_search(self) :
         username = None
@@ -945,6 +1025,10 @@ class Dialog_AnnBrowser(PrefixWrapper) :
             self['labelColor'].set_text('none')
             self['labelCode'].set_text('none')
             self['textViewAnnotation'].get_buffer().set_text('')
+
+        # Update combo entry boxes in case a username was added or 
+        # deleted.
+        self.update_combo_entry_boxes()
 
     def jump_to_annotation(self, key) :
         ann = self.eegplot.eeg.get_ann()
@@ -1245,7 +1329,7 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         self.entryStep = gtk.Entry()
         self.entryStep.show()
         self.entryStep.set_width_chars(10)
-        self.entryStep.set_activates_default(gtk.TRUE)
+        self.entryStep.set_activates_default(True)
         self.entryStep.set_text('10.0')
 
         table = gtk.Table(2,3)
@@ -1260,7 +1344,7 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         table.attach(self.entryMin,  1, 2, 0, 1)
         table.attach(self.entryMax,  1, 2, 1, 2)
         table.attach(self.entryStep, 1, 2, 2, 3)
-        self.vbox.pack_start(table, gtk.TRUE, gtk.TRUE)
+        self.vbox.pack_start(table, True, True)
 
         buttonBack = self.add_button(gtk.STOCK_GO_BACK, gtk.RESPONSE_REJECT)
         buttonStop = self.add_button(gtk.STOCK_STOP, gtk.RESPONSE_CANCEL)
@@ -1276,7 +1360,7 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         frame = gtk.Frame('Movies')
         frame.show()
         frame.set_border_width(5)
-        vbox.pack_start(frame, gtk.FALSE, gtk.FALSE)
+        vbox.pack_start(frame, False, False)
 
         hbox = gtk.HBox()
         hbox.show()
@@ -1307,12 +1391,12 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         buttonSave = gtk.Button(stock=gtk.STOCK_SAVE)
         buttonSave.show()
         buttonSave.connect('clicked', set_filename)
-        hbox.pack_start(buttonSave, gtk.FALSE, gtk.FALSE)
+        hbox.pack_start(buttonSave, False, False)
 
         
         self.entryMovie = gtk.Entry()
         self.entryMovie.show()
-        hbox.pack_start(self.entryMovie, gtk.TRUE, gtk.TRUE)
+        hbox.pack_start(self.entryMovie, True, True)
 
         def check_filename(*args):
             if self.checkButtonMovie.get_active() and not self.entryMovie.get_text():
@@ -1321,12 +1405,12 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         self.checkButtonMovie = gtk.CheckButton('Save images')
         self.checkButtonMovie.show()
         self.checkButtonMovie.connect('toggled', check_filename)
-        hbox.pack_start(self.checkButtonMovie, gtk.FALSE, gtk.FALSE)
+        hbox.pack_start(self.checkButtonMovie, False, False)
 
         self.statbar = gtk.Statusbar()
         self.statbar.show()
         self.statbarCID = self.statbar.get_context_id('my stat bar')
-        vbox.pack_end(self.statbar, gtk.FALSE, gtk.FALSE)
+        vbox.pack_end(self.statbar, False, False)
 
     def update_status_bar(self):
 
@@ -1470,12 +1554,10 @@ class SpecProps(gtk.Dialog):
         table.attach(e, 1, 2, 3, 4,
                      xoptions=gtk.FILL, yoptions=gtk.SHRINK)
 
-        
         self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
         self.add_button(gtk.STOCK_APPLY, gtk.RESPONSE_APPLY)
         self.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
         self.set_default_response(gtk.RESPONSE_OK)
-
 
     def validate(self, *args):
         """
