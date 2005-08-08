@@ -1,10 +1,3 @@
-# begin jonathan -
-#
-#  * the rect drawing is fucked w/ or w/o use blit but I think I can
-#  fix this reasonably soon
-# 
-# end jonathan
-#
 # TODO: fix vsteps for different numbers of electrodes
 # font sizes are different on ylabels
 from __future__ import division
@@ -419,7 +412,7 @@ class AnnotationManager:
     def onselect(self, xmin, xmax):
         if self._highlight is not None:
             self.remove_highlight()
-        self._highlight = xmin, xmax, self._new_rect(xmin, xmax, 
+        self._highlight = xmin, xmax, self._new_rect(xmin, xmax, 0, 1,
                                                      facecolor='#bbbbff',
                                                      edgecolor='k',
                                                      linewidth=2,
@@ -434,13 +427,12 @@ class AnnotationManager:
         menuItemAnnDelete = Shared.widgets.get_widget('menuItemAnnDelete')
         menuItemAnnDelete.set_sensitive(0)
 
-    def _new_rect(self, xmin, xmax, **props):
+    def _new_rect(self, xmin, xmax, ymin, ymax, **props):
         trans = blend_xy_sep_transform( self.axes.transData,
                                         self.axes.transAxes   )
 
-        rect = Rectangle(
-            xy=(xmin, 0), width=xmax-xmin, height=1,
-            transform=trans, **props)
+        rect = Rectangle(xy=(xmin, ymin), width=xmax-xmin, height=ymax-ymin,
+                         transform=trans, **props)
         self.axes.add_patch(rect)
         return rect
 
@@ -466,7 +458,7 @@ class AnnotationManager:
 
         return ret[0][1]  
 
-    def over_edge(self, t) :
+    def over_edge(self, t, yt) :
       """
       If you are over an annotation edge, return it's key
       """
@@ -474,9 +466,23 @@ class AnnotationManager:
           s = info['startTime']
           e = info['endTime']
           if t >= s - .05 and t <= s + .05 :
-              return key, 0
+              side = 0
+              break
           elif t >= e - .05 and t <= e + .05 :
-              return key, 1
+              side = 1
+              break
+      else :
+          key = None
+
+      if key is not None :
+           print '*', key
+           for rect in info['rects'] :
+              ymin = rect.get_y()
+              trans = rect.get_transform()
+              ymax = ymin + rect.get_height()
+              print ymin, yt, ymax
+              if yt >= ymin and yt < ymax :
+                  return key, side
 
       return (None, None), None
 
@@ -521,7 +527,8 @@ class AnnotationManager:
         if thisann is None:
             return
 
-        self.eegplot.axes.patches.remove(thisann['rect'])
+        for rect in thisann['rects'] :
+            self.eegplot.axes.patches.remove(rect)
         self.selectedkey = None
         self.eegplot.draw()
 
@@ -541,19 +548,21 @@ class AnnotationManager:
 
         if self.selectedkey is not None:
             # unselect the old one if there is one
-            rect = self.ann[self.selectedkey].get('rect')
-            if rect is not None :
-                rect.set_edgecolor('k')
-                rect.set_linewidth(1)            
+            rects = self.ann[self.selectedkey].get('rects')
+            if rects is not None :
+                for rect in rects :
+                    rect.set_edgecolor('k')
+                    rect.set_linewidth(1)            
 
         if newkey is None:
             # Update Annotations menuitems sensitivity
             menuItemAnnDelete.set_sensitive(0)
         else :
             # now set the props of the new one
-            rect = self.ann[newkey]['rect']
-            rect.set_edgecolor('r')
-            rect.set_linewidth(3)
+            rects = self.ann[newkey]['rects']
+            for rect in rects :
+                rect.set_edgecolor('r')
+                rect.set_linewidth(3)
             self.canvas.draw()
 
             # Update Annotations menuitems sensitivity
@@ -565,9 +574,7 @@ class AnnotationManager:
     def start_resize(self, side) :
         self.resize = True
         self.resize_side = side
-        self.ann[self.selectedkey]['rect'].set_visible(False)
         self.background = self.eegplot.canvas.copy_from_bbox(self.eegplot.axes.bbox)
-        self.ann[self.selectedkey]['rect'].set_visible(True)
 
     def end_resize(self) :
         self.resize = False
@@ -575,9 +582,10 @@ class AnnotationManager:
         self.eegplot.draw()
         
     def resize_selected(self, s, e) :
-        rect = self.ann[self.selectedkey]['rect']
-        rect.set_x(s)
-        rect.set_width(e - s)
+        rects = self.ann[self.selectedkey]['rects']
+        for rect in rects :
+            rect.set_x(s)
+            rect.set_width(e - s)
 
         # Update key if it changed.
         newkey = '%1.1f' % s, '%1.1f' % e
@@ -590,7 +598,8 @@ class AnnotationManager:
             self.selectedkey = newkey
 
         self.eegplot.canvas.restore_region(self.background)
-        self.eegplot.axes.draw_artist(rect)
+        for rect in rects :
+            self.eegplot.axes.draw_artist(rect)
         self.eegplot.canvas.blit(self.eegplot.axes.bbox)
 
     def update_annotations(self) :
@@ -602,11 +611,13 @@ class AnnotationManager:
         keys = self.ann.keys()
         keys.sort()
         for key in keys :
+            # Remove rects that are not visible.
             if not self.ann[key].get('visible') :
-                rect = self.ann[key].get('rect')
-                if rect is not None :
-                    self.eegplot.axes.patches.remove(rect)
-                    del self.ann[key]['rect']
+                rects = self.ann[key].get('rects')
+                if rects is not None :
+                    for rect in rects :
+                        self.eegplot.axes.patches.remove(rect)
+                    del self.ann[key]['rects']
                     if self.selectedkey == key :
                         self.set_selected()
                 continue
@@ -618,12 +629,43 @@ class AnnotationManager:
                      (e > tmin and e < tmax) ) : continue
 
             # Draw/Update annotation box.
-            rect = self.ann[key].get('rect')
-            if rect is None:
-                rect = self._new_rect(s, e, zorder=3)
-                self.ann[key]['rect'] = rect
-            rect.set_facecolor(self.ann[key]['color'])
-            rect.set_alpha(self.ann[key]['alpha'])
+            rects = self.ann[key].get('rects')
+            if rects is None:
+                print key
+                rects = []
+                if self.ann[key]['shrink'] :
+                    channel_numd = self.eegplot.get_eeg().get_amp().get_channel_num_dict()
+                    eoiAll = self.eegplot.get_eeg().get_amp().to_eoi()
+                    group = []
+                    for trode in eoiAll :
+                        if trode in self.ann[key]['eoi'] :
+                            group.append(trode)
+                        else :          
+                            if len(group) > 1 :
+                                line = self.eegplot.lines[channel_numd[group[0]]]
+                                ymax = max(line.get_ydata())
+                                trans = line.get_transform()
+                                x, ymax = trans.xy_tup((0, ymax))
+                                xt, ymaxt = self.eegplot.axes.transAxes.inverse_xy_tup((0, ymax))
+
+                                line = self.eegplot.lines[channel_numd[group[-1]]]
+                                ymin = min(line.get_ydata())
+                                trans = line.get_transform()
+                                x, ymin = trans.xy_tup((0, ymin))
+                                xt, ymint = self.eegplot.axes.transAxes.inverse_xy_tup((0, ymin))
+
+                                rect = self._new_rect(s, e, ymint, ymaxt, zorder=3)
+                                rects.append(rect)
+                                group = []
+                else :
+                    rect = self._new_rect(s, e, 0, 1, zorder=3)
+                    rects = [rect]
+                self.ann[key]['rects'] = rects
+
+            # Set some rect properties.
+            for rect in self.ann[key]['rects'] :
+                rect.set_facecolor(self.ann[key]['color'])
+                rect.set_alpha(self.ann[key]['alpha'])
 
         self.eegplot.draw()
 
@@ -1029,7 +1071,6 @@ class EEGPlot(Observer):
         if broadcast:
             self.broadcast(Observer.SET_TIME_LIM, xmin, xmax)
 
-        
     def get_channel_at_point(self, x, y, select=True):
         "Get the EEG with the voltage trace nearest to x, y (window coords)"
         tmin, tmax = self.get_time_lim()
@@ -1039,14 +1080,12 @@ class EEGPlot(Observer):
 
         ind = int((t-tmin)/dt)
 
-        
         ys = zeros( (len(self.lines), ), typecode = Int16)
 
         xdata = self.lines[0].get_xdata()
         if ind>=len(xdata): return None
         thisx = xdata[ind]
         for i, line in enumerate(self.lines):
-
             thisy = line.get_ydata()[ind]
             trans = line.get_transform()
             xt, yt = trans.xy_tup((thisx, thisy))
@@ -1525,25 +1564,28 @@ class MainWindow(PrefixWrapper):
             key = '%1.1f' % params['startTime'], '%1.1f' % params['endTime']
             params = dlgAnnotate.get_params()
 
-            # Set created and edited times.
-            if annman.selectedkey is not None:
+            # Set defaults / keep some old values
+            if annman.selectedkey is not None: # selected
                 params['created'] = annman.ann[key]['created']
                 params['edited'] = datetime.today()
-            else :
+                params['visible'] = annman.ann[key]['visible']
+                params['rects'] = annman.ann[key]['rects']
+            else : # create new
                 params['created'] = datetime.today()
                 params['edited'] = params['created']
+                params['visible'] = 1
+                params['rects'] = None
 
-            # Keep some current values if they exist.
-            visible, rect = 1, None
-            old = annman.ann.get(key)
-            if old is not None :
-                visible = old.get('visible')
-                rect = old.get('rect')
-            params['visible'] = visible
-            params['rect'] = rect
+            # If shrink has changed, remove the rect(s);
+            # they will be recreated in update_annotations().
+            if (annman.selectedkey is not None
+                and annman.ann[key]['shrink'] <> params['shrink']) :
+                for rect in annman.ann[key]['rects'] :
+                    self.eegplot.axes.patches.remove(rect)
+                params['rects'] = None
 
             annman.ann[key] = params
-            # xxx add eoi to ann
+            # xxx add eoi to ann?
 
             # Write ann file.
             annman.ann.save_data()
@@ -1569,7 +1611,7 @@ class MainWindow(PrefixWrapper):
                 params = {}
             else :
                 start, end = annman.highlight_span()
-                params = dict(startTime=start, endTime=end, eoi=annman.eois['All'])
+                params = dict(startTime=start, endTime=end)
 
         dlgAnnotate = Dialog_Annotate(self.eegplot, params, ok_callback)
         # xxx doesn't update when i set the hscale value in the constructor...
@@ -1665,7 +1707,7 @@ class MainWindow(PrefixWrapper):
                     annman.set_selected()    
             else :
                 # Change mouse cursor if over an annotation edge.
-                selected, side = annman.over_edge(t)
+                selected, side = annman.over_edge(t, yt)
                 if selected[0] is not None :
                     self.widget.window.set_cursor(gdk.Cursor(gdk.SB_H_DOUBLE_ARROW))
                 else :
@@ -1731,7 +1773,7 @@ class MainWindow(PrefixWrapper):
                 t, yt = event.xdata, event.ydata
 
                 # Start resize if edge of an annotation clicked.
-                selected, side = annman.over_edge(t)
+                selected, side = annman.over_edge(t, yt)
                 if selected[0] is not None :
                     self.eegplot.annman.start_resize(side)
                     self.eegplot.annman.selector.visible = False

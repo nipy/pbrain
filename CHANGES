@@ -65,3 +65,6 @@ prevent or update dialog when select moves
 - xxx cancle hides annotate box --> multiple button clicked connected
 - xxx 3 annotations with eoiname1, 1 eoi with eoiname2; change name of 
   eoiname1 to eoiname2.  What happens?
+
+8.7.04 jowaxman
+- started adding support for highlighting EOIs

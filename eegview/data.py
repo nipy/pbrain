@@ -630,7 +630,7 @@ class Ann(dict, AssociatedFile) :
                 r = re.compile(';\s*')
                 for trode in r.split(eoiLine) :
                     grid, num = trode.split('-')
-                    trodes.append((grid, num))
+                    trodes.append((grid, int(num)))
 
                 # Check for EOIs with the same name but different electrodes.
                 # Create a new EOI or use previously created one.
@@ -655,8 +655,9 @@ class Ann(dict, AssociatedFile) :
                     'alpha'		: float(line[9]),
                     'code'		: line[10],
                     'state'		: line[11],
-                    'visible'		: int(line[12]),
-                    'annotation'	: line[13]}
+                    'visible'		: bool(int(line[12])),
+                    'shrink'		: bool(int(line[13])),
+                    'annotation'	: line[14]}
             else :
                 print "WARNING: Unsupported annotation version: ", line
                 # XXX what to do - don't lost the entry!
@@ -681,7 +682,8 @@ class Ann(dict, AssociatedFile) :
                     self[key]['alpha'],
                     self[key]['code'],
                     self[key]['state'],
-                    self[key]['visible'],
+                    int(self[key]['visible']),
+                    int(self[key]['shrink']),
                     self[key]['annotation']]
             writer.writerow(line)
 

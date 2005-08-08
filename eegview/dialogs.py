@@ -344,15 +344,11 @@ This is illegal.
             okCallback=ok_callback,
             title='Select Loc3d Jr file',
             parent=self.widget)
-        
 
     def on_buttonCancel_clicked(self, event):
         self.hide_widget()
 
-
-
     def get_params(self):
-
         m = {}
 
         try:
@@ -371,7 +367,6 @@ This is illegal.
             m['cohere method'] = 'coherence'
             d = Dialog_CoherenceParams()
             m['cohere pars'] = d.get_params()
-            
 
         m['outfile'] = self['entryFile'].get_text()
 
@@ -426,7 +421,6 @@ This is illegal.
             
         
     def on_buttonOK_clicked(self, event):
-
         #print 'len eoi64', len(self.eoi64)
         pars = self.get_params()
         
@@ -562,7 +556,6 @@ This is illegal.
                 fh.close()
 
         storeParamsOnOK[self.widgetName] = self.get_params()
-
 
 class Dialog_CoherenceParams(PrefixWrapper):
     """
@@ -789,7 +782,10 @@ class Dialog_Annotate(PrefixWrapper) :
                 return
 
             eoiAll = self.eegplot.get_eeg().get_amp().to_eoi()
-            eoiActive = params['eoi']
+            if params.get('eoi') :
+                eoiActive = params['eoi']
+            else :
+                eoiActive = eoiAll
             dlg = Dialog_SelectElectrodes(trodes=eoiAll,
                                           ok_callback=ok_callback,
                                           selected=eoiActive)
@@ -833,13 +829,9 @@ class Dialog_Annotate(PrefixWrapper) :
         self['entryStartTime'].set_text('%1.1f' % params.get('startTime', 0.0))
         self['entryEndTime'].set_text('%1.1f' % params.get('endTime', 1.0))
         self['entryUsername'].set_text(params.get('username', 'unknown'))
-        self['colorButton'].set_color(gtk.gdk.color_parse(params.get('color', '#ddddff')))
-        self['hscaleAlpha'].set_value(params.get('alpha', 0.0))
-        self['textViewAnnotation'].get_buffer().set_text(params.get('annotation', ''))
 
         # Set active eoi combo box entry
         if params.get('eoi') :
-            print '*', params['eoi']
             model = self['comboBoxEntryEOI'].get_model()
             n = 0
             for rw in model :
@@ -870,6 +862,11 @@ class Dialog_Annotate(PrefixWrapper) :
                 n += 1
         else :
             self['comboBoxEntryState'].set_active(0)
+
+        self['colorButton'].set_color(gtk.gdk.color_parse(params.get('color', '#ddddff')))
+        self['hscaleAlpha'].set_value(params.get('alpha', 0.0))
+        self['textViewAnnotation'].get_buffer().set_text(params.get('annotation', ''))
+        self['checkButtonShrink'].set_active(params.get('shrink', 1))
 
     def get_params(self) :
         params = {}
@@ -912,6 +909,7 @@ class Dialog_Annotate(PrefixWrapper) :
                                              color.blue / 256)
         params['alpha'] = float(self['hscaleAlpha'].get_value())
 
+        params['shrink'] = self['checkButtonShrink'].get_active()
         start, end = self['textViewAnnotation'].get_buffer().get_bounds()
         params['annotation'] = self['textViewAnnotation'].get_buffer().get_text(start, end)
 
@@ -1253,7 +1251,6 @@ class Dialog_EEGParams(PrefixWrapper):
         self.callback(pars)        
 
     def get_params(self):
-
         if not self._inited:
             return {
                 'filename'        : '',
