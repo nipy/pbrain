@@ -379,7 +379,9 @@ class AnnotationManager:
         self.ann = self.eegplot.eeg.get_ann()
 
         # Create list of eois.  Add eois from ann.
-        self.eois = {'All' : self.eegplot.get_eeg().get_amp().to_eoi()}
+        eoiAll = self.eegplot.get_eeg().get_amp().to_eoi()
+        eoiAll.set_description('All')
+        self.eois = {'All' : eoiAll}
         self.eois.update(self.ann.eois)
 
         rectprops = dict(facecolor='#bbbbff',
@@ -393,11 +395,60 @@ class AnnotationManager:
         self.resize = False
         self.background = None
 
-        def ok_callback(*args) :
-            self.dlgbrowser.hide_widget()
+        def dlgAnnotate_ok_callback(params) :
+            self.dlgAnnotate.hide_widget()
+
+            # Add annotation to data structure
+            key = '%1.1f' % params['startTime'], '%1.1f' % params['endTime'], params['created']
+            params = self.dlgAnnotate.get_params()
+
+            # Set defaults / keep some old values
+            now = datetime.now()
+            if self.selectedkey is not None: # selected
+                params['created'] = self.ann[key]['created']
+                params['edited'] = now.ctime()
+                params['visible'] = self.ann[key]['visible']
+                params['rects'] = self.ann[key]['rects']
+            else : # create new
+                params['edited'] = params['created']
+                params['visible'] = 1
+                params['rects'] = None
+
+            # If shrink has changed, remove the rect(s);
+            # they will be recreated in update_annotations().
+            if (self.selectedkey is not None
+                and (self.ann[key]['shrink'] <> params['shrink']
+                     or self.dlgAnnotate.changed)) :
+                for rect in self.ann[key]['rects'] :
+                    self.eegplot.axes.patches.remove(rect)
+                params['rects'] = None
+
+            self.ann[key] = params
+
+            # Add new eoi, if any.
+            if not self.eois.get(params['eoi'].get_description()) :
+                self.add_eoi(params['eoi'])
+
+            # Write ann file.
+            self.ann.save_data()
+
+            # Create new annotation box.
+            self.update_annotations()
+
+            # Update ann browser info
+            self.dlgAnnBrowser.update_ann_info(key)
+
+            # Turn off highlight box.
+            self.remove_highlight()
+
+            return
+
+        def dlgAnnBrowser_ok_callback(*args) :
+            self.dlgAnnBrowser.hide_widget()
             
         self.selectedkey = None
-        self.dlgbrowser = Dialog_AnnBrowser(eegplot, self, ok_callback)
+        self.dlgAnnotate = Dialog_Annotate(eegplot, self, ok_callback=dlgAnnotate_ok_callback)
+        self.dlgAnnBrowser = Dialog_AnnBrowser(eegplot, self, dlgAnnBrowser_ok_callback)
 
         # Update Annotations menuitems sensitivity.
         menuItemAnnBrowser = Shared.widgets.get_widget('menuItemAnnBrowser')
@@ -431,12 +482,17 @@ class AnnotationManager:
         trans = blend_xy_sep_transform( self.axes.transData,
                                         self.axes.transAxes   )
 
-        rect = Rectangle(xy=(xmin, ymin), width=xmax-xmin, height=ymax-ymin,
+	rect = Rectangle(xy=(xmin, ymin), width=xmax-xmin, height=ymax-ymin,
                          transform=trans, **props)
         self.axes.add_patch(rect)
         return rect
 
-    def over_annotation(self, t):
+    def remove_rects(self) :
+        for key, info in self.ann.items() :
+            if info.get('rects') :
+                del info['rects']
+
+    def over_annotation(self, x, y):
         """
         If you are over an annotation, return it's key
 
@@ -446,45 +502,48 @@ class AnnotationManager:
         If not over annotation, return None
         """
         ret = []
-        for key, info in self.ann.items():
-            s = info['startTime']
-            e = info['endTime']
-            if t >= s - .05 and t <= e + .05 :
-                middle = 0.5 * (e + s)
-                d = abs(t - middle)
-                ret.append((d, key))
+        for key, info in self.ann.items() :
+           for rect in info['rects'] :
+               if rect.get_window_extent().contains(x, y) :
+                   bounds = rect.get_window_extent().get_bounds()
+                   middle = .5 * (2 * bounds[0] + bounds[2])
+                   d = abs(x - middle)
+                   ret.append((d, key))
         ret.sort()
-        if not len(ret): return None
+        if not len(ret) : return None
 
         return ret[0][1]  
 
-    def over_edge(self, t, yt) :
-      """
-      If you are over an annotation edge, return it's key
-      """
-      for key, info in self.ann.items() :
-          s = info['startTime']
-          e = info['endTime']
-          if t >= s - .05 and t <= s + .05 :
-              side = 0
-              break
-          elif t >= e - .05 and t <= e + .05 :
-              side = 1
-              break
-      else :
-          key = None
+    def over_edge(self, x, y) :
+        """
+        If you are over an annotation edge, return it's key.
+        x,y are figure coordinates (i.e., event.x, event.y)
+        """
+        key, side = None, None
+        t, yt = self.axes.transData.inverse_xy_tup((x, y))
+        for key, info in self.ann.items() :
+            s = info['startTime']
+            e = info['endTime']
+            if t >= s - .05 and t <= s + .05 :
+                side = 0
+                break
+            elif t >= e - .05 and t <= e + .05 :
+                side = 1
+                break
+        else :
+            key = None
 
-      if key is not None :
-           print '*', key
-           for rect in info['rects'] :
-              ymin = rect.get_y()
-              trans = rect.get_transform()
-              ymax = ymin + rect.get_height()
-              print ymin, yt, ymax
-              if yt >= ymin and yt < ymax :
-                  return key, side
+        if key is not None :
+            for rect in info['rects'] :
+                l, b, w, h = rect.get_window_extent().get_bounds()
+                r = l + w
+                t = b + h
+                if y <= t and y >= b :
+                    break
+            else :
+                key, side = None, None
 
-      return (None, None), None
+        return key, side
 
     def is_over_highlight(self, t) :
         xmin, xmax = self.highlight_span()
@@ -506,6 +565,7 @@ class AnnotationManager:
 
     def get_highlight(self):
         """
+
         return (xmin, xmax, Rectangle instance) if a rect is highlighted
         Otherwise return None
         """
@@ -533,6 +593,7 @@ class AnnotationManager:
         self.eegplot.draw()
 
         # Update Annotations menuitems sensitivity
+
         label = 'Create New'
         menuItemAnnCreateEdit = Shared.widgets.get_widget('menuItemAnnCreateEdit')
         menuItemAnnCreateEdit.get_children()[0].set_text(label)
@@ -550,6 +611,7 @@ class AnnotationManager:
             # unselect the old one if there is one
             rects = self.ann[self.selectedkey].get('rects')
             if rects is not None :
+
                 for rect in rects :
                     rect.set_edgecolor('k')
                     rect.set_linewidth(1)            
@@ -631,32 +693,27 @@ class AnnotationManager:
             # Draw/Update annotation box.
             rects = self.ann[key].get('rects')
             if rects is None:
-                print key
                 rects = []
                 if self.ann[key]['shrink'] :
-                    channel_numd = self.eegplot.get_eeg().get_amp().get_channel_num_dict()
-                    eoiAll = self.eegplot.get_eeg().get_amp().to_eoi()
+                    channel_numd = self.eegplot.get_eeg().get_amp().get_electrode_to_indices_dict()
+                    eoiActive = self.eegplot.get_eoi()
                     group = []
-                    for trode in eoiAll :
+                    for i, trode in enumerate(eoiActive) :
                         if trode in self.ann[key]['eoi'] :
-                            group.append(trode)
+                            group.append(i)
                         else :          
-                            if len(group) > 1 :
-                                line = self.eegplot.lines[channel_numd[group[0]]]
-                                ymax = max(line.get_ydata())
-                                trans = line.get_transform()
-                                x, ymax = trans.xy_tup((0, ymax))
-                                xt, ymaxt = self.eegplot.axes.transAxes.inverse_xy_tup((0, ymax))
-
-                                line = self.eegplot.lines[channel_numd[group[-1]]]
-                                ymin = min(line.get_ydata())
-                                trans = line.get_transform()
-                                x, ymin = trans.xy_tup((0, ymin))
-                                xt, ymint = self.eegplot.axes.transAxes.inverse_xy_tup((0, ymin))
-
-                                rect = self._new_rect(s, e, ymint, ymaxt, zorder=3)
+                            if len(group) :
+                                ymin = self.eegplot.offsets[group[-1]]
+                                ymax = self.eegplot.offsets[group[0]]
+                                rect = self._new_rect(s, e, ymin, ymax, zorder=3)
                                 rects.append(rect)
                                 group = []
+                    if len(group) :
+                        ymin = self.eegplot.offsets[group[-1]]
+                        ymax = self.eegplot.offsets[group[0]]
+                        rect = self._new_rect(s, e, ymin, ymax, zorder=3)
+                        rects.append(rect)
+
                 else :
                     rect = self._new_rect(s, e, 0, 1, zorder=3)
                     rects = [rect]
@@ -691,6 +748,8 @@ class EEGPlot(Observer):
         self.axes.cla()
         self.eeg = eeg
         self.cnumDict = self.eeg.get_amp().get_channel_num_dict()
+
+        self.annman = AnnotationManager(self)
 
         amp = eeg.get_amp()
         eoi = amp.to_eoi()
@@ -729,8 +788,6 @@ class EEGPlot(Observer):
             self.cursor.vertOn = True
         else :
             self.cursor.vertOn = False
-
-        self.annman = AnnotationManager(self)
 
     def get_color(self, trode):
         gname, gnum = trode
@@ -810,24 +867,21 @@ class EEGPlot(Observer):
         try:
             self.indices = eoi.to_data_indices(self.eeg.get_amp())
         except KeyError:
-            
             msg = exception_to_str('Could not get amplifier indices for EOI')
             try: parent = Shared.windowMain.widget
             except AttributeError: parent = None
             error_msg(msg, title='Error', parent=parent)
             return 0
 
-
-
         self.eoi = eoi
-
-
-
         self.eoiIndDict = dict([ (trode, i) for i, trode in enumerate(self.eoi)])
-
 
         if not self.eoiIndDict.has_key(self._selected):
             self._selected = self.eoi[0]
+
+        # Remove annotation rects, so they will get redrawn on the next 
+        # update_annotations()
+        self.annman.remove_rects()
             
         return True
         
@@ -889,7 +943,7 @@ class EEGPlot(Observer):
 
         N = len(self.indices)
         offsets = 1.0-((maxo-mino)/N*arange(N) + mino)
-
+        self.offsets = offsets
         
         vset = self.voltSets[self.voltInd]
 
@@ -910,6 +964,7 @@ class EEGPlot(Observer):
                   Point( Value(1), self.axes.bbox.ur().y())
                   ))
         
+        assert len(self.indices) == len(offsets), 'indices and offsets have different length'
         pairs = zip(self.indices, offsets)
 
         labeld = amp.get_dataind_dict()
@@ -928,9 +983,9 @@ class EEGPlot(Observer):
                               linestyle='-',
                               )
             thisLine.set_transform(trans)
-            thisLine.set_data_clipping(False)
+            #thisLine.set_data_clipping(False)
             trans.set_offset((0, offset), transOffset)
-            thisLine.set_lod(on=1)
+            #thisLine.set_lod(on=1)
             self.lines.append(thisLine)
             self.axes.add_line(thisLine)
 
@@ -938,7 +993,7 @@ class EEGPlot(Observer):
                 labels.append('%s%d' % trode)
                 locs.append(offset)
             count += 1
-
+#	print 'locs', labels[0], locs[0], self.offsets[0]
 
         self.set_time_lim(0, updateData=False)
 
@@ -1485,7 +1540,6 @@ class MainWindow(PrefixWrapper):
         d.set_transient_for(self.widget)
 
     def save_eoi(self, menuitem, saveas):
-
         eoi = self.eegplot.get_eoi()
         if not self['dlgPref_radiobuttonUseWebOn'].get_active():
             # not using the web, write to local filesystem
@@ -1557,67 +1611,25 @@ class MainWindow(PrefixWrapper):
     def on_menuItemAnnCreateEdit_activate(self, event) :
         annman = self.eegplot.annman
         
-        def ok_callback(params) :
-            dlgAnnotate.hide_widget()
-
-            # Add annotation to data structure
-            key = '%1.1f' % params['startTime'], '%1.1f' % params['endTime']
-            params = dlgAnnotate.get_params()
-
-            # Set defaults / keep some old values
-            if annman.selectedkey is not None: # selected
-                params['created'] = annman.ann[key]['created']
-                params['edited'] = datetime.today()
-                params['visible'] = annman.ann[key]['visible']
-                params['rects'] = annman.ann[key]['rects']
-            else : # create new
-                params['created'] = datetime.today()
-                params['edited'] = params['created']
-                params['visible'] = 1
-                params['rects'] = None
-
-            # If shrink has changed, remove the rect(s);
-            # they will be recreated in update_annotations().
-            if (annman.selectedkey is not None
-                and annman.ann[key]['shrink'] <> params['shrink']) :
-                for rect in annman.ann[key]['rects'] :
-                    self.eegplot.axes.patches.remove(rect)
-                params['rects'] = None
-
-            annman.ann[key] = params
-            # xxx add eoi to ann?
-
-            # Write ann file.
-            annman.ann.save_data()
-
-            # Create new annotation box. 
-            annman.update_annotations()
-
-            # Update ann browser info
-            annman.dlgbrowser.update_ann_info(key)
-
-            # Turn off highlight box.
-            annman.remove_highlight()
-
-            return
-
         params = {}
         if annman.selectedkey is not None:
             params = annman.ann[annman.selectedkey]
         else:
             # Create new annotation
+            now = datetime.now()
             hlight = annman.get_highlight()
             if hlight is None :
-                params = {}
+                params = dict(created=now.ctime())
             else :
                 start, end = annman.highlight_span()
-                params = dict(startTime=start, endTime=end)
+                params = dict(startTime=start, endTime=end,
+                              created=now.ctime())
 
-        dlgAnnotate = Dialog_Annotate(self.eegplot, params, ok_callback)
+        annman.dlgAnnotate.set_params(params)
         # xxx doesn't update when i set the hscale value in the constructor...
-        dlgAnnotate['hscaleAlpha'].set_value(.5)
-        dlgAnnotate.get_widget().set_transient_for(self.widget)
-        dlgAnnotate.show_widget()
+#        dlgAnnotate['hscaleAlpha'].set_value(.5)
+        annman.dlgAnnotate.get_widget().set_transient_for(self.widget)
+        annman.dlgAnnotate.show_widget()
 
     def on_menuItemAnnDelete_activate(self, event) :
         dlg = gtk.MessageDialog(type=gtk.MESSAGE_QUESTION,
@@ -1630,7 +1642,7 @@ class MainWindow(PrefixWrapper):
         if response == gtk.RESPONSE_YES :
             self.eegplot.annman.remove_selected()
             self.eegplot.annman.ann.save_data()
-            self.eegplot.annman.dlgbrowser.update_ann_info()
+            self.eegplot.annman.dlgAnnBrowser.update_ann_info()
 
     def on_menuItemAnnHorizCursor_activate(self, checkMenuItem) :
         if checkMenuItem.get_active() :
@@ -1707,8 +1719,8 @@ class MainWindow(PrefixWrapper):
                     annman.set_selected()    
             else :
                 # Change mouse cursor if over an annotation edge.
-                selected, side = annman.over_edge(t, yt)
-                if selected[0] is not None :
+                selected, side = annman.over_edge(event.x, event.y)
+                if selected is not None :
                     self.widget.window.set_cursor(gdk.Cursor(gdk.SB_H_DOUBLE_ARROW))
                 else :
                     self.widget.window.set_cursor(gdk.Cursor(gdk.LEFT_PTR))
@@ -1752,6 +1764,9 @@ class MainWindow(PrefixWrapper):
         except AttributeError: return False
 
         if not event.inaxes: return
+
+        xa, ya = self.axes.transAxes.inverse_xy_tup((event.x, event.y))
+#        print 'axes coords', xa, ya
         
         self.buttonDown = event.button
         annman = self.eegplot.annman
@@ -1759,13 +1774,12 @@ class MainWindow(PrefixWrapper):
         if event.button == 1 or event.button == 3 :
             if event.inaxes == self.axes:
                 t, yt = event.xdata, event.ydata
-                t = float('%1.1f' % t)
 
                 if not annman.is_over_highlight(t) :
-                    key = annman.over_annotation(t)
+                    key = annman.over_annotation(event.x, event.y)
                     annman.remove_highlight()
                     annman.set_selected(key)
-                    annman.dlgbrowser.update_ann_info(key)
+                    annman.dlgAnnBrowser.update_ann_info(key)
 
         if event.button==1:
             if event.inaxes == self.axes:
@@ -1773,10 +1787,11 @@ class MainWindow(PrefixWrapper):
                 t, yt = event.xdata, event.ydata
 
                 # Start resize if edge of an annotation clicked.
-                selected, side = annman.over_edge(t, yt)
-                if selected[0] is not None :
-                    self.eegplot.annman.start_resize(side)
-                    self.eegplot.annman.selector.visible = False
+                selected, side = annman.over_edge(event.x, event.y)
+                if selected is not None :
+                    annman.set_selected(selected)
+                    annman.start_resize(side)
+                    annman.selector.visible = False
 
                 # Select an electrode if not locked.
                 if not self.eegplot.lock_trode :                        
@@ -1791,13 +1806,11 @@ class MainWindow(PrefixWrapper):
                 menu = self.eoiMenu
             elif event.inaxes == self.axesSpec:
                 menu = self.specMenu
-            else:
-                return False
 
             # Update popup menu items
             highsens =  annman.get_highlight() is not None
             selsens = self.eegplot.annman.selectedkey is not None
-            if highsens: label = 'Create New Annotation'
+            if highsens or not selsens : label = 'Create New Annotation'
             else: label = 'Edit Selected Annotation'
 
             menuItems = menu.get_children()
@@ -1807,8 +1820,6 @@ class MainWindow(PrefixWrapper):
             menuItemAnnDelete.set_sensitive(selsens)
 
             menu.popup(None, None, None, 0, 0)
-
-            return False
 
         return False
 
@@ -1821,11 +1832,13 @@ class MainWindow(PrefixWrapper):
         # Write ann file
         if annman.resize :
             annman.ann.save_data()
+            annman.selector.visible = True
+            annman.end_resize()
 
         self.eegplot.cursor.visible = True
-        annman.end_resize()
-        annman.selector.visible = True
         self.buttonDown = None
+
+        return False
 
     def on_menuFilePreferences_activate(self, event=None):
         def mysql_callback(dbname, host, user, passwd, port):
@@ -1996,7 +2009,7 @@ class MainWindow(PrefixWrapper):
         try : self.eegplot
         except : pass
         else :
-            self.eegplot.annman.dlgbrowser.show()
+            self.eegplot.annman.dlgAnnBrowser.show()
 
         return False
 

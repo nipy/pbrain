@@ -753,54 +753,74 @@ class Dialog_Annotate(PrefixWrapper) :
     prefix = 'dlgAnnotate_'
     widgetName = 'dialogAnnotate'
 
-    def __init__(self, eegplot, params={}, ok_callback=donothing_callback) :
+    def __init__(self, eegplot, annman, params={}, ok_callback=donothing_callback) :
         PrefixWrapper.__init__(self)
 
-        self.ok_callback = ok_callback
         self.eegplot = eegplot
+        self.annman = annman
+        self.ok_callback = ok_callback
+
+        self.new = params.get('eoi') is None
+        self.changed = False
+        self.eoi = None
 
         def select_eoi(*args) :
             def ok_callback(eoi) :
+                msg = None
                 if eoi.description == '' :
-                    # Require a description.
+                    msg = 'Please give a short description.'
+                elif len(eoi) == 0 :
+                    msg = 'Please select an EOI.'
+                elif self.new and self.annman.eois.get(eoi.description) :
+                    msg = 'An EOI with that description already exists; please choose another description.'
+                if msg is not None :
                     mdlg = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
                                             buttons=gtk.BUTTONS_OK,
-                                            message_format='Please give a short description.')
+                                            message_format=msg)
                     mdlg.set_title('Warning')
                     mdlg.run()
                     mdlg.destroy()
                     return
 
-                if not self.eegplot.annman.eois.get(eoi.description) :
-                    model = self['comboBoxEntryEOI'].get_model()
+                model = self['comboBoxEntryEOI'].get_model()
+                if self.eoi :
+                    model[-1] = [eoi.description]
+                else :
                     model.append([eoi.description])
-                    self['comboBoxEntryEOI'].set_active(len(model) - 1)
+                # Set active to -1 first so the next set_active will
+                # work even if the current active entry is selected.
+                self['comboBoxEntryEOI'].set_active(-1)
+                self['comboBoxEntryEOI'].set_active(len(model) - 1)
 
-                self.eegplot.annman.add_eoi(eoi)
+                self.eoi = eoi
+                self.changed = True
 
                 dlg.destroy_dialog()
                 return
 
             eoiAll = self.eegplot.get_eeg().get_amp().to_eoi()
-            if params.get('eoi') :
-                eoiActive = params['eoi']
-            else :
-                eoiActive = eoiAll
+            eoiActive = None
+            if not self.new :
+                params = self.get_params()
+                eoiActive = params.get('eoi')
             dlg = Dialog_SelectElectrodes(trodes=eoiAll,
                                           ok_callback=ok_callback,
                                           selected=eoiActive)
             dlg.set_transient_for(self.widget)
 
+        # Make EOI combo box entry uneditable
+        self['comboBoxEntryEOI'].child.set_editable(0)
+
         # Set EOI combo options
         if self['comboBoxEntryEOI'].get_model() is None :
             model = gtk.ListStore(str)
-            for eoi in self.eegplot.annman.eois.keys() :
+            for eoi in self.annman.eois.keys() :
                 model.append([eoi])
             self['comboBoxEntryEOI'].set_model(model)
             self['comboBoxEntryEOI'].set_text_column(0)
             self['comboBoxEntryEOI'].set_active(0)
 
-        self['buttonEOISelect'].connect('clicked', select_eoi)
+        self['buttonEOINewEdit'].connect('clicked', select_eoi)
 
         # Set code combo options
         if self['comboBoxEntryCode'].get_model() is None :
@@ -826,8 +846,12 @@ class Dialog_Annotate(PrefixWrapper) :
         self.set_params(params)
 
     def set_params(self, params) :
+        self.changed = False
+
         self['entryStartTime'].set_text('%1.1f' % params.get('startTime', 0.0))
         self['entryEndTime'].set_text('%1.1f' % params.get('endTime', 1.0))
+        self['labelCreated'].set_text(params.get('created', ''))
+        self['labelEdited'].set_text(params.get('edited', ''))
         self['entryUsername'].set_text(params.get('username', 'unknown'))
 
         # Set active eoi combo box entry
@@ -837,9 +861,14 @@ class Dialog_Annotate(PrefixWrapper) :
             for rw in model :
                 if rw[0] == params['eoi'].get_description() :
                     self['comboBoxEntryEOI'].set_active(n)
+                    break
                 n += 1
+            self['buttonEOINewEdit'].set_label('Edit All')
+            self.new = False
         else :
             self['comboBoxEntryEOI'].set_active(0)
+            self['buttonEOINewEdit'].set_label('New')
+            self.new = True
 
         # Set active code combo box entry
         if params.get('code') :
@@ -848,6 +877,7 @@ class Dialog_Annotate(PrefixWrapper) :
             for rw in model :
                 if rw[0] == params.get('code', '') :
                     self['comboBoxEntryCode'].set_active(n)
+                    break
                 n += 1
         else :
             self['comboBoxEntryCode'].set_active(0)
@@ -859,33 +889,38 @@ class Dialog_Annotate(PrefixWrapper) :
             for rw in model :
                 if rw[0] == params.get('state', '') :
                     self['comboBoxEntryState'].set_active(n)
+                    break
                 n += 1
         else :
             self['comboBoxEntryState'].set_active(0)
 
         self['colorButton'].set_color(gtk.gdk.color_parse(params.get('color', '#ddddff')))
-        self['hscaleAlpha'].set_value(params.get('alpha', 0.0))
+        self['hscaleAlpha'].set_value(params.get('alpha', 0.5))
         self['textViewAnnotation'].get_buffer().set_text(params.get('annotation', ''))
         self['checkButtonShrink'].set_active(params.get('shrink', 1))
 
     def get_params(self) :
-        params = {}
-        params['startTime'] = float(self['entryStartTime'].get_text())
-        params['endTime'] = float(self['entryEndTime'].get_text())
-        params['username'] = self['entryUsername'].get_text()
+        params = dict(startTime = float(self['entryStartTime'].get_text()),
+                      endTime   = float(self['entryEndTime'].get_text()),
+                      created   = self['labelCreated'].get_text(),
+                      edited    = self['labelEdited'].get_text(),
+                      username  = self['entryUsername'].get_text())
 
         # Get eoi description to look up in annman's eoi list.
-        description = ''
-        c = self['comboBoxEntryEOI']
-        model = c.get_model()
-        active = c.get_active()
-        if active >= 0 :
-            description = model[active][0]
         try : self.eegplot
         except :
             params['eoi'] = None
         else :
-            params['eoi'] = self.eegplot.annman.eois[description]
+            description = ''
+            c = self['comboBoxEntryEOI']
+            model = c.get_model()
+            active = c.get_active()
+            if active >= 0 :
+                description = model[active][0]
+                if self.eegplot.annman.eois.get(description) :
+                    params['eoi'] = self.eegplot.annman.eois[description]
+                else :
+                    params['eoi'] = self.eoi
 
         c = self['comboBoxEntryCode']
         model = c.get_model()
@@ -919,6 +954,15 @@ class Dialog_Annotate(PrefixWrapper) :
         params = self.get_params()
         self.ok_callback(params)
 
+    def on_buttonCancel_clicked(self, event) :
+        # Remove the new eoi if any from the combo box.
+        if self.eoi :
+            model = self['comboBoxEntryEOI'].get_model()
+            del model[-1]
+
+        self.set_params(self.initParams)
+        self.hide_widget()
+
 class Dialog_AnnBrowser(PrefixWrapper) :
     prefix = 'dlgAnnBrowser_'
     widgetName = 'dialogAnnBrowser'
@@ -940,6 +984,19 @@ class Dialog_AnnBrowser(PrefixWrapper) :
         self.show_widget()
 
     def update_combo_entry_boxes(self) :
+        # Set combo box EOI options
+        model = gtk.ListStore(str)
+        model.append(['Any'])
+        for key in self.annman.eois.keys() :
+            model.append([key])
+        if self['comboBoxEntryEOIDescription'].get_model() is None :
+            self['comboBoxEntryEOIDescription'].set_model(model)
+            self['comboBoxEntryEOIDescription'].set_text_column(0)
+            self['comboBoxEntryEOIDescription'].set_active(0)
+        else :
+            self['comboBoxEntryEOIDescription'].set_model(model)
+        
+
         # Set combo box username options
         usernames = ['Any']
         ann = self.eegplot.eeg.get_ann()
@@ -949,10 +1006,12 @@ class Dialog_AnnBrowser(PrefixWrapper) :
         model = gtk.ListStore(str)
         for username in usernames :
             model.append([username])
-        self['comboBoxEntryUsername'].set_model(model)
-        if self['comboBoxEntryCode'].get_model() is None :
+        if self['comboBoxEntryUsername'].get_model() is None :
+            self['comboBoxEntryUsername'].set_model(model)
             self['comboBoxEntryUsername'].set_text_column(0)
             self['comboBoxEntryUsername'].set_active(0)
+        else :
+            self['comboBoxEntryUsername'].set_model(model)
 
         # Set combo box code options
         if self['comboBoxEntryCode'].get_model() is None :
@@ -963,6 +1022,16 @@ class Dialog_AnnBrowser(PrefixWrapper) :
             self['comboBoxEntryCode'].set_model(model)
             self['comboBoxEntryCode'].set_text_column(0)
             self['comboBoxEntryCode'].set_active(0)
+
+        # Set combo box behavioral state options
+        if self['comboBoxEntryState'].get_model() is None :
+            states = ['Any'] + CodeRegistry.get_code_from_registry('Behavioral State').descs
+            model = gtk.ListStore(str)
+            for state in states :
+                model.append([state])
+            self['comboBoxEntryState'].set_model(model)
+            self['comboBoxEntryState'].set_text_column(0)
+            self['comboBoxEntryState'].set_active(0)
 
     def get_search(self) :
         username = None
@@ -992,9 +1061,14 @@ class Dialog_AnnBrowser(PrefixWrapper) :
 
         if key :
             # Make widgets sensitive
-            for widget in ['label1', 'label2', 'label3', 'label4', 'label5', 'label6',
+            for widget in ['label1', 'label2', 'label3', 'label4', 'label5',
+                           'label6', 'label7', 'label8', 'label9', 'label10',
+                           'label11', 'label12',
                            'labelStartTime', 'labelEndTime',
-                           'labelUsername', 'labelCode', 'labelColor',
+                           'labelCreated', 'labelEdited',
+                           'labelEOIDescription', 'comboBoxEntryEOI',
+                           'labelUsername', 'labelCode', 'labelState',
+                           'labelColor', 'labelAlpha',
                            'textViewAnnotation'] :
                 self[widget].set_sensitive(True)
 
@@ -1003,16 +1077,40 @@ class Dialog_AnnBrowser(PrefixWrapper) :
             self['labelStartTime'].set_text(s)
             e = '%1.1f' % ann[key]['endTime']
             self['labelEndTime'].set_text(e)
+
+            self['labelCreated'].set_text(ann[key]['created'])
+            self['labelEdited'].set_text(ann[key]['edited'])
+
+            self['labelEOIDescription'].set_text(ann[key]['eoi'].get_description())
+            model = gtk.ListStore(str)
+            for trode in ann[key]['eoi'] :
+                model.append([trode[0] + str(trode[1])])
+            if self['comboBoxEntryEOI'].get_model() is None :
+                self['comboBoxEntryEOI'].set_model(model)
+                self['comboBoxEntryEOI'].set_text_column(0)
+            else :
+                self['comboBoxEntryEOI'].set_model(model)
+            self['comboBoxEntryEOI'].child.set_text('')
+
             self['labelUsername'].set_text(ann[key]['username'])
-            self['labelColor'].set_text(ann[key]['color'])
             self['labelCode'].set_text(ann[key]['code'])
+            self['labelState'].set_text(ann[key]['state'])
+
+            self['labelColor'].set_text(ann[key]['color'])
+            self['labelAlpha'].set_text('%1.2f' % ann[key]['alpha'])
+
             self['textViewAnnotation'].get_buffer().set_text(ann[key]['annotation'])
 
         else :
             # Make widgets not sensitive
-            for widget in ['label1', 'label2', 'label3', 'label4', 'label5', 'label6',
+            for widget in ['label1', 'label2', 'label3', 'label4', 'label5',
+                           'label6', 'label7', 'label8', 'label9', 'label10',
+                           'label11', 'label12',
                            'labelStartTime', 'labelEndTime',
-                           'labelUsername', 'labelCode', 'labelColor',
+                           'labelCreated', 'labelEdited',
+                           'labelEOIDescription', 'comboBoxEntryEOI',
+                           'labelUsername', 'labelCode', 'labelState',
+                           'labelColor', 'labelAlpha',
                            'textViewAnnotation'] :
                 self[widget].set_sensitive(False)
 

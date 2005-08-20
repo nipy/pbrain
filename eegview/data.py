@@ -347,27 +347,15 @@ class EOI(list, AssociatedFile):
             
     def to_data_indices(self, amp):
         """
-        Return value is a list of indicies into amp for the channels
+        Return value is a list of indicies into the data array for the channels
         in the eoi
 
         Raises a KeyError if an eoi channel cannot be found in the amp
         struct and returns an error string indicating the problem EOI
         """
 
-        # First invert the amp struct into a map from [name][num] to index
-        ampdict = {}
-        for (cnum, ename, enum) in amp:
-            ampdict.setdefault(ename,{})[enum] = cnum-1
-
-        indices = []
-        for name, num in self:
-            try:
-                indices.append(ampdict[name][num])
-            except KeyError:
-                msg = 'Could not find an amplifier channel ' +\
-                      'for %s %d\n' % (name, num) +\
-                      'Please check the amp file associated with this eeg'
-                raise KeyError(msg)
+	d = amp.get_electrode_to_indices_dict()
+        indices = [d[key] for key in self]
 
         return indices
 
@@ -643,7 +631,7 @@ class Ann(dict, AssociatedFile) :
                     eoi.set_description(description)
                     self.eois[description] = eoi
 
-                self['%1.1f' % float(line[1]), '%1.1f' % float(line[2])] = {
+                self['%1.1f' % float(line[1]), '%1.1f' % float(line[2]), line[3]] = {
                     'version'		: float(line[0]),
                     'startTime'		: float(line[1]),
                     'endTime'		: float(line[2]),
