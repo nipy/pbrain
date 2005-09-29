@@ -487,10 +487,47 @@ class View3(gtk.Window, Observer):
             iconw,
             show_image_prefs)
 
+        iconw = gtk.Image() # icon widget
+        iconw.set_from_stock(gtk.STOCK_COPY, iconSize)
+        buttonCSV = toolbar2.append_item(
+            'Dump CSV',
+            'Dump coherences to CSV',
+            'Private',
+            iconw,
+            self.dump_csv)
+
         
 
         return toolbar2
 
+    def dump_csv(self, button):
+        'dump the coherences to csv'
+
+        try: self.cohereResults
+        except AttributeError:  self.compute_coherence()
+        freqs, cxyBands, phaseBands = self.cohereResults
+        filename = fmanager.get_filename()
+        if filename is None: return
+
+        fh = file(filename, 'w')
+        # this is a hack -- you should pass and parse the band data
+        # structure.  Yes Michael, this means you
+        print>>fh, 'E1,E2,delta 1-4,theta 4-8,alpha 8-12,beta 12-30,gamma 30-50,high gamma 70-100,delta phase,theta phase,alpha phase,beta phase,gamma phase,high gamma phase'
+        keys  = cxyBands.keys()
+        keys.sort()
+        for key in keys:
+            e1, e2 = key
+            e1 = '%s %d'%e1 # convert e1 (name,num) to string
+            e2 = '%s %d'%e2 # convert e2 (name,num) to string           
+            # make comman separated string of floats
+            cxy = ','.join(['%f'%val for val in cxyBands[key]])
+            pxy = ','.join(['%f'%val for val in phaseBands[key]])            
+            # looks like
+            # FG 1,FG 3,0.2,0.3,0.1,0.4,0.5,...
+            print>>fh, '%s,%s,%s,%s'%(e1,e2,cxy,pxy)
+        simple_msg('CSV file saved to %s'%filename)
+
+        
     def voltage_map(self, button):
         win = VoltageMapWin(self)
         win.show()
