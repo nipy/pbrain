@@ -3,12 +3,104 @@ from __future__ import division
 from __future__ import division
 import re
 import array
-from matplotlib.cbook import enumerate, iterable
+import scipy
+from matplotlib.cbook import enumerate, iterable, Bunch
 from matplotlib.mlab import cohere_pairs
 from math import floor, ceil
 from MLab import mean
 
 from Numeric import zeros, ones, exp, Float, array, pi
+
+import scipy.signal as sig
+
+
+def hilbert_phaser(s):
+    """
+    Return the instantaneous phase of s using the hilbert transform
+    """
+    h = sig.hilbert(s)
+    a = scipy.absolute(h)
+    phase = scipy.angle(h)
+    return phase
+
+
+def sync_gamma(psi):
+    """
+    Compute the measure gamma
+
+     gamma^2 =  <cos psi>^2 + <sin psi>^2
+
+    where
+
+    psi(t) = m phix(t) - n phiy(t)
+
+    where phi is the instantaneous phase; see also phasediff
+
+    gamma is a measure of phase synchrony and ranges from 0-1
+    
+    """
+    from scipy import mean, cos, sin, sqrt
+    return sqrt(mean(cos(psi))**2 + mean(sin(psi))**2)
+
+def phasediff(s0, s1, filt, n=1, m=1):
+    """
+    Compute the n-m phase difference using the hilbert transform of s0
+    and s1 after filtering with filt
+
+    return value is a class with attributes
+        s0filt : the filtered s0
+        s1filt : the filtered s1
+        p0     : the phase of s0
+        p1     : the phase of s1
+        psi    : the phase difference
+        n      : n
+        m      : m
+    
+    """
+    s0filt = filt(s0)
+    s1filt = filt(s1)
+
+    p0 = hilbert_phaser(s0filt)
+    p1 = hilbert_phaser(s1filt)
+
+    return Bunch(
+        s0filt = s0filt,
+        s1filt = s1filt,
+        p0 = p0,
+        p1 = p1,
+        psi = m*p0 - n*p1,
+        n = n,
+        m = m,
+        )
+
+    
+
+def lowbutter(lpcf, lpsf, Fs, gpass=3, gstop=15):
+    """
+    Return a low pass butterworth filter with
+    lpcf  : lowpass corner freq
+    lpsf  : lowpass stop freq
+    gpass : corner freq attenuation
+    gstop : stop freq attenuation    
+
+    return value is a callable function that will filter your data
+
+    Example:
+      mybutt = lowbutter(12, 15, eeg.freq)
+      sfilt = mybutt(s1)
+
+    """
+    
+    Nyq = Fs/2.
+    wp = lpcf/Nyq
+    ws = lpsf/Nyq
+
+    ord, Wn = sig.buttord(wp, ws, gpass, gstop)
+    b, a = sig.butter(ord, Wn, btype='lowpass')
+
+    def func(x):
+        return sig.lfilter(b,a,x)
+    return func
 
 
 def donothing_callback(*args):
@@ -551,11 +643,15 @@ def get_best_exp_params(x, y, guess=(1.0, -.5, 0.0)):
         return J 
 
     from scipy.optimize import leastsq
-    best, info, ier, mesg = leastsq(errfunc, guess, 
-                                    full_output=1, 
-                                    Dfun=deriv_errfunc, 
-                                    col_deriv=1) 
+    ret = leastsq(errfunc, guess, 
+                  full_output=1, 
+                  Dfun=deriv_errfunc, 
+                  col_deriv=1) 
 
+    if len(ret)==4:
+        best, info, ier, mesg = ret
+    elif len(ret)==5:
+        best, info, ier, mesg, cov_x = ret
 
     if ier != 1: return None 
     return best 

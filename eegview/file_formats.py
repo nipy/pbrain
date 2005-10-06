@@ -6,11 +6,71 @@ from datetime import date, time
 import data
 from struct import unpack
 
-from Numeric import arange, zeros, UInt8, fromstring, Float
+from matplotlib.numerix import UInt8, fromstring, Float
 
+import matplotlib.numerix as nx
+  
+class NeuroscanEpochFile:
+    ### note we haven't implemented accepted/rejected sweeps
+    def __init__(self, fname):
+
+        rgx = re.compile('^\[([A-Za-z\s]+)\](.*)')
+        header = {}
+        fh = file(fname, 'r')
+        while 1:
+            line = fh.readline().strip()
+            if not len(line): raise ValueError('Bad file')
+            if line.startswith('[Epoch Header]'): break
+            m = rgx.match(line)
+            if m:
+                key = m.group(1)
+                val = m.group(2)
+                #print line, key, val
+                header[key] = val
+
+        params = {
+            'pid' : 0,
+            'date' : header['Date'] + ' ' + header['Time'],
+            'filename' : fname,     
+            'description' : '',  
+            'channels' : int(header['Channels']),
+            'freq' : float(header['Rate']),
+            'classification' : 99,
+            'file_type' : 14,     
+            'behavior_state' : 99, 
+            }
+        
+        self.channels = params['channels']
+        self.points = int(header['Points'])
+        self.sweeps = int(header['Sweeps'])
+
+        self.X = nx.zeros((self.sweeps*self.points, self.channels), typecode=nx.Float)
+
+        sweepnum = 0
+        while 1:
+            if line.startswith('[Epoch Header]'):
+                self.parse_epoch(fh, sweepnum)
+                sweepnum+=1                
+            else:
+                break
+            line = fh.readline()
+
+        params['epochdata'] = self.X
+        self.eeg = data.EEGFileSystem(fname, params)
+
+            
+    def parse_epoch(self, fh, sweepnum):
+        for i in range(5): junk = fh.readline()
+
+        start = sweepnum*self.points
+        for i in range(self.points):
+            line  = fh.readline()            # a string
+            vals = map(float, line.split())  # a list of floats
+            #print sweepnum, start, i, self.X.shape
+            self.X[start+i] = nx.array(vals)
 
 class W18Header:
-    def __init__(self, fh):
+    def __init__(self, fh): 
 
         self.name = unpack('19s', fh.read(19))[0].strip()
         self.oper = unpack('5s', fh.read(5))[0].strip()
@@ -153,7 +213,6 @@ class FileFormat_BNI:
         errors = []
         self.labeld = {} # a dict from cnum to label
         channeld = {} # mapping from anum->(gname, gnum)        
-
         seenanum = {}
         for line in bnih:
             vals = line.split('=',1)
@@ -271,3 +330,18 @@ class FileFormat_BNI:
         eeg.amp = amp
 
         return eeg
+
+def getbni(bnipath):
+    bni = FileFormat_BNI(bnipath)
+    basename, ext = os.path.splitext(bnipath)
+
+    # sometimes there is an eeg ext, sometimes not
+    if os.path.exists(basename):    
+        fullpath = basename
+    elif os.path.exists(basename + '.eeg'):
+        fullpath = basename + '.eeg'
+
+
+    # this returns a eegview.data.EEGFileSystem instance
+    eeg = bni.get_eeg(fullpath)
+    return bni, eeg

@@ -13,7 +13,7 @@ data.extend(glob.glob('gui/*.glade'))
 data.extend(glob.glob('gui/*.gladep'))
 
 setup(name="pbrain",
-      version= '0.56',
+      version= '0.59.1',
       description = "Integrated EEG, CT and MRI analysis",
       author = "John D. Hunter",
       author_email="jdhunter@ace.bsd.uchicago.edu",

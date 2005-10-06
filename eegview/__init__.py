@@ -121,6 +121,7 @@ CodeRegistry.register_code(
              ('EEG grid data' , 4),
              ('EEG EOI' , 5),
              ('EEG Filt' , 6),
+             ('Neuroscan epoch file' , 14),             
              ('CT zip' , 9),
              ('MRI zip' , 10),
              ('Annotation data', 13),

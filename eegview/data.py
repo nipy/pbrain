@@ -694,11 +694,13 @@ def assoc_factory_filesystem(filetype, fname):
     return typeMap[filetype](useFile=fname)
 
 EDF, BMSI, NSASCII, NSCNT, FLOATARRAY, W18 = range(6)
+EPOCH = 14
 
 class EEGBase:               
     def __init__(self):
         self.readmap = {BMSI : self._read_nicolet,
                         W18  : self._read_w18,
+                        EPOCH : self._read_epoch,
                        }
 
         self.scale= None
@@ -849,13 +851,26 @@ class EEGBase:
         assert(tmax>tmin)
 
         #print 'filetype', type(self.file_type), self.file_type
-        
+
+        #print self.file_type, self.readmap[self.file_type]
         try: t, data = self.readmap[self.file_type](tmin, tmax)
         except KeyError:
             raise KeyError('Do not know how to handle file type %s'%self.file_type)
         self.lastDataQuery = ( (tmin, tmax), (t, data) )
 
         return t, data
+
+    def _read_epoch(self, tmin, tmax):
+
+        indmin = int(self.freq*tmin)
+        indmax = int(self.freq*tmax)
+        indmax = min(self.epochdata.shape[0], indmax)
+        indmin = max(0, indmin)
+        #print 'ind min/max', indmin, indmax
+        t = (1/self.freq)*arange(indmin, indmax)
+        data = self.epochdata[indmin:indmax]
+        #print indmin, indmax, t.shape, data.shape
+        return t, self.epochdata[indmin:indmax]
 
     def _read_w18(self, tmin, tmax):
         return file_formats.get_w18_data(self.fh, indmin, indmax)
@@ -884,6 +899,7 @@ class EEGBase:
             data = self.scale*data
 
         t = (1/self.freq)*arange(indmin, indmax)
+        #print 'nic', data.shape
         return t, data
 
     def _read_float_array(self, fname):

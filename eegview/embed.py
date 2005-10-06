@@ -39,11 +39,11 @@ class EmbedWin(gtk.Window, Observer):
 
 
         interactor = GtkGLExtVTKRenderWindowInteractor()
-        vbox.pack_start(interactor, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(interactor, True, True)
 
         toolbar = self.make_toolbar()
         toolbar.show()
-        vbox.pack_start(toolbar, gtk.FALSE, gtk.FALSE)
+        vbox.pack_start(toolbar, False, False)
 
         interactor.show()
         interactor.Initialize()

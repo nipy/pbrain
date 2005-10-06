@@ -1,3 +1,4 @@
+MANIFEST
 postinstall.py
 setup.py
 eegview/Code.py
@@ -17,6 +18,7 @@ eegview/mpl_windows.py
 eegview/plane_widgets.py
 eegview/servers.py
 eegview/shared.py
+eegview/test.py
 eegview/utils.py
 eegview/view3.py
 gui/image_reader.glade
@@ -29,6 +31,7 @@ loc3djr/GtkGLExtVTKRenderWindowInteractor.py
 loc3djr/__init__.py
 loc3djr/events.py
 loc3djr/image_reader.py
+loc3djr/interactive.py
 loc3djr/loc3djr.py
 loc3djr/markers.py
 loc3djr/plane_widgets.py
@@ -36,3 +39,4 @@ loc3djr/shared.py
 loc3djr/surf_renderer.py
 pbrainlib/__init__.py
 pbrainlib/gtkutils.py
+pbrainlib/pyshell.py

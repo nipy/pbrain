@@ -19,7 +19,7 @@ from pbrainlib.gtkutils import str2num_or_err, simple_msg, error_msg, \
 from matplotlib.widgets import Cursor, HorizontalSpanSelector
 
 from data import EEGWeb, EEGFileSystem, EOI, Amp, Grids
-from file_formats import FileFormat_BNI, W18Header, FileFormat_BNI
+from file_formats import FileFormat_BNI, W18Header, FileFormat_BNI, NeuroscanEpochFile
 
 from dialogs import Dialog_Preferences, Dialog_SelectElectrodes,\
      Dialog_CohstatExport, Dialog_SaveEOI, Dialog_EEGParams, \
@@ -93,6 +93,11 @@ def load_bmsi(bnipath):
     eeg = bni.get_eeg(fullpath)
     return eeg
 
+
+def load_epoch(fname):
+    epoch = NeuroscanEpochFile(fname)
+    return epoch.eeg
+
 def load_params(path):
     params = {}
     for line in file(path):
@@ -118,6 +123,7 @@ def load_params(path):
 extmap = { '.w18' : load_w18,
            '.bni' : load_bmsi,
            '.params' : load_params,
+           '.epoch' : load_epoch,           
            }
 
 class EEGNavBar(gtk.Toolbar, Observer):
@@ -477,6 +483,7 @@ class AnnotationManager:
         menuItemAnnCreateEdit.get_children()[0].set_text(label)
         menuItemAnnDelete = Shared.widgets.get_widget('menuItemAnnDelete')
         menuItemAnnDelete.set_sensitive(0)
+        self.canvas.draw()
 
     def _new_rect(self, xmin, xmax, ymin, ymax, **props):
         trans = blend_xy_sep_transform( self.axes.transData,
@@ -803,14 +810,14 @@ class EEGPlot(Observer):
 
         elif event==Observer.SAVE_FRAME:
             fname = args[0] + '.png'
-            self.canvas.print_figure(fname)
-            basedir, filepart = os.path.split(fname)
-            listfile = os.path.join(basedir, 'eegplot.vfl')
-            try:  file(listfile, 'a').write('%s\n'%(filepart))
-            except IOError:
-                error_msg('Could not write list file %s' % listfile)
-                return
-            
+            width, height = self.canvas.get_width_height()            
+            pixmap = self.canvas.pixmap
+            pixbuf = gdk.Pixbuf(gdk.COLORSPACE_RGB, 0, 8,
+                                width, height)
+            pixbuf.get_from_drawable(pixmap, pixmap.get_colormap(),
+                                     0, 0, 0, 0, width, height)
+        
+            pixbuf.save(fname, 'png')
             try:
                 Shared.windowMain.update_status_bar(
                     'Saved frame: %s' % fname)
@@ -851,6 +858,7 @@ class EEGPlot(Observer):
             data = filter_grand_mean(data)
 
         ind = self.eoiIndDict[self._selected]
+
         
         ret = t, data[:,self.indices[ind]], self._selected
         self._selectedCache = key, ret
@@ -865,6 +873,7 @@ class EEGPlot(Observer):
 
     def set_eoi(self, eoi):
         try:
+            #print self.eeg.get_amp()
             self.indices = eoi.to_data_indices(self.eeg.get_amp())
         except KeyError:
             msg = exception_to_str('Could not get amplifier indices for EOI')
@@ -976,7 +985,7 @@ class EEGPlot(Observer):
             color = self.get_color(trode)
             if self._selected==trode: color='r'
             trans = get_bbox_transform(boxin, boxout)
-
+            #print data.shape, ind, len(pairs), self.eeg.channels
             thisLine = Line2D(t, data[:,ind],
                               color=color,
                               linewidth=0.75,
@@ -1128,6 +1137,10 @@ class EEGPlot(Observer):
 
     def get_channel_at_point(self, x, y, select=True):
         "Get the EEG with the voltage trace nearest to x, y (window coords)"
+
+        # avoid a pygtk queue handling error
+        if not hasattr(self, 'decfreq'):
+            return None
         tmin, tmax = self.get_time_lim()
         dt = 1/self.decfreq
 
@@ -1251,9 +1264,6 @@ class SpecPlot(Observer):
         if event in (Observer.SELECT_CHANNEL, Observer.SET_TIME_LIM):
             self.make_spec()
             self.canvas.draw()
-        elif event==Observer.SAVE_FRAME:
-            fname = args[0]
-            self.canvas.print_figure(fname + '_specgram.png', dpi=72)
 
     def set_properties(self, *args):
         dlg = SpecPlot.propdlg
@@ -1283,11 +1293,13 @@ class SpecPlot(Observer):
 class MainWindow(PrefixWrapper):
     prefix = ''
     widgetName = 'windowMain'
-    gladeFile = 'gui/main.glade'
+    gladeFile = 'main.glade'
 
     def __init__(self):
         if os.path.exists(self.gladeFile):
             theFile=self.gladeFile
+        elif os.path.exists(os.path.join('gui', self.gladeFile)):
+            theFile=os.path.join('gui', self.gladeFile)
         else:
             theFile = os.path.join(
                 distutils.sysconfig.PREFIX,
@@ -1334,9 +1346,6 @@ class MainWindow(PrefixWrapper):
         
         win = self['windowMain']
         win.move(0,0)
-        self.canvas.mpl_connect('motion_notify_event', self.motion_notify_event)
-        self.canvas.mpl_connect('button_press_event', self.button_press_event)
-        self.canvas.mpl_connect('button_release_event', self.button_release_event)
 
         self['vboxMain'].pack_start(self.canvas, True, True)
         self['vboxMain'].show()
@@ -1371,6 +1380,10 @@ class MainWindow(PrefixWrapper):
             menuItemAnnVertCursor.set_active(1)
         else :
             menuItemAnnVertCursor.set_active(0)
+
+        self.canvas.mpl_connect('motion_notify_event', self.motion_notify_event)
+        self.canvas.mpl_connect('button_press_event', self.button_press_event)
+        self.canvas.mpl_connect('button_release_event', self.button_release_event)
 
     def update_status_bar(self, msg):
         self.statbar.pop(self.statbarCID) 
@@ -1804,6 +1817,18 @@ class MainWindow(PrefixWrapper):
             # right click brings up the context menu
             if event.inaxes == self.axes:
                 menu = self.eoiMenu
+                # Update popup menu items
+                highsens =  annman.get_highlight() is not None
+                selsens = self.eegplot.annman.selectedkey is not None
+                if highsens: label = 'Create New Annotation'
+                else: label = 'Edit Selected Annotation'
+
+                menuItems = menu.get_children()
+                menuItemAnnCreateEdit = menuItems[-2]
+                menuItemAnnCreateEdit.get_children()[0].set_text(label)
+                menuItemAnnDelete = menuItems[-1]
+                menuItemAnnDelete.set_sensitive(selsens)
+
             elif event.inaxes == self.axesSpec:
                 menu = self.specMenu
 
@@ -1812,12 +1837,6 @@ class MainWindow(PrefixWrapper):
             selsens = self.eegplot.annman.selectedkey is not None
             if highsens or not selsens : label = 'Create New Annotation'
             else: label = 'Edit Selected Annotation'
-
-            menuItems = menu.get_children()
-            menuItemAnnCreateEdit = menuItems[-2]
-            menuItemAnnCreateEdit.get_children()[0].set_text(label)
-            menuItemAnnDelete = menuItems[-1]
-            menuItemAnnDelete.set_sensitive(selsens)
 
             menu.popup(None, None, None, 0, 0)
 
@@ -1900,17 +1919,16 @@ class MainWindow(PrefixWrapper):
             pars =  dlg.get_params()
             return pars
 
-    def autoload(self, fullpath):
+    def autoload(self, options):
         """DEBUG only"""
-        if fullpath :
-            eeg = load_bmsi(fullpath)
-            self.eegplot = EEGPlot(eeg, self.canvas)
+        fullpath = options.filename
+        basename, ext = os.path.splitext(fullpath)
+        eeg = extmap[ext](fullpath)
+        self.on_load_eeg(eeg)
 
-            self.toolbar.set_eegplot(self.eegplot)
-            self.eegplot.plot()
-            eois = eeg.get_associated_files(atype=5, mapped=1)
-            self.eoiMenu = self.make_context_menu(eois)
-
+        if options.eoi is not None:
+            eoi = EOI(useFile=options.eoi)
+            self.load_eoi(eoi)
         return False
 
     def on_menuFileOpen_activate(self, event):
@@ -1968,40 +1986,43 @@ class MainWindow(PrefixWrapper):
                 simple_msg(amp.message, title='Warning',
                            parent=Shared.windowMain.widget)
 
+            self.on_load_eeg(eeg)
 
-            dlg = gtk.Dialog('Please stand by')
-            dlg.show()
-            msg = gtk.Label('Loading %s; please hold on' % eeg.filename)
-            msg.show()
-            dlg.vbox.add(msg)            
-            while gtk.events_pending(): gtk.main_iteration()
-
-            try: self.eegplot
-            except AttributeError: pass
-            else: Observer.observers.remove(self.eegplot)        
-            try: self.specPlot
-            except AttributeError: pass
-            else: Observer.observers.remove(self.specPlot)        
-                
-
-            self.eegplot = EEGPlot(eeg, self.canvas)
-            self.specPlot = SpecPlot(self.axesSpec, self.canvas, self.eegplot)
-            self.specMenu = self.make_spec_menu()
-            dlg.destroy()
-            while gtk.events_pending(): gtk.main_iteration()
-            self.toolbar.set_eegplot(self.eegplot)
-            try: self.eegplot.plot()
-            except:
-                msg = exception_to_str('Could not read data:')
-                error_msg(msg, title='Error',
-                          parent=Shared.windowMain.widget)
-                return
-
-                
-            eois = eeg.get_associated_files(atype=5, mapped=1)
-            self.eoiMenu = self.make_context_menu(eois)
             return False
 
+    def on_load_eeg(self, eeg):
+        dlg = gtk.Dialog('Please stand by')
+        dlg.show()
+        msg = gtk.Label('Loading %s; please hold on' % eeg.filename)
+        msg.show()
+        dlg.vbox.add(msg)            
+        while gtk.events_pending(): gtk.main_iteration()
+
+        try: self.eegplot
+        except AttributeError: pass
+        else: Observer.observers.remove(self.eegplot)        
+        try: self.specPlot
+        except AttributeError: pass
+        else: Observer.observers.remove(self.specPlot)        
+
+
+        self.eegplot = EEGPlot(eeg, self.canvas)
+        self.specPlot = SpecPlot(self.axesSpec, self.canvas, self.eegplot)
+        self.specMenu = self.make_spec_menu()
+        dlg.destroy()
+        while gtk.events_pending(): gtk.main_iteration()
+        self.toolbar.set_eegplot(self.eegplot)
+        try: self.eegplot.plot()
+        except:
+            msg = exception_to_str('Could not read data:')
+            error_msg(msg, title='Error',
+                      parent=Shared.windowMain.widget)
+            return
+
+
+        eois = eeg.get_associated_files(atype=5, mapped=1)
+        self.eoiMenu = self.make_context_menu(eois)
+        
     def on_menuFileSave_activate(self, event):
         not_implemented(self.widget)
 
@@ -2120,13 +2141,27 @@ if __name__=='__main__':
     Shared.windowMain = MainWindow()
     Shared.windowMain.show_widget()
 
-    Shared.windowMain.on_menuFilePreferences_activate(None)
+    from optparse import OptionParser
+    parser = OptionParser()
 
-    fullpath = ''
-    args = sys.argv
-    if len(args) > 1 :
-        fullpath = args[1]
-    Shared.windowMain.autoload(fullpath)
+    parser.add_option("-f", "--file",
+                      action="store", type="string", dest="filename",
+                      default=None,                      
+                      help="Autoload eeg from file", metavar="FILE")
+
+    parser.add_option("-e", "--eoi",
+                      action="store", type="string", dest="eoi",
+                      default=None,                      
+                      help="Autoload eoi from eoi file", metavar="FILE")
+
+
+    (options, args) = parser.parse_args()
+
+
+    if options.filename is not None:
+        Shared.windowMain.autoload(options)
+    else:
+        Shared.windowMain.on_menuFilePreferences_activate(None)
     Shared.windowMain.widget.connect('destroy', update_rc_and_die)
     Shared.windowMain.widget.connect('delete_event', update_rc_and_die)
     #Shared.windowMain['menubarMain'].hide()

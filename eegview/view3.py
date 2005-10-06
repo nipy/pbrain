@@ -153,11 +153,11 @@ class View3(gtk.Window, Observer):
 
         self.imageManager = ImageManager(self.interactor, self.renderer)
 
-        csv = self.eeg.get_loc3djr()
+        grd = self.eeg.get_loc3djr()
 
-        if csv is not None:
-            csv.fh.seek(0)
-            ok = self.load_markers(infile=csv.fh)
+        if grd is not None:
+            grd.fh.seek(0)
+            ok = self.load_markers(infile=grd.fh)
         else:
             ok = self.load_markers()
         if not ok:
@@ -177,12 +177,12 @@ class View3(gtk.Window, Observer):
             self.progBar.set_fraction(0)
             self.progBar.show()
 
-        vbox.pack_start(hbox, gtk.TRUE, gtk.TRUE)
-        hbox.pack_start(toolbar1, gtk.FALSE, gtk.FALSE)
-        hbox.pack_start(interactor, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(hbox, True, True)
+        hbox.pack_start(toolbar1, False, False)
+        hbox.pack_start(interactor, True, True)
         if sys.platform != 'darwin':
-            hbox.pack_start(self.progBar, gtk.FALSE, gtk.FALSE)
-        vbox.pack_end(toolbar2, gtk.FALSE, gtk.FALSE)
+            hbox.pack_start(self.progBar, False, False)
+        vbox.pack_end(toolbar2, False, False)
 
         # norm is a dictionary mapping band indices to
         # distance/coherence normalizations
@@ -719,7 +719,7 @@ class View3(gtk.Window, Observer):
             def progress_callback(frac,  msg):
                 if frac<0 or frac>1: return
                 self.progBar.set_fraction(frac)
-                while gtk.events_pending(): gtk.mainiteration()
+                while gtk.events_pending(): gtk.main_iteration()
 
         
 
@@ -859,7 +859,7 @@ class View3(gtk.Window, Observer):
 
         self.canvas = FigureCanvas(fig)  # a gtk.DrawingArea
         self.canvas.show()
-        vbox.pack_start(self.canvas, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(self.canvas, True, True)
 
 
         freqs, Cxy, Pxy = self.cohereResults
@@ -906,7 +906,7 @@ class View3(gtk.Window, Observer):
 
         toolbar = NavigationToolbar(self.canvas, win)
         toolbar.show()
-        vbox.pack_start(toolbar, gtk.FALSE, gtk.FALSE)
+        vbox.pack_start(toolbar, False, False)
         win.show()
         
 
@@ -1071,7 +1071,7 @@ class AutoPlayView3Dialog(AutoPlayDialog):
         
         frame = gtk.Frame('Rotation')
         frame.show()
-        self.vbox.pack_start(frame, gtk.FALSE, gtk.FALSE)
+        self.vbox.pack_start(frame, False, False)
         frame.set_border_width(5)
 
 
@@ -1083,62 +1083,62 @@ class AutoPlayView3Dialog(AutoPlayDialog):
                 
         buttonUseRotation = gtk.CheckButton('Use rotation')
         buttonUseRotation.show()
-        vboxFrame.pack_start(buttonUseRotation, gtk.FALSE, gtk.FALSE)
+        vboxFrame.pack_start(buttonUseRotation, False, False)
         buttonUseRotation.connect('toggled', self.use_rotation)
-        buttonUseRotation.set_active(gtk.FALSE)
+        buttonUseRotation.set_active(False)
         self.buttonUseRotation = buttonUseRotation
 
         self.rotationWidgets = []
         hbox = gtk.HBox()
         hbox.show()
         hbox.set_spacing(3)
-        vboxFrame.pack_start(hbox, gtk.TRUE, gtk.TRUE)
+        vboxFrame.pack_start(hbox, True, True)
         self.rotationWidgets.append(hbox)
 
         self.frames = []
             
         button = ButtonAltLabel('Clear', stock=gtk.STOCK_CUT)
         button.show()
-        hbox.pack_start(button, gtk.TRUE, gtk.TRUE)
+        hbox.pack_start(button, True, True)
         button.connect('clicked', self.clear_frames)
 
         button = ButtonAltLabel('Add frame', stock=gtk.STOCK_ADD)
         button.show()
-        hbox.pack_start(button, gtk.TRUE, gtk.TRUE)
+        hbox.pack_start(button, True, True)
         button.connect('clicked', self.add_frame)
 
         button = ButtonAltLabel('Interpolate', stock=gtk.STOCK_EXECUTE)
         button.show()
-        hbox.pack_start(button, gtk.TRUE, gtk.TRUE)
+        hbox.pack_start(button, True, True)
         button.connect('clicked', self.interpolate_frames)
 
         self.labelFrames = gtk.Label()
         self.labelFrames.show()
-        hbox.pack_start(self.labelFrames, gtk.TRUE, gtk.TRUE)
+        hbox.pack_start(self.labelFrames, True, True)
 
 
         hbox = gtk.HBox()
         hbox.show()
         hbox.set_spacing(3)
-        vboxFrame.pack_start(hbox, gtk.TRUE, gtk.TRUE)
+        vboxFrame.pack_start(hbox, True, True)
         self.rotationWidgets.append(hbox)
         
         labelPerTime = gtk.Label('Frames per time step')
         labelPerTime.show()
-        hbox.pack_start(labelPerTime, gtk.FALSE, gtk.FALSE)
+        hbox.pack_start(labelPerTime, False, False)
 
 
 
         entryPerTime = gtk.SpinButton()
         entryPerTime.show()
-        hbox.pack_start(entryPerTime, gtk.FALSE, gtk.FALSE)
+        hbox.pack_start(entryPerTime, False, False)
         #entryPerTime.set_width_chars(5)
 
         entryPerTime.set_range(0, 100)
         entryPerTime.set_increments(1, 5)
         entryPerTime.set_value(5)
-        entryPerTime.set_numeric(gtk.TRUE)
-        entryPerTime.set_snap_to_ticks(gtk.TRUE)
+        entryPerTime.set_numeric(True)
+        entryPerTime.set_snap_to_ticks(True)
         entryPerTime.update()
         self.entryPerTime = entryPerTime
 
@@ -1307,9 +1307,9 @@ class AutoPlayView3Dialog(AutoPlayDialog):
             
         self.stop()
         good = self.setpars()
-        if not good: return gtk.FALSE
+        if not good: return False
         self.direction = 1
-        self.idleID = gtk.idle_add(self.scroll)
+        self.idleID = gobject.idle_add(self.scroll)
         
     def scroll(self, *args):
 
@@ -1320,7 +1320,7 @@ class AutoPlayView3Dialog(AutoPlayDialog):
         if self.ind<0 or self.ind>=len(self.steps):
             self.stop()
             self.ind=0
-            return gtk.FALSE
+            return False
         
         # we're still playing
         thisMin = self.steps[self.ind]
@@ -1344,7 +1344,7 @@ class AutoPlayView3Dialog(AutoPlayDialog):
         if self.checkButtonMovie.get_active():
             self.broadcast(Observer.SAVE_FRAME, fname)
         self.ind += self.direction
-        return gtk.TRUE
+        return True
 
 class ScalarMapper:
     """
@@ -1383,19 +1383,19 @@ class ArrayMapper(gtk.Window, ScalarMapper):
 
         self.canvas = FigureCanvas(self.fig)  # a gtk.DrawingArea
         self.canvas.show()
-        vbox.pack_start(self.canvas, gtk.TRUE, gtk.TRUE)        
+        vbox.pack_start(self.canvas, True, True)        
 
         hbox = gtk.HBox()
         hbox.show()
-        vbox.pack_start(hbox, gtk.FALSE, gtk.FALSE)        
+        vbox.pack_start(hbox, False, False)        
 
         label = gtk.Label('Sample num')
         label.show()
-        hbox.pack_start(label, gtk.FALSE, gtk.FALSE)
+        hbox.pack_start(label, False, False)
 
         scrollbar = gtk.HScrollbar()
         scrollbar.show()
-        hbox.pack_start(scrollbar, gtk.TRUE, gtk.TRUE)
+        hbox.pack_start(scrollbar, True, True)
         scrollbar.set_range(0, self.numSamples-1)
         scrollbar.set_increments(1,1)
         scrollbar.set_value(self.numSamples//2)
@@ -1404,7 +1404,7 @@ class ArrayMapper(gtk.Window, ScalarMapper):
 
         toolbar = NavigationToolbar(self.canvas, self)
         toolbar.show()
-        vbox.pack_start(toolbar, gtk.FALSE, gtk.FALSE)
+        vbox.pack_start(toolbar, False, False)
 
         self.set_sample_num(scrollbar)
 
@@ -1457,7 +1457,7 @@ class AmpDialog(gtk.Dialog):
         self.set_size_request(300,600)
         scrolledWin = gtk.ScrolledWindow()
         scrolledWin.show()
-        self.vbox.pack_start(scrolledWin, gtk.TRUE, gtk.TRUE)
+        self.vbox.pack_start(scrolledWin, True, True)
 
         vbox = gtk.VBox()
         vbox.show()
@@ -1466,7 +1466,7 @@ class AmpDialog(gtk.Dialog):
         table=gtk.Table(self.numChannels+1, 3)
         table.set_col_spacings(3)
         table.show()
-        vbox.pack_start(table, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(table, True, True)
 
         labelCnum = gtk.Label('Channel')
         labelCnum.show()
@@ -1504,7 +1504,7 @@ class AmpDialog(gtk.Dialog):
             
         frame = gtk.Frame('Auto fill')
         frame.show()
-        vbox.pack_start(frame, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(frame, True, True)
         frame.set_border_width(5)
 
         vboxFrame = gtk.VBox()
@@ -1515,7 +1515,7 @@ class AmpDialog(gtk.Dialog):
         table.set_col_spacings(3)
         table.set_row_spacings(3)
         table.show()
-        vboxFrame.pack_start(table, gtk.TRUE, gtk.TRUE)
+        vboxFrame.pack_start(table, True, True)
         
         label = gtk.Label('Grid name')
         label.show()
@@ -1575,7 +1575,7 @@ class AmpDialog(gtk.Dialog):
             
         button = gtk.Button(stock=gtk.STOCK_EXECUTE)
         button.show()
-        vboxFrame.pack_start(button, gtk.FALSE, gtk.FALSE)
+        vboxFrame.pack_start(button, False, False)
 
         button.connect('clicked', fill_it)
 
@@ -1741,13 +1741,13 @@ class ImageManager:
 
         button = ButtonAltLabel('Info file', gtk.STOCK_OPEN)
         button.show()
-        vbox.pack_start(button, gtk.FALSE, gtk.FALSE)
+        vbox.pack_start(button, False, False)
         button.connect('clicked', self.load_image_dialog)
 
 
         button = gtk.CheckButton('Interact with planes')
         button.show()
-        vbox.pack_start(button, gtk.FALSE, gtk.FALSE)
+        vbox.pack_start(button, False, False)
         button.set_active(False)
         button.connect('toggled', self.set_interact)
         self.buttonInteract = button
@@ -1755,12 +1755,12 @@ class ImageManager:
         frame = gtk.Frame('Opacity')
         frame.show()
         frame.set_border_width(5)
-        vbox.pack_start(frame, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(frame, True, True)
 
 
 
         table = gtk.Table(4,2)
-        table.set_homogeneous(gtk.FALSE)
+        table.set_homogeneous(False)
         table.show()
         frame.add(table)
         
@@ -1837,12 +1837,12 @@ class ImageManager:
 
         def hide(button):
             dlg.hide()
-            return gtk.TRUE
+            return True
         
         button = ButtonAltLabel('Hide', gtk.STOCK_CANCEL)
         button.show()
         button.connect('clicked', hide)
-        vbox.pack_end(button, gtk.FALSE, gtk.FALSE)        
+        vbox.pack_end(button, False, False)        
 
         return dlg
 
@@ -2238,14 +2238,14 @@ class GridManager:
 
         def hide(*args):
             dlg.hide()
-            return gtk.TRUE
+            return True
         dlg = gtk.Dialog('Grid properties')
         # intercept delete events
         dlg.connect('delete_event', hide)
         
         notebook = gtk.Notebook()
         notebook.show()
-        dlg.vbox.pack_start(notebook, gtk.TRUE, gtk.TRUE)
+        dlg.vbox.pack_start(notebook, True, True)
 
         frame = gtk.Frame('Strip angle')
         frame.show()
@@ -2283,7 +2283,7 @@ class GridManager:
         frame = gtk.Frame('Scalar Range')
         frame.show()
         frame.set_border_width(5)
-        vboxMappers.pack_start(frame, gtk.FALSE, gtk.FALSE)
+        vboxMappers.pack_start(frame, False, False)
 
         frameVBox = gtk.VBox()
         frameVBox.show()
@@ -2294,30 +2294,30 @@ class GridManager:
         hbox = gtk.HBox()
         hbox.set_spacing(3)
         hbox.show()
-        frameVBox.pack_start(hbox, gtk.FALSE, gtk.FALSE)
+        frameVBox.pack_start(hbox, False, False)
         
         label = gtk.Label('Min/Max')
         label.show()
         
-        hbox.pack_start(label, gtk.FALSE, gtk.FALSE)
+        hbox.pack_start(label, False, False)
 
 
         self.entryScalarMin = gtk.Entry()
         self.entryScalarMin.show()
         self.entryScalarMin.set_width_chars(10)
-        hbox.pack_start(self.entryScalarMin, gtk.FALSE, gtk.FALSE)
+        hbox.pack_start(self.entryScalarMin, False, False)
 
         
         self.entryScalarMax = gtk.Entry()
         self.entryScalarMax.show()
         self.entryScalarMax.set_width_chars(10)
-        hbox.pack_start(self.entryScalarMax, gtk.FALSE, gtk.FALSE)
+        hbox.pack_start(self.entryScalarMax, False, False)
 
 
         hbox = gtk.HBox()
         hbox.set_spacing(3)
         hbox.show()
-        frameVBox.pack_start(hbox, gtk.FALSE, gtk.FALSE)
+        frameVBox.pack_start(hbox, False, False)
 
         def set_range(button):
             tup = self.get_scalar_range()
@@ -2333,7 +2333,7 @@ class GridManager:
                 
         button = gtk.Button(stock=gtk.STOCK_APPLY)
         button.show()
-        hbox.pack_start(button, gtk.TRUE, gtk.TRUE)
+        hbox.pack_start(button, True, True)
         button.connect('clicked', set_range)
 
         def autoset(button):
@@ -2350,12 +2350,12 @@ class GridManager:
         button = ButtonAltLabel('Auto', gtk.STOCK_EXECUTE)
         button.show()
         button.connect('clicked', autoset)
-        hbox.pack_start(button, gtk.TRUE, gtk.TRUE)
+        hbox.pack_start(button, True, True)
 
         frame = gtk.Frame('Scalars from ASCII file')
         frame.show()
         frame.set_border_width(5)
-        vboxMappers.pack_start(frame, gtk.FALSE, gtk.FALSE)
+        vboxMappers.pack_start(frame, False, False)
 
         frameVBox = gtk.VBox()
         frameVBox.show()
@@ -2456,49 +2456,49 @@ class GridManager:
         button.set_active(True)
         button.show()
         button.connect('clicked', radio_changed)
-        frameVBox.pack_start(button, gtk.TRUE, gtk.TRUE)
+        frameVBox.pack_start(button, True, True)
         buttonSampChan = button
         
         button = gtk.RadioButton(button)
         button.set_label('Channels x Samples')
         button.show()
-        frameVBox.pack_start(button, gtk.TRUE, gtk.TRUE)
+        frameVBox.pack_start(button, True, True)
         buttonChanSamp = button
 
         hbox = gtk.HBox()
         hbox.show()
         hbox.set_spacing(3)
-        frameVBox.pack_start(hbox, gtk.TRUE, gtk.TRUE)
+        frameVBox.pack_start(hbox, True, True)
 
         label = gtk.Label('Header lines')
         label.show()
         labelHeader = label
-        hbox.pack_start(label, gtk.FALSE, gtk.FALSE)
+        hbox.pack_start(label, False, False)
         entry = gtk.Entry()
         entry.show()
         entry.set_text('0')
         entry.set_width_chars(5)
-        hbox.pack_start(entry, gtk.FALSE, gtk.FALSE)
+        hbox.pack_start(entry, False, False)
         entryHeader = entry
 
         hbox = gtk.HBox()
         hbox.show()
         hbox.set_spacing(3)
-        frameVBox.pack_start(hbox, gtk.TRUE, gtk.TRUE)
+        frameVBox.pack_start(hbox, True, True)
 
         label = gtk.Label('Channels')
         label.show()
-        hbox.pack_start(label, gtk.FALSE, gtk.FALSE)
+        hbox.pack_start(label, False, False)
         entry = gtk.Entry()
         entry.show()
         entry.set_text('1 2 3')
-        hbox.pack_start(entry, gtk.FALSE, gtk.FALSE)
+        hbox.pack_start(entry, False, False)
         entryChannels = entry
 
         hbox = gtk.HBox()
         hbox.show()
         hbox.set_spacing(3)
-        frameVBox.pack_start(hbox, gtk.TRUE, gtk.TRUE)
+        frameVBox.pack_start(hbox, True, True)
 
         self.ampAscii = None
         self.X = []
@@ -2507,15 +2507,15 @@ class GridManager:
         button = gtk.Button(stock=gtk.STOCK_OPEN)
         button.show()
         button.connect('clicked', set_filename)
-        hbox.pack_start(button, gtk.FALSE, gtk.FALSE)
+        hbox.pack_start(button, False, False)
         entry = gtk.Entry()
         entry.show()
-        hbox.pack_start(entry, gtk.TRUE, gtk.TRUE)
+        hbox.pack_start(entry, True, True)
         entryAsciiFile = entry
         
         button = gtk.Button(stock=gtk.STOCK_EXECUTE)
         button.show()
-        frameVBox.pack_start(button, gtk.TRUE, gtk.TRUE)
+        frameVBox.pack_start(button, True, True)
         button.connect('clicked', doit)
 
             
@@ -2536,9 +2536,9 @@ class GridManager:
 
 
         table = gtk.Table(1,2)
-        table.set_homogeneous(gtk.FALSE)
+        table.set_homogeneous(False)
         table.show()
-        frameVBox.pack_start(table, gtk.FALSE, gtk.FALSE)
+        frameVBox.pack_start(table, False, False)
         
         table.set_col_spacings(3)
         table.set_row_spacings(3)
@@ -2596,11 +2596,11 @@ class GridManager:
         hboxFile = OpenSaveSaveAsHBox(
             fmanager, markers_openhook, markers_savehook, parent=dlg)
         hboxFile.show()
-        frameVBox.pack_start(hboxFile, gtk.FALSE, gtk.FALSE)
+        frameVBox.pack_start(hboxFile, False, False)
                     
         hbox = gtk.HBox()
         hbox.show()
-        dlg.vbox.pack_start(hbox, gtk.FALSE, gtk.FALSE)
+        dlg.vbox.pack_start(hbox, False, False)
 
         def hide(button):
             dlg.hide()
@@ -2608,7 +2608,7 @@ class GridManager:
         button = ButtonAltLabel('Hide', gtk.STOCK_CANCEL)
         button.show()
         button.connect('clicked', hide)
-        hbox.pack_start(button, gtk.TRUE, gtk.TRUE)        
+        hbox.pack_start(button, True, True)        
 
         self._update_frames()
         notebook.set_current_page(2)        
@@ -2653,7 +2653,7 @@ class GridManager:
         button = gtk.CheckButton('Show normals')
         button.show()
         button.set_active(False)
-        vbox.pack_start(button, gtk.FALSE, gtk.FALSE)
+        vbox.pack_start(button, False, False)
         button.connect('clicked', self.show_normals)
         self.buttonShowNormals = button
 
@@ -2677,7 +2677,7 @@ class GridManager:
             button = gtk.CheckButton('Flip %s normals' % name)
             button.show()
             button.set_active(False)
-            vbox.pack_start(button, gtk.FALSE, gtk.FALSE)
+            vbox.pack_start(button, False, False)
             func = FlipNormals(self, markers, filter, button)
             button.connect('clicked', func)
             self.buttonsFlip[name] = button
@@ -2688,7 +2688,7 @@ class GridManager:
         names = self.get_grid_names()
 
         table = gtk.Table(len(names)+4,2)
-        table.set_homogeneous(gtk.FALSE)
+        table.set_homogeneous(False)
         table.show()
         table.set_col_spacings(3)
         table.set_row_spacings(3)
@@ -2846,7 +2846,7 @@ class GridManager:
         names = self.get_grid1_names()
 
         table = gtk.Table(len(names),2)
-        table.set_homogeneous(gtk.FALSE)
+        table.set_homogeneous(False)
         table.show()
         table.set_col_spacings(3)
         table.set_row_spacings(3)
@@ -2963,7 +2963,7 @@ class GridManager:
         table.show()
         table.set_row_spacings(2)
         table.set_col_spacings(2)
-        vbox.pack_start(table, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(table, True, True)
         
 
         for cnt, name in enumerate(gridNames):

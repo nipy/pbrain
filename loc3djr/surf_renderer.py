@@ -2,8 +2,6 @@ from __future__ import division
 import sys, os
 import vtk
 
-import pygtk
-pygtk.require('2.0')
 import gtk
 from gtk import gdk
 from GtkGLExtVTKRenderWindowInteractor import GtkGLExtVTKRenderWindowInteractor
@@ -83,17 +81,17 @@ class DecimateFilter(vtk.vtkDecimate):
 
         def start(o, event):
             prog.show()
-            while gtk.events_pending(): gtk.mainiteration()
+            while gtk.events_pending(): gtk.main_iteration()
 
 
         def progress(o, event):
             val = o.GetProgress()
             prog.bar.set_fraction(val)            
-            while gtk.events_pending(): gtk.mainiteration()
+            while gtk.events_pending(): gtk.main_iteration()
             
         def end(o, event):
             prog.hide()
-            while gtk.events_pending(): gtk.mainiteration()
+            while gtk.events_pending(): gtk.main_iteration()
 
         self.AddObserver('StartEvent', start)
         self.AddObserver('ProgressEvent', progress)
@@ -135,16 +133,16 @@ class ConnectFilter(vtk.vtkPolyDataConnectivityFilter):
 
         def start(o, event):
             prog.show()
-            while gtk.events_pending(): gtk.mainiteration()
+            while gtk.events_pending(): gtk.main_iteration()
 
         def progress(o, event):
             val = o.GetProgress()
             prog.bar.set_fraction(val)            
-            while gtk.events_pending(): gtk.mainiteration()
+            while gtk.events_pending(): gtk.main_iteration()
             
         def end(o, event):
             prog.hide()
-            while gtk.events_pending(): gtk.mainiteration()
+            while gtk.events_pending(): gtk.main_iteration()
 
         self.AddObserver('StartEvent', start)
         self.AddObserver('ProgressEvent', progress)
@@ -188,17 +186,17 @@ class SurfParams(Viewer):
                                  )
         def start(o, event):
             self.prog.show()
-            while gtk.events_pending(): gtk.mainiteration()
+            while gtk.events_pending(): gtk.main_iteration()
 
 
         def progress(o, event):
             val = o.GetProgress()
             self.prog.bar.set_fraction(val)            
-            while gtk.events_pending(): gtk.mainiteration()
+            while gtk.events_pending(): gtk.main_iteration()
             
         def end(o, event):
             self.prog.hide()
-            while gtk.events_pending(): gtk.mainiteration()
+            while gtk.events_pending(): gtk.main_iteration()
 
         self.marchingCubes.AddObserver('StartEvent', start)
         self.marchingCubes.AddObserver('ProgressEvent', progress)
@@ -304,7 +302,7 @@ class SurfRendererProps(gtk.Window, Viewer):
 
         vbox = gtk.VBox()
         vbox.show()
-        vbox.pack_start(self.notebook, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(self.notebook, True, True)
         self.add(vbox)
 
         self._make_intensity_frame()
@@ -316,30 +314,30 @@ class SurfRendererProps(gtk.Window, Viewer):
 
         def hide(*args):
             self.hide()
-            return gtk.TRUE
+            return True
         self.connect('delete_event', hide)
 
         # action area
         hbox = gtk.HBox()
         hbox.show()
-        vbox.pack_start(hbox, gtk.TRUE, gtk.TRUE)        
+        vbox.pack_start(hbox, True, True)        
 
 
         button = gtk.Button(stock=gtk.STOCK_CANCEL)
         button.show()
         button.connect('clicked', hide)
-        hbox.pack_start(button, gtk.TRUE, gtk.TRUE)        
+        hbox.pack_start(button, True, True)        
 
             
         button = ButtonAltLabel('Render', gtk.STOCK_EXECUTE)
         button.show()
         button.connect('clicked', self.render)
-        hbox.pack_start(button, gtk.TRUE, gtk.TRUE)        
+        hbox.pack_start(button, True, True)        
 
         button = gtk.Button(stock=gtk.STOCK_OK)
         button.show()
         button.connect('clicked', hide)
-        hbox.pack_start(button, gtk.TRUE, gtk.TRUE)        
+        hbox.pack_start(button, True, True)        
 
 
     def key_press(self, interactor, event):
@@ -442,7 +440,7 @@ class SurfRendererProps(gtk.Window, Viewer):
         frame = gtk.Frame('Segments')
         frame.show()
         frame.set_border_width(5)
-        vbox.pack_start(frame, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(frame, True, True)
 
         boxRadio = gtk.VBox()
         boxRadio.show()
@@ -466,7 +464,7 @@ class SurfRendererProps(gtk.Window, Viewer):
             self.buttonUseDecimate.set_active(self.paramd[name].useDecimate)
 
             activeButton = connectExtractButtons[self.paramd[name].connect.mode]
-            activeButton.set_active(gtk.TRUE)
+            activeButton.set_active(True)
 
             # fill in the decimate entry boxes
             for attr in decattrs:
@@ -486,7 +484,7 @@ class SurfRendererProps(gtk.Window, Viewer):
             button.set_active(name==names[0])
             button.show()
             button.connect('clicked', update_params)
-            boxRadio.pack_start(button, gtk.TRUE, gtk.TRUE)
+            boxRadio.pack_start(button, True, True)
             buttonNames[name] = button
             lastButton = button
 
@@ -495,19 +493,19 @@ class SurfRendererProps(gtk.Window, Viewer):
         framePipelineFilters = gtk.Frame('Pipeline filters')
         framePipelineFilters.show()
         framePipelineFilters.set_border_width(5)
-        vbox.pack_start(framePipelineFilters, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(framePipelineFilters, True, True)
 
         frameConnectFilter = gtk.Frame('Connect filter settings')
         frameConnectFilter.show()
         frameConnectFilter.set_border_width(5)
         frameConnectFilter.set_sensitive(self.paramd[segmentName].useConnect)
-        vbox.pack_start(frameConnectFilter, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(frameConnectFilter, True, True)
 
         frameDecimateFilter = gtk.Frame('Decimate filter settings')
         frameDecimateFilter.show()
         frameDecimateFilter.set_border_width(5)
         frameDecimateFilter.set_sensitive(self.paramd[segmentName].useDecimate)
-        vbox.pack_start(frameDecimateFilter, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(frameDecimateFilter, True, True)
 
         
         def connect_toggled(button):
@@ -526,7 +524,7 @@ class SurfRendererProps(gtk.Window, Viewer):
         self.buttonUseConnect.show()
         self.buttonUseConnect.set_active(self.paramd[segmentName].useConnect)
         self.buttonUseConnect.connect('toggled', connect_toggled)
-        vboxFrame.pack_start(self.buttonUseConnect, gtk.TRUE, gtk.TRUE)
+        vboxFrame.pack_start(self.buttonUseConnect, True, True)
 
         def decimate_toggled(button):
             frameDecimateFilter.set_sensitive(button.get_active())
@@ -538,7 +536,7 @@ class SurfRendererProps(gtk.Window, Viewer):
         self.buttonUseDecimate.show()
         self.buttonUseDecimate.set_active(self.paramd[segmentName].useDecimate)
         self.buttonUseDecimate.connect('toggled', decimate_toggled)
-        vboxFrame.pack_start(self.buttonUseDecimate, gtk.TRUE, gtk.TRUE)
+        vboxFrame.pack_start(self.buttonUseDecimate, True, True)
 
 
         vboxFrame = gtk.VBox()
@@ -563,11 +561,11 @@ class SurfRendererProps(gtk.Window, Viewer):
             button.set_label(name)
             button.show()
             button.connect('toggled', set_extract_mode, num)
-            vboxFrame.pack_start(button, gtk.TRUE, gtk.TRUE)
+            vboxFrame.pack_start(button, True, True)
             connectExtractButtons[num] = button
             lastButton = button
         activeButton = connectExtractButtons[self.paramd[segmentName].connect.mode]
-        activeButton.set_active(gtk.TRUE)
+        activeButton.set_active(True)
 
         vboxFrame = gtk.VBox()
         vboxFrame.show()
@@ -579,7 +577,7 @@ class SurfRendererProps(gtk.Window, Viewer):
         table.set_col_spacings(3)
         table.set_row_spacings(3)
         table.show()
-        vboxFrame.pack_start(table, gtk.TRUE, gtk.TRUE)        
+        vboxFrame.pack_start(table, True, True)        
 
         def make_row(name, default, fmt='%1.1f'):
             label = gtk.Label(name)
@@ -623,7 +621,7 @@ class SurfRendererProps(gtk.Window, Viewer):
             
         button = gtk.Button(stock=gtk.STOCK_APPLY)
         button.show()
-        vbox.pack_start(button, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(button, True, True)
         button.connect('clicked', apply)
         
 
@@ -653,7 +651,7 @@ class SurfRendererProps(gtk.Window, Viewer):
         frame = gtk.Frame('Set the segment intensity')
         frame.show()
         frame.set_border_width(5)
-        vbox.pack_start(frame, gtk.FALSE, gtk.FALSE)
+        vbox.pack_start(frame, False, False)
         
         vboxFrame = gtk.VBox()
         vboxFrame.show()
@@ -663,7 +661,7 @@ class SurfRendererProps(gtk.Window, Viewer):
         table = gtk.Table(1,2)
         table.set_col_spacings(3)
         table.show()
-        vboxFrame.pack_start(table, gtk.TRUE, gtk.TRUE)        
+        vboxFrame.pack_start(table, True, True)        
 
         self.labelIntensity = gtk.Label('Value: ')
         self.labelIntensity.show()
@@ -681,31 +679,31 @@ class SurfRendererProps(gtk.Window, Viewer):
 
         hbox = gtk.HBox()
         hbox.show()
-        hbox.set_homogeneous(gtk.TRUE)
+        hbox.set_homogeneous(True)
         hbox.set_spacing(3)
-        vboxFrame.pack_start(hbox, gtk.FALSE, gtk.FALSE)
+        vboxFrame.pack_start(hbox, False, False)
             
         button = ButtonAltLabel('Capture', gtk.STOCK_ADD)
         button.show()
         button.connect('clicked', self.start_collect_intensity)
-        hbox.pack_start(button, gtk.TRUE, gtk.TRUE)
+        hbox.pack_start(button, True, True)
 
         button = ButtonAltLabel('Stop', gtk.STOCK_STOP)
         button.show()
         button.connect('clicked', self.stop_collect_intensity)
-        hbox.pack_start(button, gtk.TRUE, gtk.TRUE)
+        hbox.pack_start(button, True, True)
 
         button = ButtonAltLabel('Clear', gtk.STOCK_CLEAR)
         button.show()
         button.connect('clicked', self.clear_intensity)
-        hbox.pack_start(button, gtk.TRUE, gtk.TRUE)
+        hbox.pack_start(button, True, True)
 
 
 
         frame = gtk.Frame('Segment properties')
         frame.show()
         frame.set_border_width(5)
-        vbox.pack_start(frame, gtk.FALSE, gtk.FALSE)
+        vbox.pack_start(frame, False, False)
         
         vboxFrame = gtk.VBox()
         vboxFrame.show()
@@ -718,7 +716,7 @@ class SurfRendererProps(gtk.Window, Viewer):
         table.set_col_spacings(3)
         table.set_row_spacings(3)
         table.show()
-        vboxFrame.pack_start(table, gtk.TRUE, gtk.TRUE)                
+        vboxFrame.pack_start(table, True, True)                
 
         self.labelName = gtk.Label('Label: ')
         self.labelName.show()
@@ -758,7 +756,7 @@ class SurfRendererProps(gtk.Window, Viewer):
         button = ButtonAltLabel('Add segment', gtk.STOCK_ADD)
         button.show()
         button.connect('clicked', self.add_segment)
-        vbox.pack_start(button, gtk.FALSE, gtk.FALSE)        
+        vbox.pack_start(button, False, False)        
 
         
     def _make_seqment_props_frame(self):
@@ -778,7 +776,7 @@ class SurfRendererProps(gtk.Window, Viewer):
         frame = gtk.Frame('Segment properties')
         frame.show()
         frame.set_border_width(5)
-        vbox.pack_start(frame, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(frame, True, True)
 
         
         vboxFrame = gtk.VBox()
@@ -814,7 +812,7 @@ class SurfRendererProps(gtk.Window, Viewer):
         table = gtk.Table(numrows,numcols)
         table.set_col_spacings(3)
         table.show()
-        vbox.pack_start(table, gtk.TRUE, gtk.TRUE)        
+        vbox.pack_start(table, True, True)        
 
         delete = gtk.Label('Hide')
         delete.show()
@@ -877,17 +875,17 @@ class SurfRendererProps(gtk.Window, Viewer):
             opacityCallback = OpacityCallback(self.sr, name, self.paramd)            
             b = gtk.CheckButton(name)
             b.show()
-            b.set_active(gtk.FALSE)
+            b.set_active(False)
             b.connect('toggled', hideCallback)
             table.attach(b, 0, 1, rownum, rownum+1,
-                         xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+                         xoptions=False, yoptions=False)
             deleteButtons[name] = b
 
             scrollbar = gtk.HScrollbar()
             scrollbar.show()
             scrollbar.set_size_request(*self.SCROLLBARSIZE)
             table.attach(scrollbar, 1, 2, rownum, rownum+1,
-                         xoptions=gtk.TRUE, yoptions=gtk.FALSE)
+                         xoptions=True, yoptions=False)
             
             scrollbar.set_range(0, 1)
             scrollbar.set_increments(.05, .2)
@@ -915,7 +913,7 @@ class SurfRendererProps(gtk.Window, Viewer):
         frame = gtk.Frame('Select on which segment')
         frame.show()
         frame.set_border_width(5)
-        vbox.pack_start(frame, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(frame, True, True)
 
         
         vboxFrame = gtk.VBox()
@@ -954,7 +952,7 @@ class SurfRendererProps(gtk.Window, Viewer):
 
         boxRadio = gtk.VBox()
         boxRadio.show()
-        vbox.pack_start(boxRadio, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(boxRadio, True, True)
 
         def radio_changed(button):
             label = button.get_label()
@@ -975,7 +973,7 @@ class SurfRendererProps(gtk.Window, Viewer):
             button.set_active(False)
             button.show()
             button.connect('clicked', radio_changed)
-            boxRadio.pack_start(button, gtk.FALSE, gtk.FALSE)
+            boxRadio.pack_start(button, False, False)
             lastButton = button
 
 
@@ -1064,7 +1062,7 @@ class SurfRendererProps(gtk.Window, Viewer):
         button = ButtonAltLabel('Snap planes to surf view', gtk.STOCK_GO_BACK)
         button.show()
         button.connect('clicked', planes_to_surf_view)
-        vbox.pack_start(button, gtk.FALSE, gtk.FALSE)
+        vbox.pack_start(button, False, False)
 
         def surf_to_planes_view(button):
             fpu = self.pwxyz.get_camera_fpu()
@@ -1075,7 +1073,7 @@ class SurfRendererProps(gtk.Window, Viewer):
         button = ButtonAltLabel('Snap surf to planes view', gtk.STOCK_GO_FORWARD)
         button.show()
         button.connect('clicked', surf_to_planes_view)
-        vbox.pack_start(button, gtk.FALSE, gtk.FALSE)
+        vbox.pack_start(button, False, False)
     
 
     def choose_color(self, *args):
@@ -1090,7 +1088,7 @@ class SurfRendererProps(gtk.Window, Viewer):
         color = cmap.alloc_color(r,g,b)
         colorsel.set_previous_color(color)
         colorsel.set_current_color(color)
-        colorsel.set_has_palette(gtk.TRUE)
+        colorsel.set_has_palette(True)
     
         response = dialog.run()
         
@@ -1160,7 +1158,7 @@ class SurfRenderWindow(GtkGLExtVTKRenderWindowInteractor, Viewer):
             self.Render()
         elif event=='add marker':
             marker = args[0]
-            self.add_marker(marker) # fixme
+            self.add_marker(marker)
         elif event=='remove marker':
             marker = args[0]
             self.remove_marker(marker)
@@ -1174,7 +1172,6 @@ class SurfRenderWindow(GtkGLExtVTKRenderWindowInteractor, Viewer):
                 actor.VisibilityOff()
 
         self.Render()
-
     def add_marker(self, marker):
 
         self.renderer.AddActor(marker)

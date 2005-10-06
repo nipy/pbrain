@@ -10,8 +10,6 @@ John Hunter jdhunter@ace.bsd.uchicago.edu
 
 
 import time, math, sys
-import pygtk
-pygtk.require('2.0')
 import gtk
 import gtk.gtkgl
 from gtk import gdk
@@ -23,7 +21,7 @@ class GtkGLExtVTKRenderWindowBase(gtk.gtkgl.DrawingArea):
 
     def __init__(self, *args):
         gtk.gtkgl.DrawingArea.__init__(self)
-        self.set_double_buffered(gtk.FALSE)
+        self.set_double_buffered(False)
 
         self._RenderWindow = vtk.vtkRenderWindow()
         # private attributes
@@ -106,7 +104,7 @@ class GtkGLExtVTKRenderWindowBase(gtk.gtkgl.DrawingArea):
             self._RenderWindow.SetWindowInfo(win_id)
             self.__Created = 1
             #self._InitGoodies()
-        return gtk.TRUE
+        return True
 
     def Created(self):
         return self.__Created
@@ -116,51 +114,51 @@ class GtkGLExtVTKRenderWindowBase(gtk.gtkgl.DrawingArea):
         self.widget=widget
         self._RenderWindow.SetSize(event.width, event.height)
         self.Render()
-        return gtk.TRUE
+        return True
 
     def OnExpose(self, *args):
         #if self._CurrentRenderer:
         #    #print 'on expose rendering'
         self.Render()
-        return gtk.TRUE
+        return True
 
     def OnDestroy(self, *args):
         self.hide()
         del self._RenderWindow
         self.destroy()
-        return gtk.TRUE
+        return True
 
     def OnButtonDown(self, wid, event):
         """Mouse button pressed."""
         #print 'OnButtonDown base'
         self._RenderWindow.SetDesiredUpdateRate(self._DesiredUpdateRate)
-        return gtk.TRUE
+        return True
     
     def OnButtonUp(self, wid, event):
         """Mouse button released."""
         #print 'OnButtonUp base'
         self._RenderWindow.SetDesiredUpdateRate(self._StillUpdateRate)
-        return gtk.TRUE
+        return True
 
     def OnMouseMove(self, wid, event):
         """Mouse has moved."""
-        return gtk.TRUE
+        return True
 
     def OnEnter(self, wid, event):
         """Entering the vtkRenderWindow."""
-        return gtk.TRUE
+        return True
 
     def OnLeave(self, wid, event):
         """Leaving the vtkRenderWindow."""
-        return gtk.TRUE
+        return True
     
     def OnKeyPress(self, wid, event):
         """Key pressed."""
-        return gtk.TRUE
+        return True
 
     def OnKeyRelease(self, wid, event):
         "Key released."
-        return gtk.TRUE
+        return True
 
 
 class GtkGLExtVTKRenderWindow(GtkGLExtVTKRenderWindowBase):
@@ -196,13 +194,13 @@ class GtkGLExtVTKRenderWindow(GtkGLExtVTKRenderWindowBase):
         #print 'derived button down'
         self._RenderWindow.SetDesiredUpdateRate(self._DesiredUpdateRate)
         return self.StartMotion(wid, event)
-        return gtk.TRUE
+        return True
 
     def OnButtonUp(self, wid, event):
         #print 'derived  button up'
         self._RenderWindow.SetDesiredUpdateRate(self._StillUpdateRate)
         return self.EndMotion(wid, event)
-        return gtk.TRUE
+        return True
 
     def OnMouseMove(self, wid, event=None):
         if ((event.state & gdk.BUTTON1_MASK) == gdk.BUTTON1_MASK):
@@ -220,43 +218,43 @@ class GtkGLExtVTKRenderWindow(GtkGLExtVTKRenderWindowBase):
             self.Zoom(m[0], m[1])
         else:
             #print 'returning false'
-            return gtk.FALSE
+            return False
 
-        return gtk.TRUE
+        return True
 
     def OnEnter(self, wid, event=None):
         # a render hack because grab_focus blanks the renderwin
         self.grab_focus()
         w = self.get_pointer()
         self.UpdateRenderer(w[0], w[1])
-        return gtk.TRUE
+        return True
     
     def OnKeyPress(self, wid, event=None):
 
         if (event.keyval == gdk.keyval_from_name("q") or
             event.keyval == gdk.keyval_from_name("Q")):
-            gtk.mainquit()
+            gtk.main_quit()
             
         
         if (event.keyval == gdk.keyval_from_name('r') or
             event.keyval == gdk.keyval_from_name('R')):
             self.Reset()
-            return gtk.TRUE
+            return True
         elif (event.keyval == gdk.keyval_from_name('w') or
               event.keyval == gdk.keyval_from_name('W')):
             self.Wireframe()
-            return gtk.TRUE
+            return True
         elif (event.keyval == gdk.keyval_from_name('s') or
               event.keyval == gdk.keyval_from_name('S')):
             self.Surface()
-            return gtk.TRUE
+            return True
         elif (event.keyval == gdk.keyval_from_name('p') or
               event.keyval == gdk.keyval_from_name('P')):
             m = self.get_pointer()
             self.PickActor(m[0], m[1])
-            return gtk.TRUE
+            return True
         else:
-            return gtk.FALSE
+            return False
 
     def GetZoomFactor(self):
         return self._CurrentZoom
@@ -339,13 +337,13 @@ class GtkGLExtVTKRenderWindow(GtkGLExtVTKRenderWindowBase):
         x = event.x
         y = event.y
         self.UpdateRenderer(x,y)
-        return gtk.TRUE
+        return True
 
     def EndMotion(self, wid, event=None):
         if self._CurrentRenderer:
             #print 'endmotion rendering'
             self.Render()
-        return gtk.TRUE
+        return True
 
     def Rotate(self,x,y):
         if self._CurrentRenderer:
@@ -501,8 +499,8 @@ def main():
     # The main window
     window = gtk.Window()
     window.set_title("A GtkGLExtVTKRenderWindow Demo!")
-    window.connect("destroy", gtk.mainquit)
-    window.connect("delete_event", gtk.mainquit)
+    window.connect("destroy", gtk.main_quit)
+    window.connect("delete_event", gtk.main_quit)
     window.set_border_width(10)
 
     vtkda = GtkGLExtVTKRenderWindow()
@@ -538,7 +536,7 @@ def main():
 
     # show the main window and start event processing.
     window.show()
-    gtk.mainloop()
+    gtk.main()
 
 
 if __name__ == "__main__":

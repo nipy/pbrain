@@ -1,11 +1,8 @@
 import os, sys
 import errno, StringIO, traceback
 
-import gtk
+import gobject, gtk
 from gtk import gdk
-import gobject
-import gtk
-
 
 def is_string_like(obj):
     if hasattr(obj, 'shape'): return 0 # this is a workaround
@@ -820,3 +817,74 @@ gtk.main()
 
 
         
+class MyToolbar(gtk.Toolbar):
+    """
+    Compatability toolbar for pygtk2.2 and 2.4 (thanks to Steve
+    Chaplin in the mpl gtk backend) for basic code
+
+    Derived must provide toolitems, eg
+    toolitems = [ 
+      (button_str, tooltip_str, STOCK, callback_str),
+      (button_str, tooltip_str, STOCK, callback_str),
+      ]
+
+    Examples:
+        ('CT Info', 'Load new 3d image', gtk.STOCK_NEW, 'load_image'),
+        ('Markers', 'Load markers from file', gtk.STOCK_OPEN, 'load_from'),
+        (None, None, None, None),
+
+    None will add a separator.  If the callback is 'some_callback',
+    derived must define
+
+    def some_callback(self, button):
+        blah
+
+
+   
+    """
+    iconSize = gtk.ICON_SIZE_SMALL_TOOLBAR
+    def __init__(self):
+        gtk.Toolbar.__init__(self)
+        self.set_border_width(5)
+        self.set_style(gtk.TOOLBAR_BOTH)
+
+        if gtk.pygtk_version >= (2,4,0):
+            self._init_toolbar2_4()
+        else:
+            self._init_toolbar2_2()
+
+
+    def _init_toolbar2_2(self):
+
+        for text, tooltip_text, stock, callback in self.toolitems:
+            if text == None:
+                 self.append_space()
+                 continue
+            
+            image = gtk.Image()
+            image.set_from_stock(stock, self.iconSize)
+            w = self.append_item(text,
+                                 tooltip_text,
+                                 'Private',
+                                 image,
+                                 getattr(self, callback)
+                                 )
+
+    def _init_toolbar2_4(self):
+
+        self.tooltips = gtk.Tooltips()
+
+        for text, tooltip_text, stock, callback in self.toolitems:
+            if text == None:
+                self.insert( gtk.SeparatorToolItem(), -1 )
+                continue
+            image = gtk.Image()
+            image.set_from_stock(stock, self.iconSize)
+            tbutton = gtk.ToolButton(image, text)
+            self.insert(tbutton, -1)
+            tbutton.connect('clicked', getattr(self, callback))
+            tbutton.set_tooltip(self.tooltips, tooltip_text, 'Private')
+
+
+
+        self.show_all()

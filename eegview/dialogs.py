@@ -209,7 +209,7 @@ class Dialog_SelectElectrodes(gtk.Dialog):
         except AttributeError: pass
             
         self.statbarMID = self.statbar.push(self.statbarCID, msg)
-        return gtk.TRUE
+        return True
 
 
 
@@ -491,7 +491,7 @@ This is illegal.
             #print msg, frac
             progBar.set_text(msg)
             progBar.set_fraction(frac)
-            while gtk.events_pending(): gtk.mainiteration()
+            while gtk.events_pending(): gtk.main_iteration()
 
         eoiPairs = all_pairs_eoi(self.eoi64)
         
@@ -1520,22 +1520,22 @@ class AutoPlayDialog(gtk.Dialog, Observer):
     def forward(self, *args):
         self.stop()
         good = self.setpars()
-        if not good: return gtk.FALSE
+        if not good: return False
         self.direction = 1
-        self.idleID = gtk.idle_add(self.scroll)
+        self.idleID = gobject.idle_add(self.scroll)
 
 
     def back(self, *args):
         self.stop()
         good = self.setpars()
-        if not good: return gtk.FALSE
+        if not good: return False
         self.direction = -1
-        self.idleID = gtk.idle_add(self.scroll)
-        return gtk.TRUE
+        self.idleID = gobject.idle_add(self.scroll)
+        return True
 
     def stop(self, *args):
         if self.idleID is None: return 
-        gtk.idle_remove(self.idleID)
+        gobject.source_remove(self.idleID)
         self.idleID = None
 
     def quit(self, *args):
@@ -1556,11 +1556,11 @@ class AutoPlayDialog(gtk.Dialog, Observer):
 
             if self.checkButtonMovie.get_active():
                 self.broadcast(Observer.SAVE_FRAME, fname)
-            return gtk.TRUE
+            return True
         else:
             self.stop()
             self.ind=0
-            return gtk.FALSE
+            return False
 
 
     def setpars(self, *args):

@@ -97,7 +97,7 @@ class Filter(FilterBase):
         table.attach(ecf, 1, 2, 2, 3)
         table.attach(esf, 1, 2, 3, 4)                        
 
-        dlg.vbox.pack_start(table, gtk.TRUE, gtk.TRUE)
+        dlg.vbox.pack_start(table, True, True)
 
         dlg.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
         dlg.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
@@ -188,35 +188,26 @@ class MPLWin(gtk.Window, Observer):
             for w, expand, fill in packend:
                 vbox.pack_start(w, expand, fill)
 
-        hbox = gtk.HBox()
-        hbox.show()
-        vbox.pack_start(hbox, False, False)
 
         self.toolbar = self.make_toolbar()
         self.toolbar.show()
-        hbox.pack_start(self.toolbar, False, False)
+        vbox.pack_end(self.toolbar, False, False)
 
-        #self.statbar = gtk.Statusbar()
-        #self.statbar.show()
-        #self.statbarCID = self.statbar.get_context_id('channel bar')
-        #hbox.pack_start(self.statbar, gtk.TRUE, gtk.TRUE)
-        #self.update_status_bar('')
 
         self.set_title(self._title)
         self.set_border_width(10)
 
-        #self.canvas.connect('motion_notify_event', self.on_move)
-
-        self._init()      # last call before make_plot
-        
-        self.make_plot()  #last line!
-        
         def remove(*args):
             Observer.observers.remove(self)        
         self.connect('delete-event', remove)
 
+        self._init()      # last call before make_plot
+        self.make_plot()  #last line!
+        
+
     def make_context_menu(self):
         contextMenu = gtk.Menu()
+        contextMenu.set_title('Filters')
 
         # remove the mean, linear trend, etc
         itemDetrend = gtk.MenuItem('Detrend')
@@ -303,22 +294,48 @@ class MPLWin(gtk.Window, Observer):
     def make_toolbar(self):
         
         toolbar = NavigationToolbar2GTK(self.canvas, self)
-        #toolbar = NavigationToolbar(self.canvas, self)        
-        self.buttonFollowEvents = gtk.CheckButton('Auto')
+
+
+
+
+        next = 8
+
+        toolitem = gtk.SeparatorToolItem()
+        toolitem.show()
+        toolbar.insert(toolitem, next); next+=1
+        toolitem.set_expand(False)
+
+        self.buttonFollowEvents = gtk.CheckButton ()
+        self.buttonFollowEvents.set_label('Auto')
         self.buttonFollowEvents.show()
         self.buttonFollowEvents.set_active(True)
-        lastpos = 7
-        toolbar.insert_widget(
-            self.buttonFollowEvents, 'Automatically update figure in response to changes in EEG window', '', lastpos); lastpos+=1
-        
 
-        omenu = gtk.OptionMenu()
-        omenu.show()
-        cmenu = self.make_context_menu()
-        omenu.set_menu(cmenu)
-        toolbar.insert_widget(omenu, 'Set filter/detrend etc', '', lastpos); lastpos+=1
-        
-        
+        toolitem = gtk.ToolItem()
+        toolitem.show()
+        toolitem.set_tooltip(
+            toolbar.tooltips,
+            'Automatically update in response to selections in EEG', 'Private')
+
+        toolitem.add(self.buttonFollowEvents)
+        toolbar.insert(toolitem, next); next +=1
+
+
+        menu = gtk.MenuToolButton(gtk.STOCK_EDIT)
+        menu.show()
+        context = self.make_context_menu()
+        menu.set_menu(context)
+
+        menu.set_tooltip(
+            toolbar.tooltips,
+            'Set filter/detrend etc', 'Private')
+
+        toolbar.insert(menu, next); next+=1
+
+        toolitem = gtk.SeparatorToolItem()
+        toolitem.show()
+        toolbar.insert(toolitem, next)
+        toolitem.set_expand(False)
+
 
         return toolbar
 
@@ -396,7 +413,7 @@ class VoltageMapWin(MPLWin):
         self.scrollbar = gtk.HScrollbar()
         self.scrollbar.show()
 
-        packend = [(self.scrollbar, gtk.FALSE, gtk.FALSE)]
+        packend = [(self.scrollbar, False, False)]
         MPLWin.__init__(self, view3.eegplot, packend=packend)
         self.scrollbar.connect('value_changed', self.update_map)        
         self.axes.connect('xlim_changed', self.update_scrolllim)

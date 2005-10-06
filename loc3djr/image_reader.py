@@ -2,8 +2,6 @@ from __future__ import division
 import os, pickle, sys
 import vtk
 
-import pygtk
-pygtk.require('2.0')
 import gtk
 import gtk.glade
 from gtk import gdk
@@ -112,7 +110,7 @@ class GladeHandlers:
 
     
     def on_buttonCancel_clicked(button=None):
-        gtk.mainquit()
+        gtk.main_quit()
 
     def on_radiobuttonDimOther_toggled(button=None):
         if button.get_active(): otherSens = 1
@@ -173,7 +171,7 @@ class WidgetsWrapper:
 
         self.renderer = self.viewer.GetRenderer()
         self.preview.GetRenderWindow().AddRenderer(self.renderer)
-        self['vboxPreview'].pack_start(self.preview, gtk.FALSE, gtk.FALSE)
+        self['vboxPreview'].pack_start(self.preview, False, False)
         self['vboxPreview'].reorder_child(self.preview, 1)
         
     # Gives us the ability to do: widgets['widget_name'].action()
@@ -452,7 +450,7 @@ def get_reader(o):
             val = r.GetProgress()
             progressDlg.bar.set_fraction(val)            
             if val==1: progressDlg.destroy()
-            while gtk.events_pending(): gtk.mainiteration()
+            while gtk.events_pending(): gtk.main_iteration()
 
 
         reader.AddObserver('ProgressEvent', progress)

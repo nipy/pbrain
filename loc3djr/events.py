@@ -1,9 +1,6 @@
-import pygtk
-pygtk.require('2.0')
-import gtk
 import vtk
 from markers import Marker
-from pbrainlib.gtkutils import ProgressBarDialog
+
 class Viewer:
         
     def update_viewer(self, event, *args):
@@ -68,7 +65,7 @@ class EventHandler:
                (func, args[0]) != (self.add_marker, marker):
             UndoRegistry().push_command(self.remove_marker, marker)
         self.markers.AddItem(marker)
-        self.notify('add marker', marker) # fixme
+        self.notify('add marker', marker)
 
 
     def remove_marker(self, marker):
@@ -111,25 +108,13 @@ class EventHandler:
         fh.write('\n'.join(lines) + '\n')
         
     def load_markers_from(self, fname):
-        prog = ProgressBarDialog(
-            title='Loading markers',
-            parent=None,
-            msg='Please hold on...',
-            size=(300,40),
-            )
-        prog.show()
-        
 
         self.notify('render off')
-        lines = file(fname, 'r').readlines()
-        for i,line in enumerate(lines):
+        for line in file(fname, 'r'):
             marker = Marker.from_string(line)
             self.add_marker(marker)
-            prog.bar.set_fraction(float(i)/len(lines))
-            while gtk.events_pending(): gtk.mainiteration()
         self.notify('render on')
         UndoRegistry().flush()
-        prog.destroy()
 
     def attach(self, observer):
         self.observers[observer] = 1
