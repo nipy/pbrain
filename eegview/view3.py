@@ -80,6 +80,8 @@ from events import Observer
 from dialogs import AutoPlayDialog
 from mpl_windows import VoltageMapWin
 
+
+
 def identity(frac, *args):
     return frac
 
@@ -96,9 +98,24 @@ class View3(gtk.Window, Observer):
                  'beta':3, 'gamma':4, 'high':5}
 
     def __init__(self, eegplot):
+        """
+        View3 Initialization:
+
+        - self.eegplot initialized from EEGPlot argument
+        - self.amp initialized from self.eegplot, consists of list of [channelnum->electrode] mappings
+          (e.g. [(1, 'PG', 1), (2, 'PG', 3), (3, 'PG', 5), (4, 'PG', 7), ...]
+        - self.cnumDict is dictionary of channel numbers corresponding to self.amp, e.g.
+          {('PG', 46): 23, ('C', 6): 98, ('FG', 31): 63, ... }
+        - self.eoi is list of all electrodes [('PG', 1), ('PG', 3), ('PG', 5), ('PG', 7),...]
+        - self.eoiPairs is all 2-element combinations of self.eoi elements. This has length (X*(X-1)/2).
+        - self.selected may correspond to an individual user-selected electrode (see press_left(), toggled(), receive())
+        - self.cohCache stores coherence values either from compute_coherence() or from receive() when 'Auto' is checked
+        - self.filterGM: whether or not to filter (in some way) based on the computed grand mean
+        - self.gridManager
+
+        """
         gtk.Window.__init__(self)
 
-        
         self.ok = False  # do not show if false
         
         self.eegplot = eegplot
@@ -201,6 +218,10 @@ class View3(gtk.Window, Observer):
 
         self.ampAscii = None   # for external data
         self.ok = True
+
+        # csv_save_electrodes: when saving coherence to EEG, which ones to save
+        
+        self.csv_save_electrodes = None
 
     def set_eoi(self, eoi):
         self.eoi = eoi
@@ -355,6 +376,11 @@ class View3(gtk.Window, Observer):
 
 
     def make_toolbar2(self):
+        """
+        'toolbar2' is the bottom toolbar on the View3d window.
+        
+        self.buttonFollowEvents: the 'Auto' button
+        """
 
         toolbar2  = gtk.Toolbar()
         iconSize = gtk.ICON_SIZE_SMALL_TOOLBAR
@@ -375,8 +401,17 @@ class View3(gtk.Window, Observer):
 
 
         def get_thresh_value(menuitem, label):
+            """
+            get_thresh_value(): this function is called when the user
+            selects one of the dropdown threshold types ('pct.', 'abs.', etc.)
+            and enters a value. this type/value pair is stored in self.thresholdParams.
 
-
+            self.thresholdParams is accessed in the following functions:
+               - norm_by_distance()
+               - plot_normed_data()
+               - get_cutoff()
+               - get_cxy_pxy_cutoff()
+            """
             if label=='STD':
                 title='Enter standard deviation'
                 default = 2
@@ -442,7 +477,6 @@ class View3(gtk.Window, Observer):
         toolbar2.append_space()
 
         
-
         self.buttonFollowEvents = gtk.CheckButton('Auto')
         self.buttonFollowEvents.show()
         self.buttonFollowEvents.set_active(False)
@@ -500,33 +534,88 @@ class View3(gtk.Window, Observer):
 
         return toolbar2
 
+
+    def dump_csv_radio_callback(self, widget, data):
+        self.dumpCsvRadio = data
+
+
     def dump_csv(self, button):
         'dump the coherences to csv'
-
+		
         try: self.cohereResults
         except AttributeError:  self.compute_coherence()
+
         freqs, cxyBands, phaseBands = self.cohereResults
+
+        vbox = gtk.VBox()
+        button1 = gtk.RadioButton(None, 'save everything')
+        button1.connect("toggled", self.dump_csv_radio_callback, "radio_all")
+        button2 = gtk.RadioButton(button1, 'save only electrodes above threshold')
+        button2.connect("toggled", self.dump_csv_radio_callback, "radio_threshold")
+        button3 = gtk.RadioButton(button1, 'save only selected electrode')
+        button3.connect("toggled", self.dump_csv_radio_callback, "radio_selected")
+        
+        vbox.pack_start(button1, True, True, 0)
+        vbox.pack_start(button2, True, True, 0)
+        vbox.pack_start(button3, True, True, 0)
+
+        frame = gtk.Frame()
+        frame.add(vbox)
+
+        fmanager.add_widget(frame)
+        
+        self.dumpCsvRadio = 'radio_all'
+        
         filename = fmanager.get_filename()
         if filename is None: return
+
+
+        if ((self.dumpCsvRadio == 'radio_all') | (self.dumpCsvRadio == 'radio_selected')):
+            keys = cxyBands.keys()
+        
+        if (self.dumpCsvRadio == 'radio_threshold'):
+            ret = self.get_cxy_pxy_cutoff(cxyBands, phaseBands)
+            if ret is None:
+                print >>sys.stderr, 'ERROR: dump_csv w/ threshold: return is None'
+                return None
+            dvec, cvec, cxy, pxy, predicted, pars, normedvec, cutoff = ret
+
+            maxd = self.entryMaxDist.get_text()
+            try: maxd = float(maxd)
+            except ValueError: maxd = None
+
+            keys = self.get_supra_threshold_keys(len(self.eoi), cxy, pxy, cutoff, None, maxd)
 
         fh = file(filename, 'w')
         # this is a hack -- you should pass and parse the band data
         # structure.  Yes Michael, this means you
         print>>fh, 'E1,E2,delta 1-4,theta 4-8,alpha 8-12,beta 12-30,gamma 30-50,high gamma 70-100,delta phase,theta phase,alpha phase,beta phase,gamma phase,high gamma phase'
-        keys  = cxyBands.keys()
         keys.sort()
+        dumpStrings = []
         for key in keys:
             e1, e2 = key
-            e1 = '%s %d'%e1 # convert e1 (name,num) to string
-            e2 = '%s %d'%e2 # convert e2 (name,num) to string           
+            e1_str = '%s %d'%e1 # convert e1 (name,num) to string
+            e2_str = '%s %d'%e2 # convert e2 (name,num) to string           
             # make comman separated string of floats
             cxy = ','.join(['%f'%val for val in cxyBands[key]])
             pxy = ','.join(['%f'%val for val in phaseBands[key]])            
             # looks like
             # FG 1,FG 3,0.2,0.3,0.1,0.4,0.5,...
-            print>>fh, '%s,%s,%s,%s'%(e1,e2,cxy,pxy)
-        simple_msg('CSV file saved to %s'%filename)
+            if ((self.dumpCsvRadio == 'radio_all') | (self.dumpCsvRadio == 'radio_threshold')):
+                dumpStrings.append('%s,%s,%s,%s'%(e1_str,e2_str,cxy,pxy))
 
+            elif (self.dumpCsvRadio == 'radio_selected'):
+                # if we are only dumping the selected electrode's pairs, invert the pair as necessary
+                if (self.selected == e1):
+                    dumpStrings.append('%s,%s,%s,%s'%(e1_str,e2_str,cxy,pxy))
+                elif (self.selected == e2):
+                    dumpStrings.append('%s,%s,%s,%s'%(e2_str,e1_str,cxy,pxy))
+        dumpStrings.sort()
+        for s in dumpStrings:
+            print>>fh, s
+
+
+        simple_msg('CSV file saved to %s'%filename)
         
     def voltage_map(self, button):
         win = VoltageMapWin(self)
@@ -911,6 +1000,16 @@ class View3(gtk.Window, Observer):
         
 
     def get_cutoff(self, normedvec):
+        """
+        get_cutoff(): examines self.thresholdParams and computes the appropriate
+        cutoff value based on the threshold type/value.
+
+        for example:
+          - threshold type 'abs.' returns that precise value.
+          - threshold type 'pct.' 
+        
+
+        """
 
         threshType, threshVal = self.thresholdParams
         if threshType=='pct.':
@@ -943,9 +1042,8 @@ class View3(gtk.Window, Observer):
         cvals = [a[bandind] for a in Cxy.values()]
         #print 'get_cxy_pxy_cutoff1', '%1.2f'%min(cvals), '%1.2f'%max(cvals)
 
-        stored  = self.norm.get(bandind, None)
-
-        
+        stored = self.norm.get(bandind, None)
+         
         if stored is None:
             # compute local norm
             dvec, cvec, predicted, pars = self.norm_by_distance(Cxy)
@@ -969,35 +1067,14 @@ class View3(gtk.Window, Observer):
 
         return dvec, cvec, cxy, pxy, predicted, pars, normedvec, cutoff
 
-        
-    def draw_connections(self, Cxy, Pxy):
-
-        N = len(self.eoi)
-
-        ret = self.get_cxy_pxy_cutoff(Cxy, Pxy)
-        if ret is None:
-            print >>sys.stderr, 'return is None'
-            return None
-        dvec, cvec, cxy, pxy, predicted, pars, normedvec, cutoff = ret
-
-        cvals = cxy.values()
-
-        def posphase(frac):
-            return frac
-        def negphase(frac):
-            return 1-frac
-
-        lines = []
-
-
-        useSelected = self.buttonSelected.get_active() and (self.selected is not None)
-
-        maxd = self.entryMaxDist.get_text()
-        try: maxd = float(maxd)
-        except ValueError: maxd = None
-        
-        self.gridManager.flush_connections()
-        #for key in cxy.keys(): print key
+    def get_supra_threshold_keys(self, N, cxy, pxy, cutoff, useSelected, maxd):
+        """
+        get_supra_threshold_keys(): abstracted function that returns a list
+        of keys that are above or below a given cutoff mark (based on the
+        threshold type/value). This is used by both draw_connections() and
+        dump_csv().
+        """
+        returnKeys = []
         for i in range(N):
             for j in range(i+1,N):
                 e1 = self.eoi[i]
@@ -1012,11 +1089,6 @@ class View3(gtk.Window, Observer):
                 if maxd is not None:
                     d = dist(self.xyzd[e1], self.xyzd[e2])
                     if d>maxd: continue
-                phase = pxy[key]
-                if abs(phase)<0.1: phasemap = None
-                elif phase>0: phasemap = posphase  # 1 leads 2
-                else: phasemap = negphase          # 2 leads 1
-
                 coherence = cxy[key]
                 #print e1, e2, coherence, cutoff
                 if self._low:
@@ -1024,17 +1096,54 @@ class View3(gtk.Window, Observer):
                 else:
                     if coherence<cutoff: continue
 
-                ok = self.gridManager.connect_markers(
-                    e1, e2, scalarfunc=phasemap)
-                if not ok:
-                    error_msg('Giving up', parent=self)
-                    break
+                #print 'get_supra_threshold_keys: found '
+                #print e1, e2, coherence, cutoff
+
+                returnKeys.append(key)
+        
+        return returnKeys
+        
+    def draw_connections(self, Cxy, Pxy):
+        N = len(self.eoi)
+
+        ret = self.get_cxy_pxy_cutoff(Cxy, Pxy)
+        if ret is None:
+            print >>sys.stderr, 'return is None'
+            return None
+        dvec, cvec, cxy, pxy, predicted, pars, normedvec, cutoff = ret
+        
+        cvals = cxy.values()
+
+        def posphase(frac):
+            return frac
+        def negphase(frac):
+            return 1-frac
+
+        lines = []
+
+        useSelected = self.buttonSelected.get_active() and (self.selected is not None)
+
+        maxd = self.entryMaxDist.get_text()
+        try: maxd = float(maxd)
+        except ValueError: maxd = None
+        
+        self.gridManager.flush_connections()
+
+        supra_threshold_keys = self.get_supra_threshold_keys(N, cxy, pxy, cutoff, useSelected, maxd)
+
+        for key in supra_threshold_keys:
+            (e1, e2) = key
+            phase = pxy[key]
+            if abs(phase)<0.1: phasemap = None
+            elif phase>0: phasemap = posphase  # 1 leads 2
+            else: phasemap = negphase          # 2 leads 1
+            
+            ok = self.gridManager.connect_markers(e1, e2, scalarfunc=phasemap)
+            if not ok:
+                error_msg('Giving up', parent=self)
+                break
         self.interactor.Render()
-        
 
-
-
-        
     def save_image(self, *args, **kwargs):
 
         fname = kwargs.get('filename')
