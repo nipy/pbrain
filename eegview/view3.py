@@ -42,9 +42,7 @@ from __future__ import division
 import sys, os, math
 import vtk
 
-import pygtk
-#pygtk.require('2.0')
-import gtk
+import gtk, gobject
 
 from sets import Set
 
@@ -79,6 +77,7 @@ from matplotlib.figure import Figure
 from events import Observer
 from dialogs import AutoPlayDialog
 from mpl_windows import VoltageMapWin
+
 
 
 
@@ -1474,12 +1473,10 @@ class ArrayMapper(gtk.Window, ScalarMapper):
         gtk.Window.__init__(self)
         self.set_title('Array data')
 
-
         self.channels = channels        
         self.amp = amp
         self.trodes = [(gname, gnum) for cnum, gname, gnum in amp]
         self.X = X
-
 
         self.numChannels, self.numSamples = X.shape
         
@@ -1488,7 +1485,6 @@ class ArrayMapper(gtk.Window, ScalarMapper):
         self.add(vbox)
 
         self.fig = self.make_fig()
-
 
         self.canvas = FigureCanvas(self.fig)  # a gtk.DrawingArea
         self.canvas.show()
@@ -2005,8 +2001,6 @@ class GridManager:
             self.scalarSet.append(datad)
             return
 
-        
-        
         named = {}
 
         for tup, val in datad.items():
@@ -2018,19 +2012,20 @@ class GridManager:
         rangeSet = self.get_scalar_range()
         if rangeSet is not None:
             minVal, maxVal = rangeSet
-            
+
         
         for name in self.get_grid1_names():
             items = named.get(name, None)
             if items is None: continue
             items.sort()
 
-
-
             polydata, actor, filter, markers = self.ribbons[name]
             if len(markers)!=len(items):
                 if name not in self.gridWarned:
-                    simple_msg('Some missing scalar data for grid %s.  %d markers and %d scalars' % (name, len(markers), len(items)))
+                    if (len(markers)<len(items)):
+                        simple_msg('Missing some scalar data for grid %s.  %d markers and %d scalars' % (name, len(markers), len(items)))
+                    else:
+                        simple_msg('Too much scalar data for grid %s.  %d markers and %d scalars' % (name, len(markers), len(items)))
                 self.gridWarned.add(name)
 
             scalars = vtk.vtkFloatArray()
@@ -2055,7 +2050,11 @@ class GridManager:
 
             if len(markers)!=len(items):
                 if name not in self.gridWarned:
-                    simple_msg('Missing some scalar data for grid %s.  %d markers and %d scalars' % (name, len(markers), len(items)))
+                    if (len(markers)<len(items)):
+                        simple_msg('Missing some scalar data for grid %s.  %d markers and %d scalars' % (name, len(markers), len(items)))
+                    else:
+                        simple_msg('Too much scalar data for grid %s.  %d markers and %d scalars' % (name, len(markers), len(items)))
+                        
                 self.gridWarned.add(name)
 
 
@@ -2547,6 +2546,18 @@ class GridManager:
                 error_msg('No ascii data loaded', parent=dlg)
                 return
 
+            # mcc: look at self.ampAscii and make sure that the named grids correspond
+            # to actual grids in the gridmanager
+            
+            grid1_names = self.get_grid1_names()
+            grid2_names = self.get_grid2_names()
+
+            for index1, curr_grid_name, index2 in self.ampAscii:
+                if ((curr_grid_name not in grid1_names) & (curr_grid_name not in grid2_names)):
+                    grid_names = ', ' . join(['%s ' % key for key in grid1_names]) + ', '
+                    grid_names += (', ' . join(['%s ' % key for key in grid2_names]))
+                    error_msg('key %s not in list of grid names: %s' % (curr_grid_name, grid_names))
+                    return
             
             am = ArrayMapper(self, self.X, channels, self.ampAscii)
             am.show()
