@@ -15,7 +15,8 @@ from pbrainlib.gtkutils import str2num_or_err, donothing_callback, \
 import CodeRegistry
 from data import EOI
 from utils import export_to_cohstat, filter_grand_mean, \
-     all_pairs_eoi, cohere_bands, cohere_pairs_eeg, export_cohstat_xyz
+     all_pairs_eoi, cohere_bands, cohere_pairs_eeg, export_cohstat_xyz, \
+     gen_surrogate_data
 
 from gladewrapper import PrefixWrapper
 from shared import fmanager, eegviewrc
@@ -100,7 +101,7 @@ class Dialog_SelectElectrodes(gtk.Dialog):
             trodes = []
             treeview.get_selection().selected_foreach(return_foreach, trodes)
             #print 'len trodes', len(trodes)
-            print trodes
+            #print trodes
             self.selected.set_electrodes(trodes)
             start, end = self.buffer.get_bounds()
             self.selected.description = self.buffer.get_text(start, end)
@@ -720,9 +721,6 @@ class Dialog_Preferences(PrefixWrapper):
 
         return 1
 
-
-
-
 class Dialog_SaveEOI(PrefixWrapper):
     prefix = 'dlgSaveEOI_'
     widgetName = 'dialogSaveEOI'
@@ -1308,6 +1306,630 @@ class Dialog_AnnBrowser(PrefixWrapper) :
     def on_buttonClose_clicked(self, event) :
         self.ok_callback()
 
+class Dialog_PhaseSynchrony(PrefixWrapper) :
+    prefix = 'dlgPhaseSynchrony_'
+    widgetName = 'dialogPhaseSynchrony'
+
+    def __init__(self, eegplot, params={}, ok_callback=donothing_callback) :
+        PrefixWrapper.__init__(self)
+
+        self.eegplot = eegplot
+
+        # Initialize EOI TreeView
+        self.eois = {}
+        if self['treeViewEOIs'].get_model() is None :
+            cell = gtk.CellRendererText()
+            col = gtk.TreeViewColumn("title", cell, text=0)
+            self['treeViewEOIs'].append_column(col)
+
+            # List available EOIs
+            # XXX Add EOIs from annman, files, both, none?        
+
+            model = gtk.ListStore(str)
+            self['treeViewEOIs'].set_model(model)
+        self['treeViewEOIs'].get_selection().set_mode(gtk.SELECTION_MULTIPLE)
+
+        # Initialize Filters TreeView
+        self.filters = {}
+        if self['treeViewFilters'].get_model() is None :
+            colNames = ['Name', 'lpsf', 'lpcf', 'hpcf', 'hpsf', 'Frequency']
+            for i, name in enumerate(colNames) :
+                cell = gtk.CellRendererText()
+                col = gtk.TreeViewColumn(name, cell, text=i)
+                self['treeViewFilters'].append_column(col)
+
+            # List available Filters
+            # XXX Add filters
+            if params.get('filters') is None :
+                self.filters['alpha'] = {'name': 'alpha',
+                                         'lpsf': 0.0, 'lpcf': 2.0,
+                                         'hpcf': 5.0, 'hpsf': 8.0,
+                                         'freq': eegplot.eeg.freq}
+                self.filters['beta']  = {'name': 'beta',
+                                         'lpsf': 9.0, 'lpcf': 11.0,
+                                         'hpcf': 30.0, 'hpsf': 50.0,
+                                         'freq': eegplot.eeg.freq}
+            else :
+                for filterProps in params['filters'] :
+                    self.filters[filterProps['name']] = filterPropt
+
+            model = gtk.ListStore(str, str, str, str, str, str)
+            for filterProps in self.filters.values() :
+               model.append([filterProps['name'],
+                             filterProps['lpsf'], filterProps['lpcf'],
+                             filterProps['hpcf'], filterProps['hpsf'],
+                             filterProps['freq']])
+            self['treeViewFilters'].set_model(model)
+        self['treeViewFilters'].get_selection().set_mode(gtk.SELECTION_MULTIPLE)
+
+        # Set button click callbacks
+        self['buttonEOIEdit'].connect('clicked', self.edit_eoi)
+        self['buttonEOINew'].connect('clicked', self.new_eoi)
+        self['buttonEOIDelete'].connect('clicked', self.delete_eois)
+        self['buttonFilterEdit'].connect('clicked', self.edit_filter)
+        self['buttonFilterNew'].connect('clicked', self.new_filter)
+        self['buttonFilterDelete'].connect('clicked', self.delete_filters)
+        self['buttonSurrogateDataNew'].connect('clicked', self.new_surrogate_data)
+
+        # Set default time range to be time limits in eeg window
+        tmin, tmax = eegplot.get_time_lim()
+        self['entrytMin'].set_text(str(tmin))
+        self['entrytMax'].set_text(str(tmax))
+
+        # List available filters
+
+        # Set default surrogate file
+
+    def edit_eoi(self, *args) :
+        def ok_callback(eoi) :
+            msg = None
+            if eoi.description == '' :
+                msg = 'Please give a short description.'
+            elif len(eoi) == 0 :
+                msg = 'Please select an EOI.'
+            elif eoi.description != origDesc and self.eois.get(eoi.description) :
+                msg = 'An EOI with that description already exists; please choose another description.'
+            if msg is not None :
+                mdlg = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
+                                        buttons=gtk.BUTTONS_OK,
+                                        message_format=msg)
+                mdlg.set_title('Warning')
+                mdlg.run()
+                mdlg.destroy()
+                return
+
+            # Update EOI name if changed
+            if origDesc != eoi.description :
+                model.set_value(model.get_iter(pathlist[0]), 0, eoi.description)
+                self.eois[eoi.description] = eoi
+                del self.eois[origDesc]
+
+            # Save new EOI in .eegviewrc
+
+            dlgEOI.destroy_dialog()
+
+            return
+
+        # Get selected item
+        sel = self['treeViewEOIs'].get_selection()
+        msg = None
+        if sel.count_selected_rows() == 0 :
+            msg = 'Please select an EOI to edit.'
+        elif sel.count_selected_rows() > 1 :
+            msg = 'Please select one EOI to edit.'
+        if msg is not None :
+            mdlg = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
+                                     buttons=gtk.BUTTONS_OK,
+                                     message_format=msg)
+            mdlg.set_title('Warning')
+            mdlg.run()
+            mdlg.destroy()
+            return
+
+        # Get current EOI
+        (model, pathlist) = sel.get_selected_rows()
+        origDesc = model.get_value(model.get_iter(pathlist[0]), 0)
+        eoi = self.eois[origDesc]
+
+        eoiAll = self.eegplot.get_eeg().get_amp().to_eoi()
+        dlgEOI = Dialog_SelectElectrodes(trodes=eoiAll,
+                                         selected=eoi,
+                                         ok_callback=ok_callback)
+        dlgEOI.set_transient_for(self.widget)
+
+    def new_eoi(self, *args) :
+        def ok_callback(eoi) :
+            msg = None
+            if eoi.description == '' :
+                msg = 'Please give a short description.'
+            elif len(eoi) == 0 :
+                msg = 'Please select an EOI.'
+            elif self.eois.get(eoi.description) :
+                msg = 'An EOI with that description already exists; please choose another description.'
+            if msg is not None :
+                mdlg = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
+                                         buttons=gtk.BUTTONS_OK,
+                                         message_format=msg)
+                mdlg.set_title('Warning')
+                mdlg.run()
+                mdlg.destroy()
+                return
+
+            # Append new EOI to TreeView model
+            model = self['treeViewEOIs'].get_model()
+            model.append([eoi.description])
+
+            # Select the new EOI in TreeView
+            sel = self['treeViewEOIs'].get_selection()
+            sel.select_path(len(model) - 1)
+
+            # Add new EOI to self
+            self.eois[eoi.description] = eoi
+
+            # Save new EOI in .eegviewrc
+
+            dlgEOI.destroy_dialog()
+
+            return
+
+        eoiAll = self.eegplot.get_eeg().get_amp().to_eoi()
+        dlgEOI = Dialog_SelectElectrodes(trodes=eoiAll,
+                                         ok_callback=ok_callback)
+        dlgEOI.set_transient_for(self.widget)
+
+    def delete_eois(self, *args) :
+        # Get selected item
+        sel = self['treeViewEOIs'].get_selection()
+        msg = None
+        if sel.count_selected_rows() == 0 :
+            msg = 'Please select EOIs to delete.'
+            mdlg = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
+                                     buttons=gtk.BUTTONS_OK,
+                                     message_format=msg)
+            mdlg.set_title('Warning')
+            mdlg.run()
+            mdlg.destroy()
+            return
+
+        # Confirm
+        msg = 'Are you sure you wish to delete these EOIs?'
+        mdlg = gtk.MessageDialog(type=gtk.MESSAGE_QUESTION,
+                                 buttons=gtk.BUTTONS_YES_NO,
+                                 message_format=msg)
+        mdlg.set_title('Delete EOIs')
+        response = mdlg.run()
+        mdlg.destroy()
+        if response == gtk.RESPONSE_YES :
+            (model, pathlist) = sel.get_selected_rows()
+            pathlist.reverse()
+            for path in pathlist :
+                iter = model.get_iter(path)
+                desc = model.get_value(iter, 0)
+                model.remove(model.get_iter(path))
+                del self.eois[desc]
+
+    def edit_filter(self, *args) :
+        def ok_callback(filterProps) :
+            msg = None
+            if (filterProps.get('lpsf') is ''
+                or filterProps.get('lpcf') is ''
+                or filterProps.get('hpsf') is ''
+                or filterProps.get('hpcf') is ''
+                or filterProps.get('freq') is '') :
+                msg = 'Please fill in all fields.'
+            elif filterProps['name'] != origFilterName and self.filters.get(filterProps['name']) :
+                msg = 'A filter with that name already exists; please choose another name.'
+            if msg is not None :
+                mdlg = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
+                                        buttons=gtk.BUTTONS_OK,
+                                        message_format=msg)
+                mdlg.set_title('Warning')
+                mdlg.run()
+                mdlg.destroy()
+                return
+
+            # Update filter name if changed
+            if origFilterName != filterProps['name'] :
+                model.set_value(model.get_iter(pathlist[0]), 0, filterProps['name'])
+                self.filters[filterProps['name']] = filterProps
+                self.filters[filterProps['name']]['name'] = filterProps['name']
+                del self.filters[origFilterName]
+
+            # Update filter properties
+            model.set_value(model.get_iter(pathlist[0]), 1, filterProps['lpsf'])
+            model.set_value(model.get_iter(pathlist[0]), 2, filterProps['lpcf'])
+            model.set_value(model.get_iter(pathlist[0]), 3, filterProps['hpsf'])
+            model.set_value(model.get_iter(pathlist[0]), 4, filterProps['hpcf'])
+            model.set_value(model.get_iter(pathlist[0]), 5, filterProps['freq'])
+
+            # Save new EOI in .eegviewrc
+
+            dlgFilterProps.hide_widget()
+
+            return
+
+        # Get selected item
+        sel = self['treeViewFilters'].get_selection()
+        msg = None
+        if sel.count_selected_rows() == 0 :
+            msg = 'Please select an filter to edit.'
+        elif sel.count_selected_rows() > 1 :
+            msg = 'Please select one filter to edit.'
+        if msg is not None :
+            mdlg = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
+                                     buttons=gtk.BUTTONS_OK,
+                                     message_format=msg)
+            mdlg.set_title('Warning')
+            mdlg.run()
+            mdlg.destroy()
+            return
+
+        # Get current filter
+        (model, pathlist) = sel.get_selected_rows()
+        origFilterName = model.get_value(model.get_iter(pathlist[0]), 0)
+        filterProps = self.filters[origFilterName]
+
+        dlgFilterProps = Dialog_FilterProps(filterProps=filterProps,
+                                            ok_callback=ok_callback)
+        dlgFilterProps.widget.set_transient_for(self.widget)
+        dlgFilterProps.show_widget()
+
+    def new_filter(self, *args) :
+        def ok_callback(filterProps) :
+            msg = None
+            if filterProps.get('name') is '' :
+                msg = 'Please provide a name.'
+            elif (filterProps.get('lpsf') is None
+                or filterProps.get('lpcf') is None
+                or filterProps.get('hpsf') is None
+                or filterProps.get('hpcf') is None
+                or filterProps.get('freq') is None) :
+                msg = 'Please fill in all fields with correct values.'
+            elif self.filters.get(filterProps['name']) :
+                msg = 'A filter with that name already exists; please choose another name.'
+            if msg is not None :
+                mdlg = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
+                                         buttons=gtk.BUTTONS_OK,
+                                         message_format=msg)
+                mdlg.set_title('Warning')
+                mdlg.run()
+                mdlg.destroy()
+                return
+
+            # Append new filter to TreeView model
+            model = self['treeViewFilters'].get_model()
+            model.append([filterProps['name'],
+                          filterProps['lpsf'], filterProps['lpcf'], 
+                          filterProps['hpcf'], filterProps['hpsf'], 
+                          filterProps['freq']])
+
+            # Select the new filter in TreeView
+            sel = self['treeViewFilters'].get_selection()
+            sel.select_path(len(model) - 1)
+
+            # Add new filter to self
+            self.filters[filterProps['name']] = filterProps
+
+            # Save new Filter in .eegviewrc
+
+            dlgFilterProps.hide_widget()
+
+            return
+
+        dlgFilterProps = Dialog_FilterProps(ok_callback=ok_callback)
+        dlgFilterProps.widget.set_transient_for(self.widget)
+        dlgFilterProps.show_widget()
+
+    def delete_filters(self, *args) :
+        # Get selected item
+        sel = self['treeViewFilters'].get_selection()
+        msg = None
+        if sel.count_selected_rows() == 0 :
+            msg = 'Please select filters to delete.'
+            mdlg = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
+                                     buttons=gtk.BUTTONS_OK,
+                                     message_format=msg)
+            mdlg.set_title('Warning')
+            mdlg.run()
+            mdlg.destroy()
+            return
+
+        # Confirm
+        msg = 'Are you sure you wish to delete these filters?'
+        mdlg = gtk.MessageDialog(type=gtk.MESSAGE_QUESTION,
+                                 buttons=gtk.BUTTONS_YES_NO,
+                                 message_format=msg)
+        mdlg.set_title('Delete Filters')
+        response = mdlg.run()
+        mdlg.destroy()
+        if response == gtk.RESPONSE_YES :
+            (model, pathlist) = sel.get_selected_rows()
+            pathlist.reverse()
+            for path in pathlist :
+                iter = model.get_iter(path)
+                name = model.get_value(iter, 0)
+                model.remove(model.get_iter(path))
+                del self.filters[name]
+
+    def new_surrogate_data(self, *args) :
+        def ok_callback(surrogateProps) :
+            msg = None
+            if (surrogateProps.get('numPairs') is None
+                or surrogateProps.get('outputFile') is None) :
+                msg = 'Please fill in all fields with correct values.'
+            if msg is not None :
+                mdlg = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
+                                         buttons=gtk.BUTTONS_OK,
+                                         message_format=msg)
+                mdlg.set_title('Warning')
+                mdlg.run()
+                mdlg.destroy()
+                return
+
+            # Create an EOI of only subdural trodes (i.e., no scalp trodes)
+            subdurals = set(['FG', 'PG', 'IF', 'AT', 'ST'])
+            trodes = [(name, num) for name, num in self.eegplot.eeg.get_amp().to_eoi() if name in subdurals]
+            ecog = EOI(electrodes=trodes)
+            ecog.sort()
+
+            # Generate surrogate data
+            surrData = gen_surrogate_data(self.eegplot.eeg, 
+                         surrogateProps['tMin'], surrogateProps['tMax'], 
+                         ecog,
+                         surrogateProps['filters'], 
+                         surrogateProps['numPairs'])
+            print surrData
+
+            dlgSurrogateData.hide_widget()
+
+            return
+
+        surrogateProps = {'filters' : self.filters.values(),
+                          'tMin'    : self['entrytMin'].get_text(),
+                          'tMax'    : self['entrytMax'].get_text()}
+        dlgSurrogateData = Dialog_SurrogateData(surrogateProps, ok_callback)
+        dlgSurrogateData.widget.set_transient_for(self.widget)
+        dlgSurrogateData.show_widget()
+
+class Dialog_FilterProps(PrefixWrapper) :
+    prefix = 'dlgFilterProps_'
+    widgetName = 'dialogFilterProps'
+
+    def __init__(self, filterProps={}, ok_callback=donothing_callback) :
+        PrefixWrapper.__init__(self)
+
+        self.ok_callback = ok_callback
+
+        # Set default values
+        self['entryName'].set_text(filterProps.get('name', ''))
+        self['entryLpsf'].set_text(str(filterProps.get('lpsf', '')))
+        self['entryLpcf'].set_text(str(filterProps.get('lpcf', '')))
+        self['entryHpsf'].set_text(str(filterProps.get('hpsf', '')))
+        self['entryHpcf'].set_text(str(filterProps.get('hpcf', '')))
+        self['entryFreq'].set_text(str(filterProps.get('freq', '')))
+
+    def on_buttonOK_clicked(self, event) :
+        filterProps = {'name' : self['entryName'].get_text()}
+        for prop in ['lpsf', 'lpcf', 'hpsf', 'hpcf', 'freq'] :
+            key = 'entry' + prop.title()
+            try : filterProps[prop] = float(self[key].get_text())
+            except : filterProps[prop] = None
+
+        self.ok_callback(filterProps)
+
+class Dialog_SurrogateData(PrefixWrapper) :
+    prefix = 'dlgSurrogateData_'
+    widgetName = 'dialogSurrogateData'
+
+    def __init__(self, surrogateProps={}, ok_callback=donothing_callback) :
+        PrefixWrapper.__init__(self)
+
+        self.ok_callback = ok_callback
+
+        # Set default values
+        self['entryNumPairs'].set_text(surrogateProps.get('numPairs', ''))
+        self['entryOutputFile'].set_text(surrogateProps.get('outputFile', ''))
+
+        # Initialize Filters TreeView
+        self.filters = {}
+        if self['treeViewFilters'].get_model() is None :
+            colNames = ['Name', 'lpsf', 'lpcf', 'hpsf', 'hpcf', 'Frequency']
+            for i, name in enumerate(colNames) :
+                cell = gtk.CellRendererText()
+                col = gtk.TreeViewColumn(name, cell, text=i)
+                self['treeViewFilters'].append_column(col)
+
+            model = gtk.ListStore(str, str, str, str, str, str)
+            self['treeViewFilters'].set_model(model)
+
+        # Delete filter treeview rows
+        model = self['treeViewFilters'].get_model()
+        iter = model.get_iter_first()
+        if iter is not None :
+          ok = model.remove(iter)
+          while ok :
+              ok = model.remove(iter)
+
+        # Add filters
+        if surrogateProps.get('filters') is not None :
+            for filterProps in surrogateProps['filters'] :
+                self.filters[filterProps['name']] = filterProps
+
+        for filterProps in self.filters.values() :
+            model.append([filterProps['name'],
+                          filterProps['lpsf'], filterProps['lpcf'],
+                          filterProps['hpcf'], filterProps['hpsf'],
+                          filterProps['freq']])
+        self['treeViewFilters'].get_selection().set_mode(gtk.SELECTION_MULTIPLE)
+
+        # Set default time range to be time limits in eeg window
+        if surrogateProps.get('tMin') is not None :
+            self['entrytMin'].set_text(str(surrogateProps['tMin']))
+        if surrogateProps.get('tMax') is not None :
+            self['entrytMax'].set_text(str(surrogateProps['tMax']))
+
+        # Set button click callbacks
+        self['buttonFilterEdit'].connect('clicked', self.edit_filter)
+        self['buttonFilterNew'].connect('clicked', self.new_filter)
+        self['buttonFilterDelete'].connect('clicked', self.delete_filters)
+
+    def edit_filter(self, *args) :
+        def ok_callback(filterProps) :
+            msg = None
+            if filterProps.get('name') is '' :
+                msg = 'Please provide a name.'
+            elif (filterProps.get('lpsf') is None
+                or filterProps.get('lpcf') is None
+                or filterProps.get('hpsf') is None
+                or filterProps.get('hpcf') is None
+                or filterProps.get('freq') is None) :
+                msg = 'Please fill in all fields with correct values.'
+            elif filterProps['name'] != origFilterName and self.filters.get(filterProps['name']) :
+                msg = 'A filter with that name already exists; please choose another name.'
+            if msg is not None :
+                mdlg = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
+                                        buttons=gtk.BUTTONS_OK,
+                                        message_format=msg)
+                mdlg.set_title('Warning')
+                mdlg.run()
+                mdlg.destroy()
+                return
+
+            # Update filter name if changed
+            if origFilterName != filterProps['name'] :
+                model.set_value(model.get_iter(pathlist[0]), 0, filterProps['name'])
+                self.filters[filterProps['name']] = filterProps
+                self.filters[filterProps['name']]['name'] = filterProps['name']
+                del self.filters[origFilterName]
+
+            # Update filter properties
+            model.set_value(model.get_iter(pathlist[0]), 1, filterProps['lpsf'])
+            model.set_value(model.get_iter(pathlist[0]), 2, filterProps['lpcf'])
+            model.set_value(model.get_iter(pathlist[0]), 3, filterProps['hpsf'])
+            model.set_value(model.get_iter(pathlist[0]), 4, filterProps['hpcf'])
+            model.set_value(model.get_iter(pathlist[0]), 5, filterProps['freq'])
+
+            dlgFilterProps.hide_widget()
+
+            return
+
+        # Get selected item
+        sel = self['treeViewFilters'].get_selection()
+        msg = None
+        if sel.count_selected_rows() == 0 :
+            msg = 'Please select an filter to edit.'
+        elif sel.count_selected_rows() > 1 :
+            msg = 'Please select one filter to edit.'
+        if msg is not None :
+            mdlg = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
+                                     buttons=gtk.BUTTONS_OK,
+                                     message_format=msg)
+            mdlg.set_title('Warning')
+            mdlg.run()
+            mdlg.destroy()
+            return
+
+        # Get current filter
+        (model, pathlist) = sel.get_selected_rows()
+        origFilterName = model.get_value(model.get_iter(pathlist[0]), 0)
+        filterProps = self.filters[origFilterName]
+
+        dlgFilterProps = Dialog_FilterProps(filterProps=filterProps,
+                                            ok_callback=ok_callback)
+        dlgFilterProps.widget.set_transient_for(self.widget)
+        dlgFilterProps.show_widget()
+
+    def new_filter(self, *args) :
+        def ok_callback(filterProps) :
+            msg = None
+            if filterProps.get('name') is '' :
+                msg = 'Please provide a name.'
+            elif (filterProps.get('lpsf') is None
+                or filterProps.get('lpcf') is None
+                or filterProps.get('hpsf') is None
+                or filterProps.get('hpcf') is None
+                or filterProps.get('freq') is None) :
+                msg = 'Please fill in all fields with correct values.'
+            elif self.filters.get(filterProps['name']) :
+                msg = 'A filter with that name already exists; please choose another name.'
+            if msg is not None :
+                mdlg = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
+                                         buttons=gtk.BUTTONS_OK,
+                                         message_format=msg)
+                mdlg.set_title('Warning')
+                mdlg.run()
+                mdlg.destroy()
+                return
+
+            # Append new filter to TreeView model
+            model = self['treeViewFilters'].get_model()
+            model.append([filterProps['name'],
+                          filterProps['lpsf'], filterProps['lpcf'],
+                          filterProps['hpcf'], filterProps['hpsf'],
+                          filterProps['freq']])
+
+            # Select the new filter in TreeView
+            sel = self['treeViewFilters'].get_selection()
+            sel.select_path(len(model) - 1)
+
+            # Add new filter to self
+            self.filters[filterProps['name']] = filterProps
+
+            dlgFilterProps.hide_widget()
+
+            return
+
+        dlgFilterProps = Dialog_FilterProps(ok_callback=ok_callback)
+        dlgFilterProps.widget.set_transient_for(self.widget)
+        dlgFilterProps.show_widget()
+
+    def delete_filters(self, *args) :
+        # Get selected item
+        sel = self['treeViewFilters'].get_selection()
+        msg = None
+        if sel.count_selected_rows() == 0 :
+            msg = 'Please select filters to delete.'
+            mdlg = gtk.MessageDialog(type=gtk.MESSAGE_WARNING,
+                                     buttons=gtk.BUTTONS_OK,
+                                     message_format=msg)
+            mdlg.set_title('Warning')
+            mdlg.run()
+            mdlg.destroy()
+            return
+
+        # Confirm
+        msg = 'Are you sure you wish to delete these filters?'
+        mdlg = gtk.MessageDialog(type=gtk.MESSAGE_QUESTION,
+                                 buttons=gtk.BUTTONS_YES_NO,
+                                 message_format=msg)
+        mdlg.set_title('Delete Filters')
+        response = mdlg.run()
+        mdlg.destroy()
+        if response == gtk.RESPONSE_YES :
+            (model, pathlist) = sel.get_selected_rows()
+            pathlist.reverse()
+            for path in pathlist :
+                iter = model.get_iter(path)
+                name = model.get_value(iter, 0)
+                model.remove(model.get_iter(path))
+                del self.filters[name]
+
+    def on_buttonOK_clicked(self, event) :
+        surrogateProps = {}
+        surrogateProps['filters'] = self.filters.values()
+
+        try : surrogateProps['tMin'] = float(self['entrytMin'].get_text())
+        except: surrogateProps['tMin'] = None
+        try : surrogateProps['tMax'] = float(self['entrytMax'].get_text())
+        except: surrogateProps['tMax'] = None
+
+        try : surrogateProps['numPairs'] = int(self['entryNumPairs'].get_text())
+        except : surrogateProps['numPairs'] = None
+
+        surrogateProps['outputFile'] = self['entryOutputFile'].get_text()
+
+        self.ok_callback(surrogateProps)
+
 class Dialog_EEGParams(PrefixWrapper):
     prefix = 'dlgEEG_'
     widgetName = 'dialogEEG'
@@ -1584,9 +2206,6 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         self.lastSteps = self.steps
 
         return True
-
-    
-
 
 class SpecProps(gtk.Dialog):
     def __init__(self):

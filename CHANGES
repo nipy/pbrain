@@ -76,3 +76,6 @@ prevent or update dialog when select moves
 8.20.05 jowaxman
 - Button press selects annotation only within a rect.
 - Redraw annotations when eoi is changed.
+
+11.10.05 jowaxman
+- Added dialog boxes for phase synchrony

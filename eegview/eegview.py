@@ -23,7 +23,9 @@ from file_formats import FileFormat_BNI, W18Header, FileFormat_BNI, NeuroscanEpo
 
 from dialogs import Dialog_Preferences, Dialog_SelectElectrodes,\
      Dialog_CohstatExport, Dialog_SaveEOI, Dialog_EEGParams, \
-     Dialog_Annotate, Dialog_AnnBrowser, AutoPlayDialog, SpecProps
+     Dialog_Annotate, Dialog_AnnBrowser, \
+     Dialog_PhaseSynchrony, \
+     AutoPlayDialog, SpecProps
 import servers
 from borgs import Shared
 from events import Observer
@@ -2099,6 +2101,18 @@ class MainWindow(PrefixWrapper):
             viewWin.show()
         else:
             print >>sys.stderr, 'Got an error code from view3'
+
+    def on_menuPhaseSynchrony_activate(self, event) :
+        try : self.eegplot
+        except AttributeError :
+            simple_msg(
+                'You must first select an EEG',
+                title='Error',
+                parent=self.widget)
+            return
+
+        dlgPhaseSynchrony = Dialog_PhaseSynchrony(self.eegplot)
+        dlgPhaseSynchrony.show_widget()
 
     def on_menuSpecWindow_activate(self, event):
         try: self.eegplot

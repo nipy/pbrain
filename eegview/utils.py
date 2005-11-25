@@ -6,6 +6,7 @@ import array
 import scipy
 from matplotlib.cbook import enumerate, iterable, Bunch
 from matplotlib.mlab import cohere_pairs
+import matplotlib.numerix as nx
 from math import floor, ceil
 from MLab import mean
 
@@ -767,8 +768,43 @@ def cohere_pairs_eeg( eeg, eoiPairs=None, indMin=0, indMax=None,
         return Cxy, Phase, freqs, Pxx
     else:
         return Cxy, Phase, freqs
-        
-        
-        
-    
-    
+
+def window_hanning(x):
+    "return x times the hanning window of len(x)"
+    sigma = nx.mlab.std(x)
+    win =  hanning(len(x))*x
+    return win*(sigma/nx.mlab.std(win))
+
+def gen_surrogate_data(eeg, tmin, tmax, eoi, filters, numSurrs) :
+    surrData = {}
+
+    # Get data
+    t, data = eeg.get_data(tmin, tmax)
+
+    # Extract random pairs from the data
+    randInd = (nx.mlab.rand(numSurrs, 2) * len(eoi)).astype(nx.Int)
+    e2i = eeg.get_amp().get_electrode_to_indices_dict()
+    for i, pair in enumerate(randInd) :
+        print 'Computing surrogate %d of %d' % (i, numSurrs)
+
+        # Get indices into data
+        ie1, ie2 = pair
+        i1 = e2i[eoi[ie1]]
+        i2 = e2i[eoi[ie2]]
+
+        # Generate surrogate data
+        surr1 = fftsurr(data[:,i1], window=window_hanning)
+        surr2 = fftsurr(data[:,i2], window=window_hanning)
+
+        # Generate filteres surrogate data
+        for j, tup in enumerate(filters.items()) :
+            band, info = tup
+            winLen, filter = info
+
+            # Compute phase differences
+            fsurr1 = filter(surr1)
+            fsurr2 = filter(surr2)
+
+            surrData[i, j, band] = (fsurr1, fsurr2)
+
+    return surrData
