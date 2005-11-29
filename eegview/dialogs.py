@@ -16,7 +16,7 @@ import CodeRegistry
 from data import EOI
 from utils import export_to_cohstat, filter_grand_mean, \
      all_pairs_eoi, cohere_bands, cohere_pairs_eeg, export_cohstat_xyz, \
-     gen_surrogate_data
+     bandpass, gen_surrogate_data
 
 from gladewrapper import PrefixWrapper
 from shared import fmanager, eegviewrc
@@ -314,7 +314,6 @@ This is illegal.
             self['entryFile'].set_text(fname)
             dlg.destroy()
 
-            
         d = Dialog_FileSelection(
             defaultDir=fmanager.get_lastdir(),
             okCallback=ok_callback,
@@ -339,7 +338,6 @@ This is illegal.
             self['entryLoc3DFile'].set_text(fname)
             dlg.destroy()
 
-            
         d = Dialog_FileSelection(
             defaultDir=fmanager.get_lastdir(),
             okCallback=ok_callback,
@@ -1332,7 +1330,7 @@ class Dialog_PhaseSynchrony(PrefixWrapper) :
         # Initialize Filters TreeView
         self.filters = {}
         if self['treeViewFilters'].get_model() is None :
-            colNames = ['Name', 'lpsf', 'lpcf', 'hpcf', 'hpsf', 'Frequency']
+            colNames = ['Name', 'Window Length', 'lpsf', 'lpcf', 'hpcf', 'hpsf', 'Frequency']
             for i, name in enumerate(colNames) :
                 cell = gtk.CellRendererText()
                 col = gtk.TreeViewColumn(name, cell, text=i)
@@ -1341,21 +1339,24 @@ class Dialog_PhaseSynchrony(PrefixWrapper) :
             # List available Filters
             # XXX Add filters
             if params.get('filters') is None :
-                self.filters['alpha'] = {'name': 'alpha',
-                                         'lpsf': 0.0, 'lpcf': 2.0,
-                                         'hpcf': 5.0, 'hpsf': 8.0,
-                                         'freq': eegplot.eeg.freq}
-                self.filters['beta']  = {'name': 'beta',
-                                         'lpsf': 9.0, 'lpcf': 11.0,
-                                         'hpcf': 30.0, 'hpsf': 50.0,
-                                         'freq': eegplot.eeg.freq}
+                self.filters['alpha'] = {'name' : 'alpha',
+                                         'winLen' : 0.3,
+                                         'lpsf' : 0.0, 'lpcf': 2.0,
+                                         'hpcf' : 5.0, 'hpsf': 8.0,
+                                         'freq' : eegplot.eeg.freq}
+                self.filters['beta']  = {'name' : 'beta',
+                                         'winLen' : 0.2,
+                                         'lpsf' : 9.0, 'lpcf': 11.0,
+                                         'hpcf' : 30.0, 'hpsf': 50.0,
+                                         'freq' : eegplot.eeg.freq}
             else :
                 for filterProps in params['filters'] :
                     self.filters[filterProps['name']] = filterPropt
 
-            model = gtk.ListStore(str, str, str, str, str, str)
+            model = gtk.ListStore(str, str, str, str, str, str, str)
             for filterProps in self.filters.values() :
                model.append([filterProps['name'],
+                             filterProps['winLen'],
                              filterProps['lpsf'], filterProps['lpcf'],
                              filterProps['hpcf'], filterProps['hpsf'],
                              filterProps['freq']])
@@ -1369,7 +1370,9 @@ class Dialog_PhaseSynchrony(PrefixWrapper) :
         self['buttonFilterEdit'].connect('clicked', self.edit_filter)
         self['buttonFilterNew'].connect('clicked', self.new_filter)
         self['buttonFilterDelete'].connect('clicked', self.delete_filters)
-        self['buttonSurrogateDataNew'].connect('clicked', self.new_surrogate_data)
+        self['buttonSurrDataFileBrowse'].connect('clicked', self.browse_surr_data_file)
+        self['buttonSurrDataNew'].connect('clicked', self.new_surr_data)
+        self['buttonOutputFileBrowse'].connect('clicked', self.browse_output_file)
 
         # Set default time range to be time limits in eeg window
         tmin, tmax = eegplot.get_time_lim()
@@ -1511,7 +1514,8 @@ class Dialog_PhaseSynchrony(PrefixWrapper) :
     def edit_filter(self, *args) :
         def ok_callback(filterProps) :
             msg = None
-            if (filterProps.get('lpsf') is ''
+            if (filterProps.get('winLen') is ''
+                or filterProps.get('lpsf') is ''
                 or filterProps.get('lpcf') is ''
                 or filterProps.get('hpsf') is ''
                 or filterProps.get('hpcf') is ''
@@ -1536,11 +1540,12 @@ class Dialog_PhaseSynchrony(PrefixWrapper) :
                 del self.filters[origFilterName]
 
             # Update filter properties
-            model.set_value(model.get_iter(pathlist[0]), 1, filterProps['lpsf'])
-            model.set_value(model.get_iter(pathlist[0]), 2, filterProps['lpcf'])
-            model.set_value(model.get_iter(pathlist[0]), 3, filterProps['hpsf'])
-            model.set_value(model.get_iter(pathlist[0]), 4, filterProps['hpcf'])
-            model.set_value(model.get_iter(pathlist[0]), 5, filterProps['freq'])
+            model.set_value(model.get_iter(pathlist[0]), 1, filterProps['winLen'])
+            model.set_value(model.get_iter(pathlist[0]), 2, filterProps['lpsf'])
+            model.set_value(model.get_iter(pathlist[0]), 3, filterProps['lpcf'])
+            model.set_value(model.get_iter(pathlist[0]), 4, filterProps['hpsf'])
+            model.set_value(model.get_iter(pathlist[0]), 5, filterProps['hpcf'])
+            model.set_value(model.get_iter(pathlist[0]), 6, filterProps['freq'])
 
             # Save new EOI in .eegviewrc
 
@@ -1579,7 +1584,8 @@ class Dialog_PhaseSynchrony(PrefixWrapper) :
             msg = None
             if filterProps.get('name') is '' :
                 msg = 'Please provide a name.'
-            elif (filterProps.get('lpsf') is None
+            elif (filterProps.get('winLen') is None
+                or filterProps.get('lpsf') is None
                 or filterProps.get('lpcf') is None
                 or filterProps.get('hpsf') is None
                 or filterProps.get('hpcf') is None
@@ -1599,6 +1605,7 @@ class Dialog_PhaseSynchrony(PrefixWrapper) :
             # Append new filter to TreeView model
             model = self['treeViewFilters'].get_model()
             model.append([filterProps['name'],
+                          filterProps['winLen'],
                           filterProps['lpsf'], filterProps['lpcf'], 
                           filterProps['hpcf'], filterProps['hpsf'], 
                           filterProps['freq']])
@@ -1651,7 +1658,7 @@ class Dialog_PhaseSynchrony(PrefixWrapper) :
                 model.remove(model.get_iter(path))
                 del self.filters[name]
 
-    def new_surrogate_data(self, *args) :
+    def new_surr_data(self, *args) :
         def ok_callback(surrogateProps) :
             msg = None
             if (surrogateProps.get('numPairs') is None
@@ -1673,23 +1680,81 @@ class Dialog_PhaseSynchrony(PrefixWrapper) :
             ecog.sort()
 
             # Generate surrogate data
-            surrData = gen_surrogate_data(self.eegplot.eeg, 
-                         surrogateProps['tMin'], surrogateProps['tMax'], 
-                         ecog,
-                         surrogateProps['filters'], 
-                         surrogateProps['numPairs'])
-            print surrData
+            # Create filters
+            filters = {}
+            for filterProps in surrogateProps['filters'] :
+                print filterProps['name'], filterProps['winLen'], filterProps['lpsf'], filterProps['lpcf'], filterProps['hpcf'], filterProps['hpsf']
+
+#                filters[filterProps['name']] = (filterProps['winLen'],
+#                  bandpass(filterProps['lpsf'],
+#                           filterProps['lpcf'],
+#                           filterProps['hpcf'],
+#                           filterProps['hpsf'],
+#                           filterProps['freq']))
+#            print filters
+#            surrData = gen_surrogate_data(self.eegplot.eeg, 
+#                         surrogateProps['tMin'], surrogateProps['tMax'], 
+#                         ecog, filters, 
+#                         surrogateProps['numPairs'])
+#            print surrData
+
+            self['entrySurrDataFile'].set_text(surrogateProps['outputFile'])
 
             dlgSurrogateData.hide_widget()
 
             return
 
-        surrogateProps = {'filters' : self.filters.values(),
-                          'tMin'    : self['entrytMin'].get_text(),
-                          'tMax'    : self['entrytMax'].get_text()}
+        surrogateProps = {'filters'  : self.filters.values(),
+                          'tMin'     : self['entrytMin'].get_text(),
+                          'tMax'     : self['entrytMax'].get_text(),
+                          'outputFile' : 'surrdata_<name>_<tMin>-<tMax>_<numPairs>.pickle'}
         dlgSurrogateData = Dialog_SurrogateData(surrogateProps, ok_callback)
         dlgSurrogateData.widget.set_transient_for(self.widget)
         dlgSurrogateData.show_widget()
+
+    def browse_surr_data_file(self, *args) :
+        def ok_callback(dirDialog):
+            filename = dirDialog.get_filename()
+            self['entrySurrDataFile'].set_text(filename)
+            dirDialog.destroy()
+
+        d = Dialog_FileSelection(
+            defaultDir=fmanager.get_lastdir(),
+            okCallback=ok_callback,
+            title='Select surrogate data file',
+            parent=self.widget)
+
+    def browse_output_file(self, *args) :
+        def ok_callback(dirDialog):
+            filename = dirDialog.get_filename()
+            self['entryOutputFile'].set_text(filename)
+            dirDialog.destroy()
+
+        d = Dialog_FileSelection(
+            defaultDir=fmanager.get_lastdir(),
+            okCallback=ok_callback,
+            title='Select phase synchrony output file',
+            parent=self.widget)
+
+    def on_buttonOK_clicked(self, event):
+        'XXX'
+        # Check params
+
+        # get (filtered) surrogate data
+        # compute phase diffs in each band
+        # compute windowed stddev in each band
+        # compute synchrony in each band
+        # compute percentiles in each band
+
+        # filter data for each band (i.e., using each filter)
+        # compute phase diffs in each band
+        # compute windowed stddev in each band
+        # create time vectors in each band
+        # compute synchrony in each band
+        # compute probability of synchronous event
+        # determine in which foci events occurred
+
+        # output file
 
 class Dialog_FilterProps(PrefixWrapper) :
     prefix = 'dlgFilterProps_'
@@ -1702,6 +1767,7 @@ class Dialog_FilterProps(PrefixWrapper) :
 
         # Set default values
         self['entryName'].set_text(filterProps.get('name', ''))
+        self['entryWinLen'].set_text(str(filterProps.get('winLen', '')))
         self['entryLpsf'].set_text(str(filterProps.get('lpsf', '')))
         self['entryLpcf'].set_text(str(filterProps.get('lpcf', '')))
         self['entryHpsf'].set_text(str(filterProps.get('hpsf', '')))
@@ -1710,7 +1776,7 @@ class Dialog_FilterProps(PrefixWrapper) :
 
     def on_buttonOK_clicked(self, event) :
         filterProps = {'name' : self['entryName'].get_text()}
-        for prop in ['lpsf', 'lpcf', 'hpsf', 'hpcf', 'freq'] :
+        for prop in ['winLen', 'lpsf', 'lpcf', 'hpsf', 'hpcf', 'freq'] :
             key = 'entry' + prop.title()
             try : filterProps[prop] = float(self[key].get_text())
             except : filterProps[prop] = None
@@ -1733,13 +1799,13 @@ class Dialog_SurrogateData(PrefixWrapper) :
         # Initialize Filters TreeView
         self.filters = {}
         if self['treeViewFilters'].get_model() is None :
-            colNames = ['Name', 'lpsf', 'lpcf', 'hpsf', 'hpcf', 'Frequency']
+            colNames = ['Name', 'Window Length', 'lpsf', 'lpcf', 'hpsf', 'hpcf', 'Frequency']
             for i, name in enumerate(colNames) :
                 cell = gtk.CellRendererText()
                 col = gtk.TreeViewColumn(name, cell, text=i)
                 self['treeViewFilters'].append_column(col)
 
-            model = gtk.ListStore(str, str, str, str, str, str)
+            model = gtk.ListStore(str, str, str, str, str, str, str)
             self['treeViewFilters'].set_model(model)
 
         # Delete filter treeview rows
@@ -1757,6 +1823,7 @@ class Dialog_SurrogateData(PrefixWrapper) :
 
         for filterProps in self.filters.values() :
             model.append([filterProps['name'],
+                          filterProps['winLen'],
                           filterProps['lpsf'], filterProps['lpcf'],
                           filterProps['hpcf'], filterProps['hpsf'],
                           filterProps['freq']])
@@ -1772,13 +1839,15 @@ class Dialog_SurrogateData(PrefixWrapper) :
         self['buttonFilterEdit'].connect('clicked', self.edit_filter)
         self['buttonFilterNew'].connect('clicked', self.new_filter)
         self['buttonFilterDelete'].connect('clicked', self.delete_filters)
+        self['buttonOutputFileBrowse'].connect('clicked', self.browse_output_file)
 
     def edit_filter(self, *args) :
         def ok_callback(filterProps) :
             msg = None
             if filterProps.get('name') is '' :
                 msg = 'Please provide a name.'
-            elif (filterProps.get('lpsf') is None
+            elif (filterProps.get('winLen') is None
+                or filterProps.get('lpsf') is None
                 or filterProps.get('lpcf') is None
                 or filterProps.get('hpsf') is None
                 or filterProps.get('hpcf') is None
@@ -1803,11 +1872,12 @@ class Dialog_SurrogateData(PrefixWrapper) :
                 del self.filters[origFilterName]
 
             # Update filter properties
-            model.set_value(model.get_iter(pathlist[0]), 1, filterProps['lpsf'])
-            model.set_value(model.get_iter(pathlist[0]), 2, filterProps['lpcf'])
-            model.set_value(model.get_iter(pathlist[0]), 3, filterProps['hpsf'])
-            model.set_value(model.get_iter(pathlist[0]), 4, filterProps['hpcf'])
-            model.set_value(model.get_iter(pathlist[0]), 5, filterProps['freq'])
+            model.set_value(model.get_iter(pathlist[0]), 1, filterProps['winLen'])
+            model.set_value(model.get_iter(pathlist[0]), 2, filterProps['lpsf'])
+            model.set_value(model.get_iter(pathlist[0]), 3, filterProps['lpcf'])
+            model.set_value(model.get_iter(pathlist[0]), 4, filterProps['hpsf'])
+            model.set_value(model.get_iter(pathlist[0]), 5, filterProps['hpcf'])
+            model.set_value(model.get_iter(pathlist[0]), 6, filterProps['freq'])
 
             dlgFilterProps.hide_widget()
 
@@ -1844,7 +1914,8 @@ class Dialog_SurrogateData(PrefixWrapper) :
             msg = None
             if filterProps.get('name') is '' :
                 msg = 'Please provide a name.'
-            elif (filterProps.get('lpsf') is None
+            elif (filterProps.get('winLen') is None
+                or filterProps.get('lpsf') is None
                 or filterProps.get('lpcf') is None
                 or filterProps.get('hpsf') is None
                 or filterProps.get('hpcf') is None
@@ -1864,6 +1935,7 @@ class Dialog_SurrogateData(PrefixWrapper) :
             # Append new filter to TreeView model
             model = self['treeViewFilters'].get_model()
             model.append([filterProps['name'],
+                          filterProps['winLen'],
                           filterProps['lpsf'], filterProps['lpcf'],
                           filterProps['hpcf'], filterProps['hpsf'],
                           filterProps['freq']])
@@ -1913,6 +1985,18 @@ class Dialog_SurrogateData(PrefixWrapper) :
                 name = model.get_value(iter, 0)
                 model.remove(model.get_iter(path))
                 del self.filters[name]
+
+    def browse_output_file(self, *args) :
+        def ok_callback(dirDialog):
+            filename = dirDialog.get_filename()
+            self['entryOutputFile'].set_text(filename)
+            dirDialog.destroy()
+
+        d = Dialog_FileSelection(
+            defaultDir=fmanager.get_lastdir(),
+            okCallback=ok_callback,
+            title='Select surrogate data output file',
+            parent=self.widget)
 
     def on_buttonOK_clicked(self, event) :
         surrogateProps = {}

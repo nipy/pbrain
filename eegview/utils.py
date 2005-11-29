@@ -5,7 +5,7 @@ import re
 import array
 import scipy
 from matplotlib.cbook import enumerate, iterable, Bunch
-from matplotlib.mlab import cohere_pairs
+from matplotlib.mlab import cohere_pairs, fftsurr
 import matplotlib.numerix as nx
 from math import floor, ceil
 from MLab import mean
@@ -73,8 +73,6 @@ def phasediff(s0, s1, filt, n=1, m=1):
         n = n,
         m = m,
         )
-
-    
 
 def lowbutter(lpcf, lpsf, Fs, gpass=3, gstop=15):
     """
@@ -775,6 +773,18 @@ def window_hanning(x):
     win =  hanning(len(x))*x
     return win*(sigma/nx.mlab.std(win))
 
+def bandpass(lpsf, lpcf, hpcf, hpsf, Fs, gpass=3, gstop=20):
+    "return a butterworth bandpass filter"
+    Nyq = Fs/2.
+    wp = [lpcf/Nyq, hpcf/Nyq]
+    ws = [lpsf/Nyq, hpsf/Nyq]
+    ord, Wn = sig.buttord(wp, ws, gpass, gstop)
+    b,a = sig.butter(ord, Wn, btype='bandpass') # pun intended
+    def func(x):
+        return sig.lfilter(b,a,x)
+
+    return func
+
 def gen_surrogate_data(eeg, tmin, tmax, eoi, filters, numSurrs) :
     surrData = {}
 
@@ -793,8 +803,11 @@ def gen_surrogate_data(eeg, tmin, tmax, eoi, filters, numSurrs) :
         i2 = e2i[eoi[ie2]]
 
         # Generate surrogate data
-        surr1 = fftsurr(data[:,i1], window=window_hanning)
-        surr2 = fftsurr(data[:,i2], window=window_hanning)
+# XXX
+#        surr1 = fftsurr(data[:,i1], window=window_hanning)
+#        surr2 = fftsurr(data[:,i2], window=window_hanning)
+        surr1 = fftsurr(data[:,i1])
+        surr2 = fftsurr(data[:,i2])
 
         # Generate filteres surrogate data
         for j, tup in enumerate(filters.items()) :
