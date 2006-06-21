@@ -5,16 +5,30 @@ from cStringIO import StringIO
 from sets import Set
 from matplotlib.cbook import mkdirs, listFiles
 
-from Numeric import array, Int16, Float, Float16, \
+#from matplotlib.numerix import array, Int16, Float, Float16, \
+#     arange, fromstring, take, sqrt, sum, zeros, resize,\
+#    transpose
+#from matplotlib.numerix import median
+from scipy import array, Int16, Float, Float16, \
      arange, fromstring, take, sqrt, sum, zeros, resize,\
      transpose
-from MLab import median
+from scipy import median
 from utils import all_pairs_ij, all_pairs_eoi
 import file_formats
 import csv
 import gtk
 
+import math
+
+import datetime
+
 import servers
+
+import scipy
+import scipy.signal
+
+import pickle
+
 e1020 = Set([
     'cz', 'c3', 'c4',
     't3', 't4', 't5', 't6',
@@ -354,7 +368,7 @@ class EOI(list, AssociatedFile):
         struct and returns an error string indicating the problem EOI
         """
 
-	d = amp.get_electrode_to_indices_dict()
+        d = amp.get_electrode_to_indices_dict()
         indices = [d[key] for key in self]
 
         return indices
@@ -456,6 +470,25 @@ class Amp(list, AssociatedFile):
     def get_channelnum_dict(self):
         """
         Return a dict mapping channel num gname, gnum tuples
+
+        mccXXX: what did I write the below comments for?
+        
+        amp = eeg.get_amp()
+        cnumd = amp.get_channelnum_dict()
+        electrode = cnumd[56]
+
+        ...in gridmanager....
+        marker = gridManager.markerd[electrode]
+        marker.set_center(xyz)
+        marker.set_color(vtkColor)
+
+        ....
+        for e1,e2 in mypairs:
+            e1, e2 = some_electrodes()
+            corr = corrdist(e1,e2)
+            def func(x): return corr
+            gridManager.connect_markers(e1, e2, scalarfunc=func)
+        
         """
 
         return dict([ ( ind, (name,num) ) for ind, name, num in self])        
@@ -693,14 +726,19 @@ def assoc_factory_filesystem(filetype, fname):
                 }
     return typeMap[filetype](useFile=fname)
 
-EDF, BMSI, NSASCII, NSCNT, FLOATARRAY, W18 = range(6)
+EDF, BMSI, NSASCII, NSCNT, FLOATARRAY, W18, AXONASCII, NEUROSCANASCII, ALPHAOMEGAASCII = range(9)
 EPOCH = 14
 
 class EEGBase:               
-    def __init__(self):
+    def __init__(self, amp):
+        #print "EEGBase(amp=", amp, ")"
+        
         self.readmap = {BMSI : self._read_nicolet,
                         W18  : self._read_w18,
                         EPOCH : self._read_epoch,
+                        AXONASCII: self._read_axonascii,
+                        NEUROSCANASCII: self._read_neuroscanascii,
+                        ALPHAOMEGAASCII: self._read_neuroscanascii
                        }
 
         self.scale= None
@@ -709,12 +747,52 @@ class EEGBase:
         # cached version.  lastDataQuery is a
         # ( (tmin, tmax), (t, data) ) tuple
         self.lastDataQuery = None
-        
+
+        self.amp = amp
+
+
+        self.rectifiedChannels = {}
+        self.hilbertedChannels = {}
+
+        for (cnum, cname, gnum) in amp:
+            self.rectifiedChannels[(cname,gnum)] = False
+            self.hilbertedChannels[(cname,gnum)] = False
+
     def load_data(self):
         raise NotImplementedError('Derived must override')
 
     def get_eois(self):
         return self.get_associated_files(5, mapped=1)
+
+    def set_rectified(self, rectifiedChannels):
+        print "mccXXX: EEGBase.set_rectified( ", rectifiedChannels, ")"
+
+        for i,j in rectifiedChannels.iteritems():
+            self.rectifiedChannels[i] = j
+            
+        d = self.amp.get_electrode_to_indices_dict()
+        print "set_rectified: get_electrode_to_indices_dict is " , d
+
+        self.lastDataQuery = None
+
+    def set_hilberted(self, hilbertedChannels):
+        print "mccXXX: EEGBase.set_hilberted( ", hilbertedChannels, ")"
+
+        for i,j in hilbertedChannels.iteritems():
+            self.hilbertedChannels[i] = j
+            
+        d = self.amp.get_electrode_to_indices_dict()
+        print "set_hilberted: get_electrode_to_indices_dict is " , d
+
+        self.lastDataQuery = None
+
+    def get_rectified(self):
+        print "mccXXX: EEGBase.get_rectified()"
+        return self.rectifiedChannels
+
+    def get_hilberted(self):
+        print "mccXXX: EEGBase.get_hilberted()"
+        return self.hilbertedChannels
 
     def get_eoi(self, fname):
         eois =  self.get_associated_files(5, mapped=0, fname=fname)
@@ -729,6 +807,7 @@ class EEGBase:
             return eois[0]
 
     def get_amp(self, name=None):
+
         if name is not None:
             amps = self.get_associated_files(3, mapped=1)
             for amp in amps:
@@ -821,12 +900,28 @@ class EEGBase:
         return ann
 
     def get_num_samples(self):
+        print "get_num_samples: self.file_type is ",  self.file_type
         self.load_data()
         if self.file_type==BMSI: # nicolet bmsi
             return os.path.getsize(self.fullpath)/(self.channels*2)
         elif self.file_type==W18:
             return os.path.getsize(self.fullpath)/18432*1000
-        else: raise ValueError('Can only handle Nicolet BMSI file currently')
+        elif self.file_type==AXONASCII:
+            raw_data = self.get_raw_data()
+            print "raw_data.shape is ", raw_data.shape
+            (rows, cols) = raw_data.shape
+            num_entries_per_channel = int(rows / self.get_channels())
+            #print "num_entries_per_channel=", num_entries_per_channel
+            num_samples = num_entries_per_channel * self.get_freq()
+            #print "num_samples=", num_samples
+            return(math.floor(num_samples))
+        elif self.file_type==NEUROSCANASCII:
+            raw_data = self.get_raw_data()
+            #print "raw_data.shape is ", raw_data.shape
+            (rows, cols) = raw_data.shape
+            return cols
+        else: raise ValueError('Can only handle certain file types currently')
+        
 
     def get_tmax(self):
         N = self.get_num_samples()
@@ -836,6 +931,7 @@ class EEGBase:
         t, data = self.get_data(0, 0.1)
         #self.baseline = resize(median(transpose(data)), (1, self.channels))
         self.baseline = median(data)
+
         #print self.baseline.shape, data.shape
 
     def get_baseline(self):
@@ -845,9 +941,13 @@ class EEGBase:
             return self.baseline
 
     def get_data(self, tmin, tmax):
-        if (self.lastDataQuery is not None and
-            self.lastDataQuery[0] == (tmin, tmax) ):
-            return self.lastDataQuery[1]
+        # mccXXX: removed this (probably speed-improving)
+        # lastDataQuery optimisation as we may be requerying with new
+        # prefiltering. maybe bring this back somehow.
+        
+#        if (self.lastDataQuery is not None and
+#            self.lastDataQuery[0] == (tmin, tmax) ):
+#            return self.lastDataQuery[1]
         assert(tmax>tmin)
 
         #print 'filetype', type(self.file_type), self.file_type
@@ -856,8 +956,25 @@ class EEGBase:
         try: t, data = self.readmap[self.file_type](tmin, tmax)
         except KeyError:
             raise KeyError('Do not know how to handle file type %s'%self.file_type)
-        self.lastDataQuery = ( (tmin, tmax), (t, data) )
+#        self.lastDataQuery = ( (tmin, tmax), (t, data) )
 
+        # OK, now possibly modify the data as specified in the
+        # "filter electrode" view!
+        d = self.amp.get_electrode_to_indices_dict()
+        #print "EEGBase.get_data(): d=", d
+        for name, index in d.iteritems(): 
+            if (self.rectifiedChannels[name]):
+                x = data[:,index]
+                data[:,index] = abs(data[:,index])
+                 
+            if (self.hilbertedChannels[name]):
+                x = data[:,index]
+                # now get the hilbert of this
+                hilberted_data = scipy.signal.hilbert(x)
+                #print "len/type of x is ", len(x), type(x), x.typecode(), "len/type of hilberted data is " , len(hilberted_data), type(hilberted_data), hilberted_data.typecode()
+                data[:,index] = abs(hilberted_data)
+                
+        #print "EEGBase.get_data(): t.shape=", t.shape, ", data.shape=", data.shape
         return t, data
 
     def _read_epoch(self, tmin, tmax):
@@ -877,6 +994,8 @@ class EEGBase:
 
     def _read_nicolet(self, tmin, tmax):
         """Load Nicolet BMSI data."""
+
+        #print "_read_nicolet: tmin=", tmin, "tmax=", tmax
 
         if tmin<0: tmin=0
 
@@ -900,8 +1019,147 @@ class EEGBase:
 
         t = (1/self.freq)*arange(indmin, indmax)
         #print 'nic', data.shape
+
+        #print "_read_nicolet: t is " , t
+        
         return t, data
 
+    def time_to_raw_indices(self, tmin, tmax, raw_data_shape, n_channels, sampling_rate):
+        # sampling rate = e.g. 250
+        #print "time_to_raw_indices(tmin=%f, tmax=%f, raw_data_shape=" % (tmin, tmax), raw_data_shape, "n_channels=%d, sampling_rate=%d" % (n_channels, sampling_rate)
+
+        # rows = 12 channels, 12 channels, 12 channels, etc.
+        # cols = # of datapoints per segment: 500
+        (raw_data_rows, raw_data_cols) = raw_data_shape
+
+        #if (tmin < 0.0):
+        #    return None
+        # actually, allow this to occur... and return zeros magically for period before 0.0
+
+        if (tmin > tmax):
+            return None
+
+        raw_x1 = (tmin * sampling_rate)
+        raw_x2 = (tmax * sampling_rate)
+
+        # now mod by raw_data_cols
+
+        raw_index1 = math.floor(raw_x1 / raw_data_cols) 
+        raw_index2 = math.floor(raw_x2 / raw_data_cols)
+
+        raw_offset1 = math.floor(((raw_x1 / raw_data_cols) - raw_index1) * raw_data_cols)
+        raw_offset2 = math.floor(((raw_x2 / raw_data_cols) - raw_index2) * raw_data_cols)
+        
+        # multiply by n_channels because the data is organized that way...
+        #raw_index1 = raw_index1 * n_channels
+        #raw_index2 = raw_index2 * n_channels
+        
+        #print "time_to_raw_indices: calculated raw_index1=%d, raw_offset1=%d, raw_index2=%d, raw_offset2=%d" % (raw_index1, raw_offset1, raw_index2, raw_offset2)
+       
+        return raw_index1, int(raw_offset1), raw_index2, int(raw_offset2)
+
+    def _read_neuroscanascii(self, tmin, tmax):
+        print "_read_neuroscanascii(", tmin, ",", tmax,")"
+        raw_data = self.get_raw_data()
+        print "_read_neuroscanascii(): yo raw data has shape ", raw_data.shape
+        print "_read_neuroscanascii(): yo raw data[0,0:10]=", raw_data[0,0:10]
+        (raw_data_rows, raw_data_cols) = raw_data.shape
+        freq = self.get_freq()
+        print "_read_neuroscanascii(): freq=" ,freq
+        raw_x1 = int(round(tmin * freq))
+        raw_x2 = int(round(tmax * freq))
+
+        t = arange(tmin, tmax , 1.0/freq)
+        print "t[-1] is" , t[-1]
+        print "_read_neuroscanascii(): t[0:10] is ", t[0:10]
+
+        print "_read_neuroscanascii(): len(t)=", len(t)
+
+        print "_read_neuroscanascii(): raw_x1, raw_x2 = ", raw_x1, raw_x2
+
+
+        if (raw_x2 > raw_data_cols):
+            print "asking for too much data!!!"
+            print "pad data with zeros here"
+            data = raw_data[:, raw_x1:raw_data_cols]
+            print "raw_data_cols/freq is ", raw_data_cols/freq
+            t = arange(tmin, (raw_data_cols-raw_x1)/freq , 1.0/freq)
+            print "type(data) is ", type(data)
+        else:
+            data = raw_data[:, raw_x1:raw_x2]
+        print "_read_neuroscanascii(): t.shape=", t.shape
+        data2 = transpose(data)
+        print "_read_neuroscanascii(): data2.shape=", data2.shape
+        return t, data2
+        
+    
+    def _read_axonascii(self, tmin, tmax):
+        """
+        This is marginally horrendous, but so is the file format it is parsing.
+        
+        mccXXX: questions:
+        - what is the ASCII equivalent of 'seek to line n'?
+        """
+        #print "_read_axonascii: tmin=", tmin, "tmax=", tmax
+        #print "_read_axonascii: date_start = ", self.get_date() + datetime.timedelta(0,tmin) , "date_end = " , self.get_date() + datetime.timedelta(0,tmax)
+
+        raw_data = self.get_raw_data()
+        #print "_read_axonascii(): yo raw data has shape ", raw_data.shape
+        (raw_data_rows, raw_data_cols) = raw_data.shape
+        n_channels = self.get_channels()
+        freq = self.get_freq()
+        #print "_read_axonascii: freq = ", freq
+        channel_length = math.floor((tmax-tmin)*self.get_freq())
+        data = zeros((channel_length, n_channels, ), 'd')
+        #print "created data array of size ", data.shape
+
+        # given tmin find the appropriate array .. in seconds, just divide by 2 then multiply by n_channels
+
+        raw_index1, raw_offset1, raw_index2, raw_offset2 = self.time_to_raw_indices(tmin, tmax, raw_data.shape, n_channels, freq)
+
+        data_index = 0
+        #print "raw_index1=", raw_index1, "raw_index2=", raw_index2
+        raw_index1 = int(raw_index1)
+        raw_index2 = int(raw_index2)
+        #print "raw_index1=", raw_index1, "raw_index2=", raw_index2
+        for raw_index in range(raw_index1, raw_index2):
+            #print "doing raw_data index=%d, data index =%d" % (raw_index, data_index)
+            for c in range(0, n_channels):
+                # do a general for loop using information about offsets...
+                data_offset = 0
+                for raw_offset in range (raw_offset1, raw_data_cols):
+                    #print "setting data[%d][%d] to raw_data[%d][%d]=%f" % \
+                    #      ((data_index*500)+data_offset, c ,raw_index*n_channels + c,raw_offset, raw_data[raw_index*n_channels+c][raw_offset])
+
+                    if ((raw_offset == raw_offset1) | (raw_offset == raw_data_cols)):
+                        pass
+                        
+                    data[(data_index*500)+data_offset][c] = raw_data[raw_index*n_channels + c][raw_offset]
+                    data_offset = data_offset + 1
+                                            
+                # now copy from next major index
+                for raw_offset in range (0, raw_offset2):
+                    #print "setting data[%d][%d] to raw_data[%d][%d]=%f" % \
+                    #      ((data_index*500)+data_offset, c ,raw_index*n_channels + c,raw_offset, raw_data[raw_index*n_channels+c][raw_offset])
+
+
+                    if ((raw_offset == 0) | (raw_offset == raw_offset2)):
+                        pass
+
+                    data[(data_index*500)+data_offset][c] = raw_data[(raw_index+1)*n_channels + c][raw_offset]
+                    data_offset = data_offset + 1
+
+            data_index = data_index + 1
+
+        # we also want to build t. t will be , in this case, an array of (tmax-tmin) * 250 elements
+        t = arange(tmin, tmax , 1.0/freq)
+
+        print "_read_axonascii(): size of t is " , t.shape
+        print "_read_axonascii(): size of data is " , data.shape
+
+        return t, data
+        
+        
     def _read_float_array(self, fname):
         """Load an array of C floats."""
 
@@ -1018,13 +1276,14 @@ def read_eeg_params(fh):
     return d
 
 class EEGFileSystem(EEGBase):
-    def __init__(self, fullpath, params=None, get_params=None):
+    def __init__(self, fullpath, amp, params=None, get_params=None):
+        #print "EEGFileSystem(fullpath=", fullpath, ", amp=", amp, ")"
         """
         params is a dict
         get_params has dict signature dict = get_params(fullpath)
         """
 
-        EEGBase.__init__(self)
+        EEGBase.__init__(self, amp)
         if not os.path.exists(fullpath):
             raise ValueError('%s does not exist' % fullpath)
 

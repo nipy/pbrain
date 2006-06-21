@@ -85,6 +85,7 @@ class PrefixWrapper:
             msg = 'derived classes must define attributes prefix'+\
                   ' and widgetName'
             raise NotImplementedError, msg
+        #print "gladewrapper.__init__(): get_widget(%s)" % self.widgetName
         self.widget = Shared.widgets.get_widget(self.widgetName)
         self.initParams = self.get_params()
         storeref[self.widgetName] = self
@@ -94,22 +95,26 @@ class PrefixWrapper:
         self.connectionIds = []
         handlers = {}
         for name in dir(self):
+            #print "gladewrapper.autoconnect(): name=%s" % name
             if not callable(getattr(self, name)): continue
             m = self.rgx.match(name)
             if m is None: continue
             wName, signal = m.group(1), m.group(2)
             #if name=='on_drawingArea_expose_event': continue
 
+            #print "gladewrapper.autoconnect(): Shared.widgets.get_widget('%s')" % (self.prefix+wName)
             thisWidget = Shared.widgets.get_widget(self.prefix+wName)
+            #print "gladewrapper.autoconnect(): found this widget %s" % thisWidget
             if thisWidget is None:
                 try: thisWidget = getattr(self, wName)
                 except AttributeError:
-                    print 'Could not find widget %s for %s' % \
-                          (self.prefix+wName, self.widgetName)
+                    print 'Could not find widget %s/%s for %s' % \
+                          (self.prefix,wName, self.widgetName)
                     continue
                 
 
             try:
+                #print "gladewrapper.py: connecting %s/%s to %s (or something)" % (self.prefix,wName, name)
                 id = thisWidget.connect(signal, getattr(self, name))
             except TypeError, msg:
                 print 'Caught a TypeError msg %s\n\nTrying to connect %s with %s' %\
@@ -173,9 +178,9 @@ class PrefixWrapper:
     def get_widget(self):
         return self.widget
 
-    def on_buttonCancel_clicked(self, event):             
-        self.set_params(self.initParams)
-        self.hide_widget()
+    #def on_buttonCancel_clicked(self, event):             
+    #    self.set_params(self.initParams)
+    #    self.hide_widget()
 
     def i_am_prepared_to_die(self):
         """

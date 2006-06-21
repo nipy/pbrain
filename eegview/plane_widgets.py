@@ -8,16 +8,18 @@ import pygtk
 import gtk
 
 import re, time
+import loc3djr
 from gtk import gdk
-from GtkGLExtVTKRenderWindowInteractor import GtkGLExtVTKRenderWindowInteractor
-from GtkGLExtVTKRenderWindow import GtkGLExtVTKRenderWindow
-from Numeric import array
-from image_reader import widgets, GladeHandlers
+from loc3djr.GtkGLExtVTKRenderWindowInteractor import GtkGLExtVTKRenderWindowInteractor
+from loc3djr.GtkGLExtVTKRenderWindow import GtkGLExtVTKRenderWindow
+#from Numeric import array
+from scipy import array
+from loc3djr.image_reader import widgets, GladeHandlers
 from pbrainlib.gtkutils import error_msg, simple_msg
 
-from markers import Marker, RingActor
-from events import EventHandler, UndoRegistry, Viewer
-from shared import shared
+from loc3djr.markers import Marker, RingActor
+from loc3djr.events import EventHandler, UndoRegistry, Viewer
+from loc3djr.shared import shared
 
         
 def move_pw_to_point(pw, xyz):

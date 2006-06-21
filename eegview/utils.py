@@ -5,25 +5,63 @@ import re
 import array
 import scipy
 from matplotlib.cbook import enumerate, iterable, Bunch
-from matplotlib.mlab import cohere_pairs, fftsurr
-import matplotlib.numerix as nx
+from matplotlib.mlab import cohere_pairs, fftsurr, hanning
+#import matplotlib.numerix as nx
 from math import floor, ceil
-from MLab import mean
+#from matplotlib.numerix import mean
 
-from Numeric import zeros, ones, exp, Float, array, pi
+#from matplotlib.numerix import zeros, ones, exp, Float, array, pi
 
-import scipy.signal as sig
+from scipy import mean, zeros, ones, exp, Float, array, pi
+from scipy import array, arange, std, rand
 
+import scipy.signal
+
+#import pickle
 
 def hilbert_phaser(s):
     """
     Return the instantaneous phase of s using the hilbert transform
     """
-    h = sig.hilbert(s)
+    #f = file("hilbert_fpe.pickle", "w")
+    #pickle.dump(s, f)
+    #f.close()
+    #print "utils:hilbert_phaser(): sig.hilbert(", s[0:10], ")"
+    h = scipy.signal.hilbert(s)
+    #print "utils:hilbert_phaser(): scipy.absolute(", h[0:10], ")"    
     a = scipy.absolute(h)
+    #print "utils:hilbert_phaser(): scipy.angle(", h[0:10], ")"    
     phase = scipy.angle(h)
     return phase
 
+def synchrony(s1, s2, t, winLen, freq, overlap=.1) :
+    #print "utils.synchrony(s1(", len(s1), ",), s2(", len(s2), "), t(", len(t),"),", winLen, freq, overlap, ")"
+    # Compute phase difference
+    #print "utils.synchrony(): doing hilbert_phaser(s1)"
+    p1 = hilbert_phaser(s1)
+    #print "utils.synchrony(): doing hilbert_phaser(s2)"
+    p2 = hilbert_phaser(s2)
+    pdiff = p1 - p2
+
+    sync = []
+    time = []
+    nWin = int(winLen * freq)
+    nOverlap = int(overlap * freq)
+    #print "utils.synchrony(): doing ", len(arange(0, len(pdiff), nWin - nOverlap)), " pdiffs"
+    
+    for i in arange(0, len(pdiff), nWin - nOverlap):
+        sWin = pdiff[i:i + nWin]
+        if len(sWin) < 3 : continue
+        s = 1. / (1 + std(sWin))
+        #print "utils.synchrony(): [", i, ", ", i+nWin, "]: appending value s=", s
+        try : sync.append(s)
+        except :
+            print 'sWin:', sWin
+            sys.exit()
+        if t is not None :
+            time.append(t[i] + winLen / 2.)
+
+    return array(sync), array(time)
 
 def sync_gamma(psi):
     """
@@ -94,11 +132,11 @@ def lowbutter(lpcf, lpsf, Fs, gpass=3, gstop=15):
     wp = lpcf/Nyq
     ws = lpsf/Nyq
 
-    ord, Wn = sig.buttord(wp, ws, gpass, gstop)
-    b, a = sig.butter(ord, Wn, btype='lowpass')
+    ord, Wn = scipy.signal.buttord(wp, ws, gpass, gstop)
+    b, a = scipy.signal.butter(ord, Wn, btype='lowpass')
 
     def func(x):
-        return sig.lfilter(b,a,x)
+        return scipy.signal.lfilter(b,a,x)
     return func
 
 
@@ -242,9 +280,10 @@ def cohere_dict_to_array(m, keys):
     band = m[keys[0]]
     if iterable(band):
         if len(band)>1:
-            a = zeros( (len(keys),len(band)), typecode=band.typecode())
+            # XXX: will not work with Numeric or numarray, but only with numpy. how to do this?!?
+            a = zeros( (len(keys),len(band)), band.dtype)
         else:
-            a = zeros( (len(keys),), typecode=band.typecode())
+            a = zeros( (len(keys),), band.dtype)
     else: 
         a = zeros( (len(keys),), Float)
         
@@ -318,8 +357,8 @@ def cohere_bands(cxy, phase, freqs, keys,
             progressCallback(count/Nkeys,  'Averaging over bands')
         thisCxy = cxy[key]
         thisPhase = phase[key]
-        ac = zeros( (Nbands,), typecode=thisCxy.typecode())
-        ap = zeros( (Nbands,), typecode=thisPhase.typecode())
+        ac = zeros( (Nbands,), thisCxy.dtype)
+        ap = zeros( (Nbands,), thisPhase.dtype)
         count = 0
         for inds, inde in ind:
             if inds==inde:
@@ -388,7 +427,7 @@ def power_bands(pxx, freqs,
         if count%20==0:
             progressCallback(count/Nkeys,  'Averaging over bands')
         thisPxx = pxx[key]
-        avg = zeros( (Nbands,), typecode=thisPxx.typecode())
+        avg = zeros( (Nbands,), thisPxx.dtype)
 
         count = 0
         for inds, inde in ind:
@@ -576,14 +615,16 @@ def filter_grand_mean(X):
     X is a numSamples by numChannels numeric array.  Return X with
     the grand mean removed
     """
-    X = array(X, typecode=Float)
+    X = array(X, Float)
     gm =  eeg_grand_mean(X)
+    print "utils.filter_grand_mean(): type(gm)=", gm.dtype
 
     gm.shape = X.shape[0],
     numRows, numCols = X.shape
     for i in range(numCols):
         X[:,i] = X[:,i] -  gm
 
+    print "utils.filter_grand_mean(): return X of type ", X.dtype
     return X
 
 
@@ -730,12 +771,20 @@ def cohere_pairs_eeg( eeg, eoiPairs=None, indMin=0, indMax=None,
     ij.sort()
         
     #print len(ij), len(eoiPairs)
+
     if data is None: data = eeg.data
+
+    print "cohere_pairs_eeg: data.shape is ", data.shape
+    
     if indMax is None: indMax = data.shape[0]
     X = data[indMin:indMax]
     if returnPxx:
-        Cxy, Phase, freqs, Pxx = cohere_pairs(
-            X, ij, Fs=eeg.freq, returnPxx=True, **kwargs)
+        try:
+            Cxy, Phase, freqs, Pxx = cohere_pairs(
+                X, ij, Fs=eeg.freq, returnPxx=True, **kwargs)
+        except OverflowError, overflowerror:
+            print "cohere_pairs_eeg(): caught overflow error!! bailing: ", overflowerror
+            
     else:
         Cxy, Phase, freqs = cohere_pairs(
             X, ij, Fs=eeg.freq, **kwargs)
@@ -769,19 +818,19 @@ def cohere_pairs_eeg( eeg, eoiPairs=None, indMin=0, indMax=None,
 
 def window_hanning(x):
     "return x times the hanning window of len(x)"
-    sigma = nx.mlab.std(x)
+    sigma = std(x)
     win =  hanning(len(x))*x
-    return win*(sigma/nx.mlab.std(win))
+    return win*(sigma/std(win))
 
 def bandpass(lpsf, lpcf, hpcf, hpsf, Fs, gpass=3, gstop=20):
     "return a butterworth bandpass filter"
     Nyq = Fs/2.
     wp = [lpcf/Nyq, hpcf/Nyq]
     ws = [lpsf/Nyq, hpsf/Nyq]
-    ord, Wn = sig.buttord(wp, ws, gpass, gstop)
-    b,a = sig.butter(ord, Wn, btype='bandpass') # pun intended
+    ord, Wn = scipy.signal.buttord(wp, ws, gpass, gstop)
+    b,a = scipy.signal.butter(ord, Wn, btype='bandpass') # pun intended
     def func(x):
-        return sig.lfilter(b,a,x)
+        return scipy.signal.lfilter(b,a,x)
 
     return func
 
@@ -792,9 +841,10 @@ def gen_surrogate_data(eeg, tmin, tmax, eoi, filters, numSurrs) :
     t, data = eeg.get_data(tmin, tmax)
 
     # Extract random pairs from the data
-    randInd = (nx.mlab.rand(numSurrs, 2) * len(eoi)).astype(nx.Int)
+#    randInds = (nx.mlab.rand(numSurrs, 2) * len(eoi)).astype(nx.Int)
+    randInds = (rand(numSurrs, 2) * len(eoi)).astype(Int)
     e2i = eeg.get_amp().get_electrode_to_indices_dict()
-    for i, pair in enumerate(randInd) :
+    for i, pair in enumerate(randInds) :
         print 'Computing surrogate %d of %d' % (i, numSurrs)
 
         # Get indices into data
@@ -804,17 +854,16 @@ def gen_surrogate_data(eeg, tmin, tmax, eoi, filters, numSurrs) :
 
         # Generate surrogate data
 # XXX
-#        surr1 = fftsurr(data[:,i1], window=window_hanning)
-#        surr2 = fftsurr(data[:,i2], window=window_hanning)
-        surr1 = fftsurr(data[:,i1])
-        surr2 = fftsurr(data[:,i2])
+        surr1 = fftsurr(data[:,i1], window=window_hanning)
+        surr2 = fftsurr(data[:,i2], window=window_hanning)
+#        surr1 = fftsurr(data[:,i1])
+#        surr2 = fftsurr(data[:,i2])
 
-        # Generate filteres surrogate data
+        # Generate filtered surrogate data
         for j, tup in enumerate(filters.items()) :
             band, info = tup
             winLen, filter = info
 
-            # Compute phase differences
             fsurr1 = filter(surr1)
             fsurr2 = filter(surr2)
 

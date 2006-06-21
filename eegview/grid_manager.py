@@ -14,8 +14,14 @@ from shared import fmanager
 
 from sets import Set
 
-from Numeric import array, zeros, ones, sort, absolute, Float, sqrt, divide,\
+#from Numeric import array, zeros, ones, sort, absolute, Float, sqrt, divide,\
+#     argsort, take, arange
+from scipy import array, zeros, ones, sort, absolute, Float, sqrt, divide,\
      argsort, take, arange
+
+from amp_dialog import AmpDialog
+from array_mapper import ArrayMapper
+
 
 def identity(frac, *args):
     return frac
@@ -72,7 +78,8 @@ class GridManager:
         self.scalarBar.GetTitleTextProperty().SetColor(1.0,1.0,1.0)
         #self.scalarBar.SetPosition(0.8,0.2)
         self.scalarBar.VisibilityOff()
-        self.renderer.AddActor(self.scalarBar)
+        # XXX mcc: turn off for leo (try to make this smaller!!) XXX
+        #self.renderer.AddActor(self.scalarBar)
         
     def markers_as_collection(self):
         markers = vtk.vtkActorCollection()
@@ -89,6 +96,8 @@ class GridManager:
         Plot the data on the grids using surface interpolation
         **********************************************************************
         """
+        #return # XXX: mcc
+
 
         self.scalarVals.extend([val for key, val in datad.items()])
         if self.dimensiond is None:
@@ -113,7 +122,7 @@ class GridManager:
         #self.scalarBar.SetLookupTable(self.scalarLookup)
         
         for name in self.get_grid1_names():
-            print "set_scalar_data: doing %s" % name
+            #print "set_scalar_data: doing %s" % name
             items = named.get(name, None)
             if items is None: continue
             items.sort()
@@ -129,15 +138,15 @@ class GridManager:
 
             scalars = vtk.vtkFloatArray()
             for num, val in items:
-                print "looking up self.vtkIDs[(%s, %d)]" % (name, num)
+                #print "looking up self.vtkIDs[(%s, %d)]" % (name, num)
                 vtkID = self.vtkIDs[(name, num)]
-                print "scalars.InsertValue(%d, %f)" % (vtkID, val)
+                #print "scalars.InsertValue(%d, %f)" % (vtkID, val)
                 scalars.InsertValue(vtkID, val)
             polydata.GetPointData().SetScalars(scalars)
 
             if rangeSet is not None:
                 #pass
-                print "actor.GetMapper().SetScalarRange(%f, %f)" % (minVal, maxVal)
+                #print "actor.GetMapper().SetScalarRange(%f, %f)" % (minVal, maxVal)
                 actor.GetMapper().SetScalarRange(minVal, maxVal)
 
                 self.scalarBar.VisibilityOn()
@@ -575,6 +584,7 @@ class GridManager:
         frame.add(frameVBox)
 
         def load_ascii_data(filename):
+            print "GridManager.load_ascii_data()"
             try: fh = file(filename)
             except IOError, msg:
                 msg = exception_to_str('Could not open %s' % filename)
@@ -584,26 +594,31 @@ class GridManager:
             try:
                 numHeaderLines = str2int_or_err(
                     entryHeader.get_text(), labelHeader, parent=dlg)
+                #print "load_ascii_data(): numHeaderLines is " , numHeaderLines
                 if numHeaderLines is None: return
 
                 # skip the header lines
                 for i in range(numHeaderLines):
                     fh.readline()
+                    #print "load_ascii_data(): read line"
 
                 X = []
                 for line in fh:
+                    #print "load_ascii_data(): considering line ", line
                     vals = [float(val) for val in line.split()]
+                    #print "load_ascii_data(): vals are ", vals
                     X.append(vals)
-            except:
+            except ValueError:
+                print "Found uncharacteristic line in .dat file, perhaps not all numbers?"
                 msg = exception_to_str('Error parsing %s' % filename)
                 error_msg(msg, parent=dlg)
                 return
 
             if buttonSampChan.get_active():
                 # transpose the data to channels x samples
-                X = array(zip(*X), typecode=Float)
+                X = array(zip(*X), Float)
             else:
-                X = array(X, typecode=Float)
+                X = array(X, Float)
 
             numChannels, numSamples = X.shape
             self.X = X
@@ -613,6 +628,7 @@ class GridManager:
             ampDlg.show()
             amp = ampDlg.get_amp()
             if amp is None: return
+            print "setting ampAscii to amp, amp= ", amp
             self.ampAscii = amp
            
         def set_filename(button):
@@ -1430,7 +1446,7 @@ class GridManager:
         # todo: fix me so normals rotate too!  will need some
         # transform goop
         for i, marker in enumerate(markers):
-            thisNorm = array([normVecs.GetComponent(i,0), normVecs.GetComponent(i,1), normVecs.GetComponent(i,2)], typecode=Float)
+            thisNorm = array([normVecs.GetComponent(i,0), normVecs.GetComponent(i,1), normVecs.GetComponent(i,2)], Float)
 
             marker.normal = thisNorm
 
@@ -1446,7 +1462,7 @@ class GridManager:
         normVecs =  norms.GetOutput().GetPointData().GetNormals()
 
         for i, marker in enumerate(markers):
-            thisNorm = array([normVecs.GetComponent(i,0), normVecs.GetComponent(i,1), normVecs.GetComponent(i,2)], typecode=Float)
+            thisNorm = array([normVecs.GetComponent(i,0), normVecs.GetComponent(i,1), normVecs.GetComponent(i,2)], Float)
 
             marker.normal = thisNorm
 

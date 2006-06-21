@@ -46,9 +46,9 @@ import gtk, gobject
 
 from sets import Set
 
-from Numeric import array, zeros, ones, sort, absolute, Float, sqrt, divide,\
+from scipy import array, zeros, ones, sort, absolute, Float, sqrt, divide,\
      argsort, take, arange
-from MLab import mean, std
+from scipy import mean, std
 
 from loc3djr.GtkGLExtVTKRenderWindowInteractor import GtkGLExtVTKRenderWindowInteractor
 from loc3djr.plane_widgets import PlaneWidgetsXYZ 
@@ -184,6 +184,9 @@ class View3(gtk.Window, Observer):
         toolbar2 = self.make_toolbar2()
         toolbar2.show()
 
+        # line connection attribute
+        self.thresholdParams = 'pct.', 0.025
+
 
         if sys.platform != 'darwin':
             self.progBar = gtk.ProgressBar()
@@ -205,9 +208,6 @@ class View3(gtk.Window, Observer):
         self.norm = {}  
         # text label attributes
         self.textOn = True
-
-        # line connection attribute
-        self.thresholdParams = 'pct.', 0.025
 
 
         self.interactor.Render()
@@ -263,7 +263,29 @@ class View3(gtk.Window, Observer):
         trode = gname, gnum
         self.broadcast(Observer.SELECT_CHANNEL, trode)
     
+    def add_separator(self, toolbar):
+        toolitem = gtk.SeparatorToolItem()
+        toolitem.set_draw(True)
+        #toolitem.set_expand(gtk.TRUE)
+        toolitem.show_all()
+        toolbar.insert(toolitem, -1)
+        
+    def add_toolbutton1(self, toolbar, icon_name, tip_text, tip_private, clicked_function, clicked_param1=None):
+        iconSize = gtk.ICON_SIZE_SMALL_TOOLBAR
+        iconw = gtk.Image()
+        iconw.set_from_stock(icon_name, iconSize)
+            
+        toolitem = gtk.ToolButton()
+        toolitem.set_icon_widget(iconw)
+        toolitem.show_all()
+        toolitem.set_tooltip(self.tooltips1, tip_text, tip_private)
+        toolitem.connect("clicked", clicked_function, clicked_param1)
+        toolitem.connect("scroll_event", clicked_function)
+        toolbar.insert(toolitem, -1)
+
     def make_toolbar1(self):
+
+        self.tooltips1 = gtk.Tooltips()
 
         toolbar1  = gtk.Toolbar()
         iconSize = gtk.ICON_SIZE_SMALL_TOOLBAR
@@ -272,108 +294,135 @@ class View3(gtk.Window, Observer):
         toolbar1.set_orientation(gtk.ORIENTATION_VERTICAL)
 
 
-        def show_grid_manager(button):
+        def show_grid_manager(button, *args):
+            #print "show_grid_manager: args is " , args
             if self.gridManager is not None:
                 self.gridManager.show()
             
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_PREFERENCES, iconSize)
-        button = toolbar1.append_item(
-            'Grids',
-            'Grid propertes',
-            'Private',
-            iconw,
-            show_grid_manager)
+        #iconw = gtk.Image() # icon widget
+        #iconw.set_from_stock(gtk.STOCK_PREFERENCES, iconSize)
+        #button = toolbar1.append_item(
+        #    'Grids',
+        #    'Grid propertes',
+        #    'Private',
+        #    iconw,
+        #    show_grid_manager)
 
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_OPEN, iconSize)
-        button = toolbar1.append_item(
-            'Coherence from datafile',
-            'Coherence from datafile',
-            'Private',
-            iconw,
-            self.coherence_from_file)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_PREFERENCES, 'Grid properties', 'Private', show_grid_manager)
 
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_SELECT_COLOR, iconSize)
-        button = toolbar1.append_item(
-            'Voltage map',
-            'Voltage map',
-            'Private',
-            iconw,
-            self.voltage_map)
+        #iconw = gtk.Image() # icon widget
+        #iconw.set_from_stock(gtk.STOCK_OPEN, iconSize)
+        #button = toolbar1.append_item(
+        #    'Coherence from datafile',
+        #    'Coherence from datafile',
+        #    'Private',
+        #    iconw,
+        #    self.coherence_from_file)
+
+        self.add_toolbutton1(toolbar1, gtk.STOCK_OPEN, 'Coherence from datafile', 'Private', self.coherence_from_file)
+        
+        #iconw = gtk.Image() # icon widget
+        #iconw.set_from_stock(gtk.STOCK_SELECT_COLOR, iconSize)
+        #button = toolbar1.append_item(
+        #    'Voltage map',
+        #    'Voltage map',
+        #    'Private',
+        #    iconw,
+        #    self.voltage_map)
+
+        self.add_toolbutton1(toolbar1, gtk.STOCK_SELECT_COLOR, 'Voltage map', 'Private', self.voltage_map)
 
         def compute_and_plot(*args):
             self.compute_coherence()
             self.plot_band()
             
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_EXECUTE, iconSize)
-        button = toolbar1.append_item(
-            'Coherence',
-            'Compute coherence',
-            'Private', 
-            iconw,
-            compute_and_plot)
+        #iconw = gtk.Image() # icon widget
+        #iconw.set_from_stock(gtk.STOCK_EXECUTE, iconSize)
+        #button = toolbar1.append_item(
+        #    'Coherence',
+        #    'Compute coherence',
+        #    'Private', 
+        #    iconw,
+        #    compute_and_plot)
 
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_PROPERTIES, iconSize)
-        button = toolbar1.append_item(
-            'Normalization',
-            'Define coherence normalization window',
-            'Private', 
-            iconw,
-            self.compute_norm_over_range)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_EXECUTE, 'Compute coherence', 'Private', compute_and_plot)
 
+        #iconw = gtk.Image() # icon widget
+        #iconw.set_from_stock(gtk.STOCK_PROPERTIES, iconSize)
+        #button = toolbar1.append_item(
+        #    'Normalization',
+        #    'Define coherence normalization window',
+        #    'Private', 
+        #    iconw,
+        #    self.compute_norm_over_range)
 
-
-        toolbar1.append_space()
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_CLEAR, iconSize)
-        button = toolbar1.append_item(
-            'Plot',
-            'Plot band connections',
-            'Private', 
-            iconw,
-            self.plot_band,
-            'mouse1 color')
+        self.add_toolbutton1(toolbar1, gtk.STOCK_PROPERTIES, 'Define coherence normalization window', 'Private', self.compute_norm_over_range)
 
 
-        toolbar1.append_space()
+        
+        #toolbar1.append_space()
+        self.add_separator(toolbar1)
+        #iconw = gtk.Image() # icon widget
+        #iconw.set_from_stock(gtk.STOCK_CLEAR, iconSize)
+        #button = toolbar1.append_item(
+        #    'Plot',
+        #    'Plot band connections',
+        #    'Private', 
+        #    iconw,
+        #    self.plot_band,
+        #    'mouse1 color')
+
+        self.add_toolbutton1(toolbar1, gtk.STOCK_CLEAR, 'Plot band connections', 'Private', self.plot_band, 'mouse1 color')
 
 
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_SAVE_AS, iconSize)
-        button = toolbar1.append_item(
-            'Screenshot',
-            'Save screenshot to file',
-            'Private',
-            iconw,
-            self.save_image)
+        #toolbar1.append_space()
+        self.add_separator(toolbar1)
 
-        iconw = gtk.Image()
-        iconw.set_from_stock(gtk.STOCK_JUMP_TO, iconSize)
-        bAuto = toolbar1.append_item(
-            'Autoplay',
-            'Automatically page the EEG',
-            'Private',
-            iconw,
-            self.auto_play)
+        
+        #iconw = gtk.Image() # icon widget
+        #iconw.set_from_stock(gtk.STOCK_SAVE_AS, iconSize)
+        #button = toolbar1.append_item(
+        #    'Screenshot',
+        #    'Save screenshot to file',
+        #    'Private',
+        #    iconw,
+        #     self.save_image)
+
+        self.add_toolbutton1(toolbar1, gtk.STOCK_SAVE_AS, 'Save screenshot to file', 'Private', self.save_image)
+
+        #iconw = gtk.Image()
+        #iconw.set_from_stock(gtk.STOCK_JUMP_TO, iconSize)
+        #bAuto = toolbar1.append_item(
+        #    'Autoplay',
+        #    'Automatically page the EEG',
+        #    'Private',
+        #    iconw,
+        #    self.auto_play)
+
+        self.add_toolbutton1(toolbar1, gtk.STOCK_JUMP_TO, 'Automatically page the EEG', 'Private', self.auto_play)
 
         def close(*args):
             self.destroy()
 
-        iconw = gtk.Image() 
-        iconw.set_from_stock(gtk.STOCK_QUIT, iconSize)
-        button = toolbar1.append_item(
-            'Close',
-            'Close view 3D',
-            'Private',
-            iconw,
-            close)
+        #iconw = gtk.Image() 
+        #iconw.set_from_stock(gtk.STOCK_QUIT, iconSize)
+        #button = toolbar1.append_item(
+        #    'Close',
+        #    'Close view 3D',
+        #    'Private',
+        #    iconw,
+        #    close)
+
+        self.add_toolbutton1(toolbar1, gtk.STOCK_QUIT, 'Close view 3D', 'Private', close)
 
         return toolbar1
 
+    def add_toolitem2(self, toolbar, widget, tip_text):
+        toolitem = gtk.ToolItem()
+        toolitem.add(widget)
+        toolitem.show_all()
+        toolbar.insert(toolitem, -1)
+        
 
     def make_toolbar2(self):
         """
@@ -389,23 +438,34 @@ class View3(gtk.Window, Observer):
         toolbar2.set_style(gtk.TOOLBAR_ICONS)
 
         self._activeBand = 'delta'
-        def set_active_band(menuitem, label):
+        #def set_active_band(menuitem, label):
+        #    self._activeBand = label
+        #    self.plot_band()
+
+        def set_active_band(combobox):
+            model = combobox.get_model()
+            index = combobox.get_active()
+            label = model[index][0]
+
             self._activeBand = label
             self.plot_band()
             
-        bandMenu, bandItemd  = make_option_menu(
-            ('delta', 'theta', 'alpha', 'beta', 'gamma', 'high'),
-            func=set_active_band)
-        toolbar2.append_widget(bandMenu, 'The frequency band', '')
+            return
+            
+        bandMenu = make_option_menu(['delta', 'theta', 'alpha', 'beta', 'gamma', 'high'], func=set_active_band)
+        #toolbar2.append_widget(bandMenu, 'The frequency band', '')
+        self.add_toolitem2(toolbar2, bandMenu, 'The frequency band')
 
 
-
-        def get_thresh_value(menuitem, label):
+        def get_thresh_value(combobox):
+            model = combobox.get_model()
+            index = combobox.get_active()
+            label = model[index][0]
             """
             get_thresh_value(): this function is called when the user
             selects one of the dropdown threshold types ('pct.', 'abs.', etc.)
             and enters a value. this type/value pair is stored in self.thresholdParams.
-
+        
             self.thresholdParams is accessed in the following functions:
                - norm_by_distance()
                - plot_normed_data()
@@ -431,20 +491,22 @@ class View3(gtk.Window, Observer):
                 error_msg('Unrecognized label %s' % label,
                           parent=self)
                 return
-
+        
             oldLabel, oldVal = self.thresholdParams            
             if label==oldLabel: default = oldVal
             value = get_num_value(
                 labelStr=label, title=title, default=default)
-
+        
             if value is None: return
             self.thresholdParams = label, value
             self.plot_band()
             
-        threshMenu, threshItemd  = make_option_menu(
-            ('pct.', 'abs.', 'STD', 'ratio', 'plot'),
-            func=get_thresh_value)
-        toolbar2.append_widget(threshMenu, 'The threshold type', '')
+            return
+            
+        #threshMenu, threshItemd  = make_option_menu(('pct.', 'abs.', 'STD', 'ratio', 'plot'), func=get_thresh_value)
+        threshMenu = make_option_menu(['pct.', 'abs.', 'STD', 'ratio', 'plot'], func=get_thresh_value)
+        #toolbar2.append_widget(threshMenu, 'The threshold type', '')
+        self.add_toolitem2(toolbar2, threshMenu, 'The threshold type')
 
 
         def low_clicked(button):
@@ -454,34 +516,37 @@ class View3(gtk.Window, Observer):
         button = gtk.CheckButton('Low')
         button.show()
         button.set_active(self._low)
-        toolbar2.append_widget(
-            button, 'Only plot low', '')
-
+        #toolbar2.append_widget(button, 'Only plot low', '')
+        self.add_toolitem2(toolbar2,button, 'Only plot low')
         button.connect('toggled', low_clicked)
 
         self.entryMaxDist = gtk.Entry()
         self.entryMaxDist.show()
         self.entryMaxDist.set_text('None')
         self.entryMaxDist.set_width_chars(5)
-        toolbar2.append_widget(self.entryMaxDist, 'Maximum distace', '')
+        #toolbar2.append_widget(self.entryMaxDist, 'Maximum distace', '')
+        self.add_toolitem2(toolbar2, self.entryMaxDist, 'Maximum distance')
 
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_EXECUTE, iconSize)
-        button = toolbar2.append_item(
-            'Replot',
-            'Replot',
-            'Private', 
-            iconw,
-            self.plot_band)
+        #iconw = gtk.Image() # icon widget
+        #iconw.set_from_stock(gtk.STOCK_EXECUTE, iconSize)
+        #button = toolbar2.append_item(
+        #    'Replot',
+        #    'Replot',
+        #    'Private', 
+        #    iconw,
+        #    self.plot_band)
 
-        toolbar2.append_space()
+        self.add_toolbutton1(toolbar2, gtk.STOCK_EXECUTE, 'Replot', 'Private', self.plot_band)
+
+        self.add_separator(toolbar2)
 
         
         self.buttonFollowEvents = gtk.CheckButton('Auto')
         self.buttonFollowEvents.show()
         self.buttonFollowEvents.set_active(False)
-        toolbar2.append_widget(
-            self.buttonFollowEvents, 'Automatically update figure in response to changes in EEG window', '')
+        #toolbar2.append_widget(self.buttonFollowEvents, 'Automatically update figure in response to changes in EEG window', '')
+
+        self.add_toolitem2(toolbar2, self.buttonFollowEvents, 'Automatically update figure in response to changes in EEG window')
 
         def toggled(button):
             
@@ -500,37 +565,39 @@ class View3(gtk.Window, Observer):
         self.buttonSelected = gtk.CheckButton('Selected')
         self.buttonSelected.show()
         self.buttonSelected.set_active(False)
-        toolbar2.append_widget(
-            self.buttonSelected, 'Only plot coherences with selected electrode', '')
+        #toolbar2.append_widget(self.buttonSelected, 'Only plot coherences with selected electrode', '')
+        self.add_toolitem2(toolbar2, self.buttonSelected, 'Only plot coherences with selected electrode')
 
         self.buttonSelected.connect('toggled', toggled)
 
 
 
 
-        def show_image_prefs(button):
+        def show_image_prefs(widget, *args):
             self.imageManager.show_prefs()
             
             
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_NEW, iconSize)
-        buttonNew = toolbar2.append_item(
-            'Image data',
-            'Image data preferences',
-            'Private',
-            iconw,
-            show_image_prefs)
+        #iconw = gtk.Image() # icon widget
+        #iconw.set_from_stock(gtk.STOCK_NEW, iconSize)
+        #buttonNew = toolbar2.append_item(
+        #    'Image data',
+        #    'Image data preferences',
+        #    'Private',
+        #    iconw,
+        #    show_image_prefs)
 
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_COPY, iconSize)
-        buttonCSV = toolbar2.append_item(
-            'Dump CSV',
-            'Dump coherences to CSV',
-            'Private',
-            iconw,
-            self.dump_csv)
-
+        self.add_toolbutton1(toolbar2, gtk.STOCK_NEW, 'Image data preferences', 'Private', show_image_prefs)
         
+        #iconw = gtk.Image() # icon widget
+        #iconw.set_from_stock(gtk.STOCK_COPY, iconSize)
+        #buttonCSV = toolbar2.append_item(
+        #    'Dump CSV',
+        #    'Dump coherences to CSV',
+        #    'Private',
+        #    iconw,
+        #    self.dump_csv)
+
+        self.add_toolbutton1(toolbar2, gtk.STOCK_COPY, 'Dump coherences to CSV', 'Private', self.dump_csv)
 
         return toolbar2
 
@@ -539,7 +606,7 @@ class View3(gtk.Window, Observer):
         self.dumpCsvRadio = data
 
 
-    def dump_csv(self, button):
+    def dump_csv(self, button, *args):
         'dump the coherences to csv'
 		
         try: self.cohereResults
@@ -617,7 +684,7 @@ class View3(gtk.Window, Observer):
 
         simple_msg('CSV file saved to %s'%filename)
         
-    def voltage_map(self, button):
+    def voltage_map(self, button, *args):
         win = VoltageMapWin(self)
         win.show()
 
@@ -838,6 +905,8 @@ class View3(gtk.Window, Observer):
         NFFT = min(NFFT, 512)
         if self.filterGM:            
             data = filter_grand_mean(data)
+
+        #print "View3.compute_coherence(): self.eoiPairs = ", self.eoiPairs
             
         Cxy, Phase, freqs, Pxx = cohere_pairs_eeg(
             eeg,
@@ -910,7 +979,7 @@ class View3(gtk.Window, Observer):
 
         threshType, threshVal = self.thresholdParams
         if threshType=='abs.':
-            predicted = ones(cvec.shape, typecode=Float)
+            predicted = ones(cvec.shape, Float)
             return dvec, cvec, predicted, None
         
 
@@ -965,7 +1034,7 @@ class View3(gtk.Window, Observer):
             ax = fig.add_subplot(111)
             ax.plot(dvec, cvec, 'b,')
             if threshType=='abs.':
-                ax.plot(dvec, cutoff*ones(dvec.shape, typecode=Float), 'r-')
+                ax.plot(dvec, cutoff*ones(dvec.shape, Float), 'r-')
 
         else:
 
@@ -978,19 +1047,19 @@ class View3(gtk.Window, Observer):
                      dsort, psort, 'g-')
 
             if threshType=='abs.':
-                ax1.plot(dvec, cutoff*ones(dvec.shape, typecode=Float), 'r-')
+                ax1.plot(dvec, cutoff*ones(dvec.shape, Float), 'r-')
             ax1.set_ylabel('Absolute')
 
             ax2 = fig.add_subplot(212)
             ax2.plot(dvec, normedvec, 'k,',
-                     dsort, ones(dsort.shape, typecode=Float), 'g-')
+                     dsort, ones(dsort.shape, Float), 'g-')
             ax2.set_ylabel('Normalized')
             ax2.set_xlabel('Distance (cm)')            
 
             #print 'threshType', threshType
             if threshType in ('pct.', 'STD', 'ratio'):
                 #print 'plotting line at', threshVal
-                ax2.plot(dvec, cutoff*ones(dvec.shape, typecode=Float), 'r-')
+                ax2.plot(dvec, cutoff*ones(dvec.shape, Float), 'r-')
                 
 
         toolbar = NavigationToolbar(self.canvas, win)

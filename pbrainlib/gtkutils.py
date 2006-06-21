@@ -4,6 +4,8 @@ import errno, StringIO, traceback
 import gobject, gtk
 from gtk import gdk
 
+import datetime
+
 def is_string_like(obj):
     if hasattr(obj, 'shape'): return 0 # this is a workaround
                                        # for a bug in numeric<23.1
@@ -291,7 +293,6 @@ def make_option_menu_from_strings(keys):
 
 
 class FileManager:
-    
     if sys.platform=='win32':
         last = 'C:\\'
     else: 
@@ -299,6 +300,8 @@ class FileManager:
 
     def __init__(self, parent=None):
         self.parent = parent
+        self.additionalWidget = None
+    
         
     def get_lastdir(self):
         return self.last
@@ -313,6 +316,11 @@ class FileManager:
 
     def get_filename(self, fname=None, title='Select file name', parent=None):
         dlg = gtk.FileSelection(title)
+
+        if (self.additionalWidget):
+            self.additionalWidget.show_all()
+            dlg.action_area.add(self.additionalWidget)
+
         if parent is not None:
             dlg.set_transient_for(parent)
         elif self.parent is not None:
@@ -333,11 +341,16 @@ class FileManager:
             self.set_lastdir(fullpath)
             dlg.destroy()
             return fullpath
+
+        self.additionalWidget = None
         return None
+
+    def add_widget(self, widget):
+        self.additionalWidget  = widget
 
 
 def get_num_range(minLabel='Min', maxLabel='Max',
-                  title='Enter range', parent=None):
+                  title='Enter range', parent=None, as_times=False):
     'Get a min, max numeric range'
     dlg = gtk.Dialog(title)
     if parent is not None:
@@ -380,9 +393,26 @@ def get_num_range(minLabel='Min', maxLabel='Max',
         response = dlg.run()
 
         if response==gtk.RESPONSE_OK:
-            minVal = str2num_or_err(entryMin.get_text(), labelMin, parent)
+            if (as_times):
+                # mccXXX what's the magic code word to unfurl an array into a tuple or untupled comma-separated variables?
+                x= map(int, (entryMin.get_text()).split(':'))
+                try:
+                    minVal = datetime.time(x[0], x[1], x[2])
+                except ValueError:
+                    msg = exception_to_str('ValueError: minVal not in HH:MM:SS format')
+                print "get_num_range (as_times=True): minVal = " , str(minVal)
+            else:
+                minVal = str2num_or_err(entryMin.get_text(), labelMin, parent)
             if minVal is None: continue
-            maxVal = str2num_or_err(entryMax.get_text(), labelMax, parent)
+            if (as_times):
+                x= map(int, (entryMax.get_text()).split(':'))
+                try:
+                    maxVal = datetime.time(x[0], x[1], x[2])
+                except ValueError:
+                    msg = exception_to_str('ValueError: maxVal not in HH:MM:SS format')
+                print "get_num_range (as_times=True): maxVal = " , str(maxVal)
+            else:
+                maxVal = str2num_or_err(entryMax.get_text(), labelMax, parent)
             if maxVal is None: continue
 
             if minVal>maxVal:
@@ -456,21 +486,28 @@ def make_option_menu( names, func=None ):
             def func(menuitem, s):
                 pass
     """
-    optmenu = gtk.OptionMenu()
-    optmenu.show()
-    menu = gtk.Menu()
-    menu.show()
-    d = {}
-    for label in names:
-        item = gtk.MenuItem(label)
-        menu.append(item)
-        item.show()
-        d[item] = label
-        if func is not None:
-            item.connect("activate", func, label)
-    optmenu.set_menu(menu)
-    return optmenu, d
+    #optmenu = gtk.OptionMenu()
+    #optmenu.show()
+    #menu = gtk.Menu()
+    #menu.show()
+    #d = {}
+    #for label in names:
+    #    item = gtk.MenuItem(label)
+    #    menu.append(item)
+    #    item.show()
+    #    d[item] = label
+    #    if func is not None:
+    #        item.connect("activate", func, label)
+    #optmenu.set_menu(menu)
+    #return optmenu, d
 
+    combobox = gtk.combo_box_new_text()
+    for label in names:
+        combobox.append_text(label)
+    combobox.set_active(0)
+    combobox.connect('changed', func)
+    combobox.show_all()
+    return combobox
 
 
 def get_num_value(labelStr='Value', title='Enter value', parent=None,

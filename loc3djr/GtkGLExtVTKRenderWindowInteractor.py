@@ -45,10 +45,10 @@ class GtkGLExtVTKRenderWindowInteractor(gtk.gtkgl.DrawingArea):
 
 
     def set_size_request(self, w, h):
-	gtk.gtkgl.DrawingArea.set_size_request(self, w, h)
-	self._RenderWindow.SetSize(w, h)
-	self._Iren.SetSize(w, h)
-	self._Iren.ConfigureEvent()
+        gtk.gtkgl.DrawingArea.set_size_request(self, w, h)
+        self._RenderWindow.SetSize(w, h)
+        self._Iren.SetSize(w, h)
+        self._Iren.ConfigureEvent()
 	
     def ConnectSignals(self):
         

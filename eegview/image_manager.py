@@ -6,7 +6,7 @@ import gtk, gobject
 
 from loc3djr import image_reader
 from pbrainlib.gtkutils import ButtonAltLabel
-
+from plane_widgets import PlaneWidgetsXYZ
 
 class ImageManager:
     """

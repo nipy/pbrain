@@ -10,16 +10,15 @@ import pygtk
 import gtk
 from scipy.signal import buttord, butter, lfilter
 
-import MLab
-
 import matplotlib.cm as cm
-from matplotlib.mlab import meshgrid
+#from matplotlib.mlab import meshgrid
 from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanvas
 from matplotlib.backends.backend_gtk import NavigationToolbar, NavigationToolbar2GTK
 
 from matplotlib.figure import Figure
 from matplotlib.mlab import detrend_none, detrend_mean, detrend_linear
-from matplotlib.numerix import array, take, cross_correlate, fromstring, arange, Int16, Float, log10, searchsorted
+#from matplotlib.numerix import array, take, cross_correlate, fromstring, arange, Int16, Float, log10, searchsorted, minimum, maximum
+from scipy import array, take, cross_correlate, fromstring, arange, Int16, Float, log10, searchsorted, minimum, maximum
 
 from pbrainlib.gtkutils import error_msg, simple_msg, make_option_menu,\
      get_num_value, get_num_range, get_two_nums, str2num_or_err,\
@@ -29,6 +28,7 @@ from utils import filter_grand_mean
 from events import Observer
 from dialogs import SpecProps
 
+from matplotlib.ticker import ScalarFormatter
 
 class FilterBase:
     """Do nothing filter"""
@@ -138,6 +138,9 @@ class Filter(FilterBase):
         
         
 class MPLWin(gtk.Window, Observer):
+
+        
+    
     """
     Graph a single channel
     """
@@ -152,7 +155,6 @@ class MPLWin(gtk.Window, Observer):
                  }
 
     _detrend = 'Mean'
-
 
 
     def __init__(self, eegplot, packstart=None, packend=None):    
@@ -204,6 +206,20 @@ class MPLWin(gtk.Window, Observer):
         self._init()      # last call before make_plot
         self.make_plot()  #last line!
         
+
+
+    def add_toolbutton(self, icon_name, tip_text, tip_private, clicked_function, clicked_param1=None):
+        iconSize = gtk.ICON_SIZE_SMALL_TOOLBAR
+        iconw = gtk.Image()
+        iconw.set_from_stock(icon_name, iconSize)
+        
+        toolitem = gtk.ToolButton()
+        toolitem.set_icon_widget(iconw)
+        toolitem.show_all()
+        toolitem.set_tooltip(self.tooltips, tip_text, tip_private)
+        toolitem.connect("clicked", clicked_function, clicked_param1)
+        toolitem.connect("scroll_event", clicked_function)
+        self.toolbar.insert(toolitem, -1)
 
     def make_context_menu(self):
         contextMenu = gtk.Menu()
@@ -272,6 +288,7 @@ class MPLWin(gtk.Window, Observer):
         # get the x and y coords, flip y from top to bottom
         height = self.canvas.figure.bbox.height()
         x, y = event.x, height-event.y
+        print "on_move ", x, y
 
         if self.axes.in_axes(x, y):
             # transData transforms data coords to display coords.  Use the
@@ -295,9 +312,6 @@ class MPLWin(gtk.Window, Observer):
         
         toolbar = NavigationToolbar2GTK(self.canvas, self)
 
-
-
-
         next = 8
 
         toolitem = gtk.SeparatorToolItem()
@@ -319,7 +333,7 @@ class MPLWin(gtk.Window, Observer):
         toolitem.add(self.buttonFollowEvents)
         toolbar.insert(toolitem, next); next +=1
 
-
+        # XXX: argh. only available in gtk 2.6
         menu = gtk.MenuToolButton(gtk.STOCK_EDIT)
         menu.show()
         context = self.make_context_menu()
@@ -352,6 +366,7 @@ class MPLWin(gtk.Window, Observer):
 
     def get_data(self):
         'return t, data, dt, label, with t filtered according to selections'
+        print "MPLWin.get_data(): self._filterGM =", self._filterGM
         selected = self.eegplot.get_selected(self._filterGM)
         if selected is None:
             error_msg('You must first select an EEG channel by clicking on it',
@@ -359,6 +374,9 @@ class MPLWin(gtk.Window, Observer):
             return
         t, data, trode = selected
 
+        print "MPLWin.get_data(): data[0:10] is " , data[0:10]
+
+        print "MPLWin.get_data(): self._detrend=", self._detrend
         detrend = self._detrendd[self._detrend]    
 
         data = detrend(self._filter(t, data))
@@ -392,6 +410,7 @@ class ChannelWin(MPLWin):
         tup = self.get_data()
         if tup is None: return 
         t, data, dt, label = tup
+        #print "ChannelWin.make_plot(): data[0:100] is " , data[0:100]
         self.axes.plot(t, data)
         if self.ylim is not None:
             self.axes.set_ylim(self.ylim)
@@ -399,6 +418,7 @@ class ChannelWin(MPLWin):
         self.axes.set_title('Channel %s'%label)
         self.axes.set_xlabel('time(s)')        
 
+        self.axes.yaxis.set_major_formatter(ScalarFormatter())
 
         self.canvas.draw()
 
@@ -580,21 +600,26 @@ class HistogramWin(MPLWin):
 class SpecWin(MPLWin):
     propdlg = SpecProps()
 
-    def _init(self):
-        self.cmap = cm.jet
+    def __init__(self, eegplot):
+ 
         # min and max power
+        self.cmap = cm.jet 
         self.flim = 0, 100   # the defauly yaxis
         self.clim = None     # the colormap limits
                 
-        iconw = gtk.Image()
-        iconw.set_from_stock(gtk.STOCK_PREFERENCES, self._iconSize)
-        bAuto = self.toolbar.append_item(
-            'Properties',
-            'Set the color map properties',
-            'Private',
-            iconw,
-            self.set_properties)
+        MPLWin.__init__(self, eegplot)
+        #iconw = gtk.Image()
+        #iconw.set_from_stock(gtk.STOCK_PREFERENCES, self._iconSize)
 
+        #bAuto = self.toolbar.append_item(
+        #    'Properties',
+        #    'Set the color map properties',
+        #    'Private',
+        #    iconw,
+        #    self.set_properties)
+ 
+        self.tooltips = gtk.Tooltips()
+        self.add_toolbutton(gtk.STOCK_PREFERENCES, 'Set the color map properties', 'Private', self.set_properties)
 
     def set_properties(self, *args):
         dlg = self.propdlg
@@ -646,8 +671,8 @@ class SpecWin(MPLWin):
         t = t + min(torig)
 
         Z = 10*log10(Pxx)
-        self.pmin = MLab.min(MLab.min(Z))
-        self.pmax = MLab.max(MLab.max(Z))
+        self.pmin = minimum.reduce(minimum.reduce(Z))
+        self.pmax = maximum.reduce(maximum.reduce(Z))
         
 
         self.axes.set_xlim( [xmin, xmax] )

@@ -25,7 +25,9 @@ colorSeq = (
 
 colord = dict(colorSeq)
 
-class DecimateFilter(vtk.vtkDecimate):
+# vtkDecimate is patented and no longer in VTK5. we will try vtkDecimatePro (argh)
+#class DecimateFilter(vtk.vtkDecimate):
+class DecimateFilter(vtk.vtkDecimatePro):
     """
     Public attrs:
       targetReduction
@@ -744,7 +746,7 @@ class SurfRendererProps(gtk.Window, Viewer):
         label = gtk.Label('Color: ')
         label.show()
         label.set_alignment(xalign=1.0, yalign=0.5)
-        optmenu, menud = make_option_menu(
+        optmenu = make_option_menu(
             colors, func)
         optmenu.show()
         table.attach(label, 0, 1, 1, 2,
