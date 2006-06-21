@@ -2,7 +2,15 @@ from __future__ import division
 import sys, os, math
 import vtk
 
+#from Numeric import array, zeros, ones, sort, absolute, Float, sqrt, divide,\
+#     argsort, take, arange
+from scipy import array, zeros, ones, sort, absolute, Float, sqrt, divide,\
+     argsort, take, arange
+
 import gtk, gobject
+from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanvas
+from matplotlib.backends.backend_gtkagg import NavigationToolbar
+from matplotlib.figure import Figure
 
 
 

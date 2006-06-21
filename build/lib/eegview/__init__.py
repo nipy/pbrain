@@ -15,7 +15,6 @@ CodeRegistry.register_code(
             
             ] ) )
 
-
 CodeRegistry.register_code(
     'sex',
     Code( [ ('M', 0),
@@ -94,6 +93,7 @@ CodeRegistry.register_code(
             ('Neuroscan CNT' , 3),
             ('Float array' , 4),
             ('W18' , 5),
+            ('AXONASCII' , 6),
             ('Other' ,  98),
             ('Unknown' , 99),
             ] ) )
@@ -122,6 +122,7 @@ CodeRegistry.register_code(
              ('EEG grid data' , 4),
              ('EEG EOI' , 5),
              ('EEG Filt' , 6),
+             ('Neuroscan epoch file' , 14),             
              ('CT zip' , 9),
              ('MRI zip' , 10),
              ('Annotation data', 13),
@@ -172,6 +173,10 @@ CodeRegistry.register_code(
             
             ] ) )
 
+CodeRegistry.register_code(
+    'Annotation code',
+    Code([('Unknown', 99),
+          ('Other', 98)]))
         
 def register_stock_icons():
     try:
@@ -200,8 +205,4 @@ def register_stock_icons():
         factory.add(new_stock, icon_set)
     
 register_stock_icons()            
-        
-        
-        
-    
-    
+

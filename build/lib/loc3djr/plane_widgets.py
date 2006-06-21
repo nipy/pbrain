@@ -3,25 +3,25 @@ from __future__ import division
 
 import vtk
 
-import pygtk
-pygtk.require('2.0')
 import gtk
 
 import re, time
 from gtk import gdk
 from GtkGLExtVTKRenderWindowInteractor import GtkGLExtVTKRenderWindowInteractor
 from GtkGLExtVTKRenderWindow import GtkGLExtVTKRenderWindow
-from Numeric import array
-from MLab import mean
+from scipy import array
+from scipy import mean
 from image_reader import widgets, GladeHandlers
 from pbrainlib.gtkutils import error_msg, simple_msg, ButtonAltLabel, \
-     str2posnum_or_err, ProgressBarDialog, make_option_menu
+     str2posnum_or_err, ProgressBarDialog, make_option_menu, MyToolbar
 from matplotlib.cbook import Bunch
 
 from markers import Marker, RingActor
 from events import EventHandler, UndoRegistry, Viewer
 from shared import shared
 from surf_renderer import SurfRendererProps, SurfRenderWindow
+
+import scipy
 
 INTERACT_CURSOR, MOVE_CURSOR, COLOR_CURSOR, SELECT_CURSOR, DELETE_CURSOR, LABEL_CURSOR = gtk.gdk.ARROW, gtk.gdk.HAND2, gtk.gdk.SPRAYCAN, gtk.gdk.TCROSS, gtk.gdk.X_CURSOR, gtk.gdk.PENCIL
         
@@ -208,7 +208,7 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
             dlg.vbox.pack_start(frame)
 
             entry = gtk.Entry()
-            entry.set_activates_default(gtk.TRUE)            
+            entry.set_activates_default(True)            
             entry.show()
 
             label = marker.get_label()
@@ -285,7 +285,7 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
 
         button = event.button
 
-        gtk.TRUE
+        True
 
     def OnButtonUp(self, wid, event):
         """Mouse button released."""
@@ -308,7 +308,7 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
             if thisCamera != self.lastCamera:
                 UndoRegistry().push_command(self.set_camera, self.lastCamera)
 
-        return gtk.TRUE
+        return True
 
 
 
@@ -570,7 +570,7 @@ class PlaneWidgetsXYZ(MarkerWindowInteractor):
                              
 
         MarkerWindowInteractor.OnButtonDown(self, wid, event)
-        return gtk.TRUE
+        return True
 
     def OnButtonUp(self, wid, event):
         """Mouse button released."""
@@ -587,7 +587,7 @@ class PlaneWidgetsXYZ(MarkerWindowInteractor):
                 self.set_plane_points_xyz, self.lastPntsXYZ)
 
 
-        return gtk.TRUE
+        return True
 
 
 
@@ -790,7 +790,7 @@ class PlaneWidgetObserver(MarkerWindowInteractor):
 
         if pnts != self.lastPnts:
             UndoRegistry().push_command(self.set_plane_points, self.lastPnts)
-        return gtk.TRUE
+        return True
     
 
     def scroll_depth(self, step):
@@ -925,12 +925,12 @@ class PlaneWidgetObserver(MarkerWindowInteractor):
                             rgb=EventHandler().get_default_color())
 
             EventHandler().add_marker(marker)
-            return gtk.TRUE
+            return True
 
         elif (event.keyval == gdk.keyval_from_name("r") or
               event.keyval == gdk.keyval_from_name("R")):
             self.set_camera(self.resetCamera)
-            return gtk.TRUE
+            return True
         
         return MarkerWindowInteractor.OnKeyPress(self, wid, event)
 
@@ -1065,137 +1065,82 @@ class PlaneWidgetObserver(MarkerWindowInteractor):
         transform.Scale(spacing)
         return transform.TransformPoint(pnt)
 
-        
-class MainToolbar(gtk.Toolbar):
+
+    
+class MainToolbar(MyToolbar):
+
+    toolitems = (
+        ('CT Info', 'Load new 3d image', gtk.STOCK_NEW, 'load_image'),
+        ('Markers', 'Load markers from file', gtk.STOCK_OPEN, 'load_from'),
+        ('Save', 'Save markers', gtk.STOCK_SAVE, 'save'),
+        ('Save as ', 'Save markers as new filename', gtk.STOCK_SAVE_AS, 'save_as'),
+        (None, None, None, None),
+        ('Toggle ', 'Toggle labels display', gtk.STOCK_BOLD, 'toggle_labels'),
+        ('Choose', 'Select default marker color', gtk.STOCK_SELECT_COLOR, 'choose_color'),
+        (None, None, None, None),
+        ('Undo', 'Undo changes', gtk.STOCK_UNDO, 'undo_last'),
+        (None, None, None, None),
+        ('Properties', 'Set the plane properties', gtk.STOCK_PROPERTIES, 'set_properties'),
+        ('Surface', 'Set the surface rendering properties', gtk.STOCK_PROPERTIES, 'show_surf_props'),
+        ('Correlation', 'Display Correlations', gtk.STOCK_PROPERTIES, 'show_correlation_props'),
+        )
+
+
     def __init__(self, owner):
-        gtk.Toolbar.__init__(self)
+        MyToolbar.__init__(self)
 
         self.owner = owner
-        iconSize = gtk.ICON_SIZE_SMALL_TOOLBAR
-        
-        self.set_border_width(5)
-        self.set_style(gtk.TOOLBAR_BOTH)
 
         # set the default color
         da = gtk.DrawingArea()
         cmap = da.get_colormap()
         self.lastColor = cmap.alloc_color(0, 0, 65535)
+        # self.build_prop_dialog()
+                                    
+    def show_surf_props(self, button):
+        self.owner.dlgSurf.show()
 
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_NEW, iconSize)
-        buttonNew = self.append_item(
-            'CT Info',
-            'Load new 3d image',
-            'Private',
-            iconw,
-            self.load_image)
-
-        
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_OPEN, iconSize)
-        buttonLoad = self.append_item(
-            'Markers',
-            'Load markers from file',
-            'Private',
-            iconw,
-            self.load_from)
-
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_SAVE, iconSize)
-        buttonSave = self.append_item(
-            'Save',
-            'Save markers',
-            'Private',
-            iconw,
-            self.save)
-
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_SAVE_AS, iconSize)
-        buttonSaveAs = self.append_item(
-            'Save as',
-            'Save markers as',
-            'Private',
-            iconw,
-            self.save_as)
-
-        self.append_space()
+    def load_correlation_from(fname):
+        # opening .mat file with correlation info
+        x = scipy.io.loadmat(fname)
+        y = x['func_proj']
+        print "ch_cmap is " , y.ch_cmap
+        print "ch_idx is " , y.ch_idx
+        print "ch_names is " , y.ch_names
+        print "corr_mat is " , y.corr_mat
+        print "disp_data is" , y.disp_data
 
 
-        def toggle_labels(button):
-            if EventHandler().get_labels_on():                
-                EventHandler().set_labels_off()
+    def show_correlation_props(self, button):
+        dialog = gtk.FileSelection('Choose filename for correlation data')
+        dialog.set_filename(shared.get_last_dir())
+
+        dialog.show()
+        response = dialog.run()
+
+        if response==gtk.RESPONSE_OK:
+            fname = dialog.get_filename()
+            dialog.destroy()
+            try: EventHandler().load_correlation_from(fname)
+            except IOError:
+                error_msg(
+                    'Could not load correlation from %s' % fname, 
+                    )
+            
             else:
-                EventHandler().set_labels_on()
+                shared.set_file_selection(fname)
+                self.fileName = fname
+        else: dialog.destroy()
 
 
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_BOLD, iconSize)
-        buttonToggleLabels = self.append_item(
-            'Toggle',
-            'Toggle labels display',
-            'Private', 
-            iconw,
-            toggle_labels)
+    def undo_last(self, button):
+        UndoRegistry().undo()
 
-
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_SELECT_COLOR, iconSize)
-        buttonChooseColor = self.append_item(
-            'Choose',
-            'Select default marker color',
-            'Private', 
-            iconw,
-            self.choose_color)
-
-            
-
-        self.append_space()
-
-        def undo(button):
-            UndoRegistry().undo()
-            
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_UNDO, iconSize)
-        buttonUndo = self.append_item(
-            'Undo',
-            'Undo changes',
-            'Private',
-            iconw,
-            undo)
-
-        self.append_space()
-
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_PROPERTIES, iconSize)
-        buttonQuit = self.append_item(
-            'Planes',
-            'Set the plane properties',
-            'Private',
-            iconw,
-            self.set_properties)
-
-        def show_surf_props(button):
-            self.owner.dlgSurf.show()
-            
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_PROPERTIES, iconSize)
-        buttonQuit = self.append_item(
-            'Surface',
-            'Set the surface rendering properties',
-            'Private',
-            iconw,
-            show_surf_props)
-
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_QUIT, iconSize)
-        buttonQuit = self.append_item(
-            'Quit',
-            'Quit program',
-            'Private',
-            iconw,
-            lambda button: gtk.mainquit())
-
-        self.build_prop_dialog()
+    def toggle_labels(self, button):
+        if EventHandler().get_labels_on():                
+            EventHandler().set_labels_off()
+        else:
+            EventHandler().set_labels_on()
 
     def get_plane_widgets(self):
         pwx = self.owner.pwxyz.pwX
@@ -1215,21 +1160,34 @@ class MainToolbar(gtk.Toolbar):
         frame = gtk.Frame('Opacity')
         frame.show()
         frame.set_border_width(5)
-        vbox.pack_start(frame, gtk.FALSE, gtk.FALSE)
+        vbox.pack_start(frame, False, False)
 
 
         table = gtk.Table(2,2)
-        table.set_homogeneous(gtk.FALSE)
+        table.set_homogeneous(False)
         table.show()
         table.set_col_spacings(3)
         table.set_row_spacings(3)
         table.set_border_width(3)
         frame.add(table)
 
+        #EitanP -  start
+        frame_size = gtk.Frame('Markers Size')
+        frame_size.show()
+        frame_size.set_border_width(5)
+        vbox.pack_start(frame_size, False, False)
+
+        table_size = gtk.Table(2,2)
+        table_size.set_homogeneous(False)
+        table_size.show()
+        table_size.set_col_spacings(3)
+        table_size.set_row_spacings(3)
+        table_size.set_border_width(3)
+        frame_size.add(table_size)
+        #EitanP -  end
 
         label = gtk.Label('Plane')
         label.show()
-
 
         def set_plane_opacity(bar):
             pwx, pwy, pwz = self.get_plane_widgets()
@@ -1249,12 +1207,11 @@ class MainToolbar(gtk.Toolbar):
         scrollbar.connect('value_changed', set_plane_opacity)
         scrollbar.set_size_request(300,20)
         
-        table.attach(label, 0, 1, 0, 1, xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+        table.attach(label, 0, 1, 0, 1)
         table.attach(scrollbar, 1, 2, 0, 1)
 
         label = gtk.Label('Markers')
         label.show()
-
 
         def set_marker_opacity(bar):
             val = bar.get_value()
@@ -1270,25 +1227,47 @@ class MainToolbar(gtk.Toolbar):
         scrollbar.connect('value_changed', set_marker_opacity)
         scrollbar.set_size_request(300,20)
         
-        table.attach(label, 0, 1, 1, 2, xoptions=gtk.FALSE, yoptions=gtk.FALSE)
-        table.attach(scrollbar, 1, 2, 1, 2)
+        table.attach(label,          0, 1, 1, 2)
+        table.attach(scrollbar,      1, 2, 1, 2)
 
+        #EitanP -  start
+        label = gtk.Label('Markers')
+        label.show()
+        
+        def set_marker_size(bar):
+            val = bar.get_value()
+            for marker in EventHandler().get_markers_as_seq():
+                marker.set_size(val)
+            self.owner.pwxyz.Render()            
+                        
+            self.owner.pwxyz.Render()
+
+        scrollbar_size = gtk.HScrollbar()
+        scrollbar_size.show()
+        scrollbar_size.set_range(0, 20)
+        scrollbar_size.set_value(1)
+        scrollbar_size.connect('value_changed', set_marker_size)
+        scrollbar_size.set_size_request(300,20)
+        table_size.attach(scrollbar_size, 0, 1, 1, 2)
+        #EitanP -  end        
 
         button = gtk.Button('Hide')
         button.show()
-        button.set_use_stock(gtk.TRUE)
+        button.set_use_stock(True)
         button.set_label(gtk.STOCK_CANCEL)
         
         def hide(button):
             self.propDialog.hide()
-            return gtk.TRUE
+            return True
 
         button.connect('clicked', hide)
-        vbox.pack_start(button, gtk.FALSE, gtk.FALSE)
+        vbox.pack_start(button, False, False)
 
+        dlg.hide()
         self.propDialog = dlg
 
     def set_properties(self, *args):
+        self.build_prop_dialog()
         self.propDialog.show()
         
     def load_image(self, *args):
@@ -1385,7 +1364,7 @@ class MainToolbar(gtk.Toolbar):
         
         colorsel.set_previous_color(self.lastColor)
         colorsel.set_current_color(self.lastColor)
-        colorsel.set_has_palette(gtk.TRUE)
+        colorsel.set_has_palette(True)
     
         response = dialog.run()
         
@@ -1411,71 +1390,90 @@ class InteractorToolbar(gtk.Toolbar):
         self.set_style(gtk.TOOLBAR_BOTH)
         #self.set_orientation(gtk.ORIENTATION_VERTICAL)
 
-        def notify(button, event):
-            EventHandler().notify(event)
+    def add_toolbutton1(self, icon_name, tip_text, tip_private, clicked_function, clicked_param1=None):
+        iconSize = gtk.ICON_SIZE_SMALL_TOOLBAR
+        iconw = gtk.Image()
+        iconw.set_from_stock(icon_name, iconSize)
+            
+        toolitem = gtk.ToolButton()
+        toolitem.set_icon_widget(iconw)
+        toolitem.show_all()
+        toolitem.set_tooltip(self.tooltips1, tip_text, tip_private)
+        toolitem.connect("clicked", clicked_function, clicked_param1)
+        toolitem.connect("scroll_event", clicked_function)
+        self.insert(toolitem, -1)
 
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_REFRESH, iconSize)
-        buttonInteract = self.append_item(
-            'Interact',
-            'Enable mouse rotate/pan/zoom',
-            'Private',
-            iconw,
-            notify,
-            'mouse1 interact')
+    def notify(button, event):
+        EventHandler().notify(event)
+
+        #iconw = gtk.Image() # icon widget
+        #iconw.set_from_stock(gtk.STOCK_REFRESH, iconSize)
+        #buttonInteract = self.append_item(
+        #    'Interact',
+        #    'Enable mouse rotate/pan/zoom',
+        #    'Private',
+        #    iconw,
+        #    notify,
+        #    'mouse1 interact')
+        self.add_toolbutton1(gtk.STOCK_REFRESH, 'Enable mouse rotate pan/zoom', 'Private', notify, 'mouse1 interact')
+
+
+        #iconw = gtk.Image() # icon widget
+        #iconw.set_from_stock(gtk.STOCK_BOLD, iconSize)
+        #buttonLabel = self.append_item(
+        #    'Label',
+        #    'Label clicked markers',
+        #    'Private',
+        #    iconw,
+        #    notify,
+        #    'mouse1 label')
+        self.add_toolbutton1(gtk.STOCK_BOLD, 'Label clicked markers', 'Private', notify, 'mouse1 label')
         
 
-
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_BOLD, iconSize)
-        buttonLabel = self.append_item(
-            'Label',
-            'Label clicked markers',
-            'Private',
-            iconw,
-            notify,
-            'mouse1 label')
-
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_APPLY, iconSize)
-        buttonSelect = self.append_item(
-            'Select',
-            'Select clicked markers',
-            'Private',
-            iconw,
-            notify,
-            'mouse1 select')
+        #iconw = gtk.Image() # icon widget
+        #iconw.set_from_stock(gtk.STOCK_APPLY, iconSize)
+        #buttonSelect = self.append_item(
+        #    'Select',
+        #    'Select clicked markers',
+        #    'Private',
+        #    iconw,
+        #    notify,
+        #    'mouse1 select')
+        self.add_toolbutton1(gtk.STOCK_APPLY, 'Select clicked markers', 'Private', notify, 'mouse1 select')
 
 
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_CLEAR, iconSize)
-        buttonColor = self.append_item(
-            'Color',
-            'Set marker color',
-            'Private', 
-            iconw,
-            notify,
-            'mouse1 color')
+        #iconw = gtk.Image() # icon widget
+        #iconw.set_from_stock(gtk.STOCK_CLEAR, iconSize)
+        #buttonColor = self.append_item(
+        #    'Color',
+        #    'Set marker color',
+        #    'Private', 
+        #    iconw,
+        #    notify,
+        #    'mouse1 color')
+        self.add_toolbutton1(gtk.STOCK_CLEAR, 'Set marker color', 'Private', notify, 'mouse1 color')
 
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_GO_FORWARD, iconSize)
-        buttonColor = self.append_item(
-            'Move',
-            'Move markers',
-            'Private', 
-            iconw,
-            notify,
-            'mouse1 move')
+        #iconw = gtk.Image() # icon widget
+        #iconw.set_from_stock(gtk.STOCK_GO_FORWARD, iconSize)
+        #buttonColor = self.append_item(
+        #    'Move',
+        #    'Move markers',
+        #    'Private', 
+        #    iconw,
+        #    notify,
+        #    'mouse1 move')
+        self.add_toolbutton1(gtk.STOCK_GO_FORWARD, 'Move markers', 'Private', notify, 'mouse1 move')
 
-        iconw = gtk.Image() # icon widget
-        iconw.set_from_stock(gtk.STOCK_DELETE, iconSize)
-        buttonDelete = self.append_item(
-            'Delete',
-            'Delete clicked markers',
-            'Private', 
-            iconw,
-            notify,
-            'mouse1 delete')
+        #iconw = gtk.Image() # icon widget
+        #iconw.set_from_stock(gtk.STOCK_DELETE, iconSize)
+        #buttonDelete = self.append_item(
+        #    'Delete',
+        #    'Delete clicked markers',
+        #    'Private', 
+        #    iconw,
+        #    notify,
+        #    'mouse1 delete')
+        self.add_toolbutton1(gtk.STOCK_DELETE, 'Delete clicked markers', 'Private', notify, 'mouse1 delete')        
 
 class ObserverToolbar(gtk.Toolbar):
     def __init__(self, pwo):
@@ -1595,6 +1593,15 @@ class ObserverToolbar(gtk.Toolbar):
 
             
 class PlaneWidgetsWithObservers(gtk.VBox):
+    """
+    CLASS: PlaneWidgetsWithObservers
+    DESC: controls:
+        - PlaneWidgetsXYZ
+        - SurfRenderWindow
+        - MainToolbar
+        - InteractorToolbar
+        - SurfRendererProps
+    """
     def __init__(self, mainWindow, imageData=None):
         gtk.VBox.__init__(self, spacing=3)
         self.mainWindow = mainWindow
@@ -1609,7 +1616,7 @@ class PlaneWidgetsWithObservers(gtk.VBox):
         toolbar = MainToolbar(owner=self)
         toolbar.show()
         toolbar.set_orientation(gtk.ORIENTATION_HORIZONTAL)        
-        self.pack_start(toolbar, gtk.FALSE, gtk.FALSE)
+        self.pack_start(toolbar, False, False)
         self.mainToolbar = toolbar
         
         toolbarInteractor = InteractorToolbar()
@@ -1626,23 +1633,23 @@ class PlaneWidgetsWithObservers(gtk.VBox):
         hbox.show()
 
 
-        vboxTools.pack_start(toolbarInteractor, gtk.FALSE, gtk.FALSE)
+        vboxTools.pack_start(toolbarInteractor, False, False)
 
-        hbox.pack_start(vboxTools, gtk.FALSE, gtk.FALSE)
-        self.pack_start(hbox, gtk.TRUE, gtk.TRUE)
+        hbox.pack_start(vboxTools, False, False)
+        self.pack_start(hbox, True, True)
 
 
         vbox = gtk.VBox(spacing=border)
         #vbox.set_border_width(border)
         vbox.show()
-        hbox.pack_start(vbox, gtk.TRUE, gtk.TRUE)
+        hbox.pack_start(vbox, True, True)
 
 
         hboxUpper = gtk.HBox(spacing=border)
         hboxUpper.show()
-        hboxUpper.pack_start(self.pwxyz, gtk.TRUE, gtk.TRUE)
-        hboxUpper.pack_start(self.surfRenWin, gtk.TRUE, gtk.TRUE)
-        vbox.pack_start(hboxUpper, gtk.TRUE, gtk.TRUE)
+        hboxUpper.pack_start(self.pwxyz, True, True)
+        hboxUpper.pack_start(self.surfRenWin, True, True)
+        vbox.pack_start(hboxUpper, True, True)
 
         pwx, pwy, pwz = self.pwxyz.get_plane_widgets_xyz()
 
@@ -1650,41 +1657,41 @@ class PlaneWidgetsWithObservers(gtk.VBox):
         hbox = gtk.HBox(spacing=border)
         #hbox.set_border_width(border)
         hbox.show()
-        vbox.pack_start(hbox, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(hbox, True, True)
 
         vboxObs = gtk.VBox()
         vboxObs.show()
         self.observerX = PlaneWidgetObserver(pwx, owner=self, orientation=0)
         self.observerX.show()
 
-        vboxObs.pack_start(self.observerX, gtk.TRUE, gtk.TRUE)
+        vboxObs.pack_start(self.observerX, True, True)
         toolbarX = ObserverToolbar(self.observerX)
         toolbarX.show()
-        vboxObs.pack_start(toolbarX, gtk.FALSE, gtk.FALSE)
-        hbox.pack_start(vboxObs, gtk.TRUE, gtk.TRUE)
+        vboxObs.pack_start(toolbarX, False, False)
+        hbox.pack_start(vboxObs, True, True)
 
         vboxObs = gtk.VBox()
         vboxObs.show()
         self.observerY = PlaneWidgetObserver(pwy, owner=self, orientation=1)
         self.observerY.show()
-        vboxObs.pack_start(self.observerY, gtk.TRUE, gtk.TRUE)
+        vboxObs.pack_start(self.observerY, True, True)
         toolbarY = ObserverToolbar(self.observerY)
         toolbarY.show()
-        vboxObs.pack_start(toolbarY, gtk.FALSE, gtk.FALSE)
-        hbox.pack_start(vboxObs, gtk.TRUE, gtk.TRUE)
+        vboxObs.pack_start(toolbarY, False, False)
+        hbox.pack_start(vboxObs, True, True)
 
         vboxObs = gtk.VBox()
         vboxObs.show()
         self.observerZ = PlaneWidgetObserver(pwz, owner=self, orientation=2)
         self.observerZ.show()
-        vboxObs.pack_start(self.observerZ, gtk.TRUE, gtk.TRUE)
+        vboxObs.pack_start(self.observerZ, True, True)
         toolbarZ = ObserverToolbar(self.observerZ)
         toolbarZ.show()
 
 
 
-        vboxObs.pack_start(toolbarZ, gtk.FALSE, gtk.FALSE)
-        hbox.pack_start(vboxObs, gtk.TRUE, gtk.TRUE)
+        vboxObs.pack_start(toolbarZ, False, False)
+        hbox.pack_start(vboxObs, True, True)
 
         #self.pwxyz.set_size_request(450, 150)
         #self.observerX.set_size_request(150, 150)

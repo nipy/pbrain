@@ -1,11 +1,10 @@
 import os, sys
 import errno, StringIO, traceback
 
-import gtk
+import gobject, gtk
 from gtk import gdk
-import gobject
-import gtk
 
+import datetime
 
 def is_string_like(obj):
     if hasattr(obj, 'shape'): return 0 # this is a workaround
@@ -294,7 +293,6 @@ def make_option_menu_from_strings(keys):
 
 
 class FileManager:
-    
     if sys.platform=='win32':
         last = 'C:\\'
     else: 
@@ -302,6 +300,8 @@ class FileManager:
 
     def __init__(self, parent=None):
         self.parent = parent
+        self.additionalWidget = None
+    
         
     def get_lastdir(self):
         return self.last
@@ -316,6 +316,11 @@ class FileManager:
 
     def get_filename(self, fname=None, title='Select file name', parent=None):
         dlg = gtk.FileSelection(title)
+
+        if (self.additionalWidget):
+            self.additionalWidget.show_all()
+            dlg.action_area.add(self.additionalWidget)
+
         if parent is not None:
             dlg.set_transient_for(parent)
         elif self.parent is not None:
@@ -336,11 +341,16 @@ class FileManager:
             self.set_lastdir(fullpath)
             dlg.destroy()
             return fullpath
+
+        self.additionalWidget = None
         return None
+
+    def add_widget(self, widget):
+        self.additionalWidget  = widget
 
 
 def get_num_range(minLabel='Min', maxLabel='Max',
-                  title='Enter range', parent=None):
+                  title='Enter range', parent=None, as_times=False):
     'Get a min, max numeric range'
     dlg = gtk.Dialog(title)
     if parent is not None:
@@ -383,9 +393,26 @@ def get_num_range(minLabel='Min', maxLabel='Max',
         response = dlg.run()
 
         if response==gtk.RESPONSE_OK:
-            minVal = str2num_or_err(entryMin.get_text(), labelMin, parent)
+            if (as_times):
+                # mccXXX what's the magic code word to unfurl an array into a tuple or untupled comma-separated variables?
+                x= map(int, (entryMin.get_text()).split(':'))
+                try:
+                    minVal = datetime.time(x[0], x[1], x[2])
+                except ValueError:
+                    msg = exception_to_str('ValueError: minVal not in HH:MM:SS format')
+                print "get_num_range (as_times=True): minVal = " , str(minVal)
+            else:
+                minVal = str2num_or_err(entryMin.get_text(), labelMin, parent)
             if minVal is None: continue
-            maxVal = str2num_or_err(entryMax.get_text(), labelMax, parent)
+            if (as_times):
+                x= map(int, (entryMax.get_text()).split(':'))
+                try:
+                    maxVal = datetime.time(x[0], x[1], x[2])
+                except ValueError:
+                    msg = exception_to_str('ValueError: maxVal not in HH:MM:SS format')
+                print "get_num_range (as_times=True): maxVal = " , str(maxVal)
+            else:
+                maxVal = str2num_or_err(entryMax.get_text(), labelMax, parent)
             if maxVal is None: continue
 
             if minVal>maxVal:
@@ -459,21 +486,28 @@ def make_option_menu( names, func=None ):
             def func(menuitem, s):
                 pass
     """
-    optmenu = gtk.OptionMenu()
-    optmenu.show()
-    menu = gtk.Menu()
-    menu.show()
-    d = {}
-    for label in names:
-        item = gtk.MenuItem(label)
-        menu.append(item)
-        item.show()
-        d[item] = label
-        if func is not None:
-            item.connect("activate", func, label)
-    optmenu.set_menu(menu)
-    return optmenu, d
+    #optmenu = gtk.OptionMenu()
+    #optmenu.show()
+    #menu = gtk.Menu()
+    #menu.show()
+    #d = {}
+    #for label in names:
+    #    item = gtk.MenuItem(label)
+    #    menu.append(item)
+    #    item.show()
+    #    d[item] = label
+    #    if func is not None:
+    #        item.connect("activate", func, label)
+    #optmenu.set_menu(menu)
+    #return optmenu, d
 
+    combobox = gtk.combo_box_new_text()
+    for label in names:
+        combobox.append_text(label)
+    combobox.set_active(0)
+    combobox.connect('changed', func)
+    combobox.show_all()
+    return combobox
 
 
 def get_num_value(labelStr='Value', title='Enter value', parent=None,
@@ -820,3 +854,74 @@ gtk.main()
 
 
         
+class MyToolbar(gtk.Toolbar):
+    """
+    Compatability toolbar for pygtk2.2 and 2.4 (thanks to Steve
+    Chaplin in the mpl gtk backend) for basic code
+
+    Derived must provide toolitems, eg
+    toolitems = [ 
+      (button_str, tooltip_str, STOCK, callback_str),
+      (button_str, tooltip_str, STOCK, callback_str),
+      ]
+
+    Examples:
+        ('CT Info', 'Load new 3d image', gtk.STOCK_NEW, 'load_image'),
+        ('Markers', 'Load markers from file', gtk.STOCK_OPEN, 'load_from'),
+        (None, None, None, None),
+
+    None will add a separator.  If the callback is 'some_callback',
+    derived must define
+
+    def some_callback(self, button):
+        blah
+
+
+   
+    """
+    iconSize = gtk.ICON_SIZE_SMALL_TOOLBAR
+    def __init__(self):
+        gtk.Toolbar.__init__(self)
+        self.set_border_width(5)
+        self.set_style(gtk.TOOLBAR_BOTH)
+
+        if gtk.pygtk_version >= (2,4,0):
+            self._init_toolbar2_4()
+        else:
+            self._init_toolbar2_2()
+
+
+    def _init_toolbar2_2(self):
+
+        for text, tooltip_text, stock, callback in self.toolitems:
+            if text == None:
+                 self.append_space()
+                 continue
+            
+            image = gtk.Image()
+            image.set_from_stock(stock, self.iconSize)
+            w = self.append_item(text,
+                                 tooltip_text,
+                                 'Private',
+                                 image,
+                                 getattr(self, callback)
+                                 )
+
+    def _init_toolbar2_4(self):
+
+        self.tooltips = gtk.Tooltips()
+
+        for text, tooltip_text, stock, callback in self.toolitems:
+            if text == None:
+                self.insert( gtk.SeparatorToolItem(), -1 )
+                continue
+            image = gtk.Image()
+            image.set_from_stock(stock, self.iconSize)
+            tbutton = gtk.ToolButton(image, text)
+            self.insert(tbutton, -1)
+            tbutton.connect('clicked', getattr(self, callback))
+            tbutton.set_tooltip(self.tooltips, tooltip_text, 'Private')
+
+
+
+        self.show_all()

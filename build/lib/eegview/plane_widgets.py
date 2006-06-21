@@ -8,16 +8,18 @@ import pygtk
 import gtk
 
 import re, time
+import loc3djr
 from gtk import gdk
-from GtkGLExtVTKRenderWindowInteractor import GtkGLExtVTKRenderWindowInteractor
-from GtkGLExtVTKRenderWindow import GtkGLExtVTKRenderWindow
-from Numeric import array
-from image_reader import widgets, GladeHandlers
+from loc3djr.GtkGLExtVTKRenderWindowInteractor import GtkGLExtVTKRenderWindowInteractor
+from loc3djr.GtkGLExtVTKRenderWindow import GtkGLExtVTKRenderWindow
+#from Numeric import array
+from scipy import array
+from loc3djr.image_reader import widgets, GladeHandlers
 from pbrainlib.gtkutils import error_msg, simple_msg
 
-from markers import Marker, RingActor
-from events import EventHandler, UndoRegistry, Viewer
-from shared import shared
+from loc3djr.markers import Marker, RingActor
+from loc3djr.events import EventHandler, UndoRegistry, Viewer
+from loc3djr.shared import shared
 
         
 def move_pw_to_point(pw, xyz):
@@ -190,7 +192,7 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
 
             entry = gtk.Entry()
             entry.show()
-            entry.set_activates_default(gtk.TRUE)
+            entry.set_activates_default(True)
             label = marker.get_label()
             defaultLabel = label
             if defaultLabel=='' and self.lastLabel is not None:
@@ -258,7 +260,7 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
 
         button = event.button
 
-        gtk.TRUE
+        True
 
     def OnButtonUp(self, wid, event):
         """Mouse button released."""
@@ -281,7 +283,7 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
             if thisCamera != self.lastCamera:
                 UndoRegistry().push_command(self.set_camera, self.lastCamera)
 
-        return gtk.TRUE
+        return True
 
 
 
@@ -545,7 +547,7 @@ class PlaneWidgetsXYZ(MarkerWindowInteractor):
                              
 
         MarkerWindowInteractor.OnButtonDown(self, wid, event)
-        return gtk.TRUE
+        return True
 
     def OnButtonUp(self, wid, event):
         """Mouse button released."""
@@ -562,7 +564,7 @@ class PlaneWidgetsXYZ(MarkerWindowInteractor):
                     self.set_plane_points_xyz, self.lastPntsXYZ)
 
 
-        return gtk.TRUE
+        return True
 
 
 
@@ -872,7 +874,7 @@ class PlaneWidgetObserver(MarkerWindowInteractor):
         pnts = self.get_plane_points()
         if pnts != self.lastPnts:
             UndoRegistry().push_command(self.set_plane_points, self.lastPnts)
-        return gtk.TRUE
+        return True
     
 
     def scroll_depth(self, step):
@@ -1006,12 +1008,12 @@ class PlaneWidgetObserver(MarkerWindowInteractor):
                             rgb=EventHandler().get_default_color())
 
             EventHandler().add_marker(marker)
-            return gtk.TRUE
+            return True
 
         elif (event.keyval == gdk.keyval_from_name("r") or
               event.keyval == gdk.keyval_from_name("R")):
             self.set_camera(self.resetCamera)
-            return gtk.TRUE
+            return True
         
         return MarkerWindowInteractor.OnKeyPress(self, wid, event)
 
@@ -1284,11 +1286,11 @@ class MainToolbar(gtk.Toolbar):
         frame = gtk.Frame('Opacity')
         frame.show()
         frame.set_border_width(5)
-        vbox.pack_start(frame, gtk.FALSE, gtk.FALSE)
+        vbox.pack_start(frame, False, False)
 
 
         table = gtk.Table(2,2)
-        table.set_homogeneous(gtk.FALSE)
+        table.set_homogeneous(False)
         table.show()
         table.set_col_spacings(3)
         table.set_row_spacings(3)
@@ -1318,7 +1320,7 @@ class MainToolbar(gtk.Toolbar):
         scrollbar.connect('value_changed', set_plane_opacity)
         scrollbar.set_size_request(300,20)
         
-        table.attach(label, 0, 1, 0, 1, xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+        table.attach(label, 0, 1, 0, 1, xoptions=False, yoptions=False)
         table.attach(scrollbar, 1, 2, 0, 1)
 
         label = gtk.Label('Markers')
@@ -1338,19 +1340,19 @@ class MainToolbar(gtk.Toolbar):
         scrollbar.connect('value_changed', set_marker_opacity)
         scrollbar.set_size_request(300,20)
         
-        table.attach(label, 0, 1, 1, 2, xoptions=gtk.FALSE, yoptions=gtk.FALSE)
+        table.attach(label, 0, 1, 1, 2, xoptions=False, yoptions=False)
         table.attach(scrollbar, 1, 2, 1, 2)
 
 
         button = gtk.Button('Hide')
         button.show()
-        button.set_use_stock(gtk.TRUE)
+        button.set_use_stock(True)
         button.set_label(gtk.STOCK_CANCEL)
         
         def hide(button):
             self.propDialog.hide()
         button.connect('clicked', hide)
-        vbox.pack_start(button, gtk.FALSE, gtk.FALSE)
+        vbox.pack_start(button, False, False)
 
         self.propDialog = dlg
 
@@ -1438,7 +1440,7 @@ class MainToolbar(gtk.Toolbar):
         
         colorsel.set_previous_color(self.lastColor)
         colorsel.set_current_color(self.lastColor)
-        colorsel.set_has_palette(gtk.TRUE)
+        colorsel.set_has_palette(True)
     
         response = dialog.run()
         
@@ -1658,7 +1660,7 @@ class PlaneWidgetsWithObservers(gtk.VBox):
         toolbar = MainToolbar(owner=self)
         toolbar.show()
         toolbar.set_orientation(gtk.ORIENTATION_HORIZONTAL)        
-        self.pack_start(toolbar, gtk.FALSE, gtk.FALSE)
+        self.pack_start(toolbar, False, False)
         self.mainToolbar = toolbar
         
         toolbarInteractor = InteractorToolbar()
@@ -1668,54 +1670,54 @@ class PlaneWidgetsWithObservers(gtk.VBox):
         hbox = gtk.HBox(spacing=border)
         #hbox.set_border_width(border)
         hbox.show()
-        hbox.pack_start(toolbarInteractor, gtk.FALSE, gtk.FALSE)
-        self.pack_start(hbox, gtk.TRUE, gtk.TRUE)
+        hbox.pack_start(toolbarInteractor, False, False)
+        self.pack_start(hbox, True, True)
 
 
         vbox = gtk.VBox(spacing=border)
         #vbox.set_border_width(border)
         vbox.show()
-        hbox.pack_start(vbox, gtk.TRUE, gtk.TRUE)
-        vbox.pack_start(self.pwxyz, gtk.TRUE, gtk.TRUE)
+        hbox.pack_start(vbox, True, True)
+        vbox.pack_start(self.pwxyz, True, True)
 
         pwx, pwy, pwz = self.pwxyz.get_plane_widgets_xyz()
 
         hbox = gtk.HBox(spacing=border)
         #hbox.set_border_width(border)
         hbox.show()
-        vbox.pack_start(hbox, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(hbox, True, True)
 
         vboxObs = gtk.VBox()
         vboxObs.show()
         self.observerX = PlaneWidgetObserver(pwx, owner=self, orientation=0)
         self.observerX.show()
 
-        vboxObs.pack_start(self.observerX, gtk.TRUE, gtk.TRUE)
+        vboxObs.pack_start(self.observerX, True, True)
         toolbarX = ObserverToolbar(self.observerX)
         toolbarX.show()
-        vboxObs.pack_start(toolbarX, gtk.FALSE, gtk.FALSE)
-        hbox.pack_start(vboxObs, gtk.TRUE, gtk.TRUE)
+        vboxObs.pack_start(toolbarX, False, False)
+        hbox.pack_start(vboxObs, True, True)
 
         vboxObs = gtk.VBox()
         vboxObs.show()
         self.observerY = PlaneWidgetObserver(pwy, owner=self, orientation=1)
         self.observerY.show()
-        vboxObs.pack_start(self.observerY, gtk.TRUE, gtk.TRUE)
+        vboxObs.pack_start(self.observerY, True, True)
         toolbarY = ObserverToolbar(self.observerY)
         toolbarY.show()
-        vboxObs.pack_start(toolbarY, gtk.FALSE, gtk.FALSE)
-        hbox.pack_start(vboxObs, gtk.TRUE, gtk.TRUE)
+        vboxObs.pack_start(toolbarY, False, False)
+        hbox.pack_start(vboxObs, True, True)
 
         vboxObs = gtk.VBox()
         vboxObs.show()
         self.observerZ = PlaneWidgetObserver(pwz, owner=self, orientation=2)
         self.observerZ.show()
-        vboxObs.pack_start(self.observerZ, gtk.TRUE, gtk.TRUE)
+        vboxObs.pack_start(self.observerZ, True, True)
         toolbarZ = ObserverToolbar(self.observerZ)
         toolbarZ.show()
 
-        vboxObs.pack_start(toolbarZ, gtk.FALSE, gtk.FALSE)
-        hbox.pack_start(vboxObs, gtk.TRUE, gtk.TRUE)
+        vboxObs.pack_start(toolbarZ, False, False)
+        hbox.pack_start(vboxObs, True, True)
 
         #self.pwxyz.set_size_request(450, 150)
         #self.observerX.set_size_request(150, 150)

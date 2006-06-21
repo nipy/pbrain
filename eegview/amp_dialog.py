@@ -5,6 +5,7 @@ import vtk
 import gtk, gobject
 
 from data import Amp
+from pbrainlib.gtkutils import str2int_or_err
 
 
 class AmpDialog(gtk.Dialog):

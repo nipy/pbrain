@@ -2,23 +2,19 @@ from __future__ import division
 import os, pickle, sys
 import vtk
 
-import pygtk
-pygtk.require('2.0')
 import gtk
 import gtk.glade
 from gtk import gdk
 from GtkGLExtVTKRenderWindowInteractor import GtkGLExtVTKRenderWindowInteractor
 from GtkGLExtVTKRenderWindow import GtkGLExtVTKRenderWindow
 
-from Numeric import array
+from scipy import array
 
 from pbrainlib.gtkutils import error_msg, simple_msg, ProgressBarDialog,\
      str2posint_or_err, str2posnum_or_err, str2int_or_err
 from shared import shared
 
 import distutils.sysconfig
-
-
 
 # We put all of our gtk signal handlers into a class.  This lets us bind
 # all of them at once, because their names are in the class dict.
@@ -44,7 +40,7 @@ class GladeHandlers:
            dialog.destroy()
 
     def on_buttonOpenInfo_clicked(button=None):
-                   
+	
         dialog = gtk.FileSelection('Choose info file')
         dialog.set_transient_for(widgets['dlgReader'])
         dialog.set_filename(widgets['entryInfoFile'].get_text() or
@@ -53,12 +49,11 @@ class GladeHandlers:
         fname = dialog.get_filename()
         dialog.destroy()
         if response == gtk.RESPONSE_OK:
-           if widgets.load_params_from_file(fname):
-              GladeHandlers.__dict__['on_buttonPreview_clicked']()
-              shared.set_file_selection(fname)
+            if widgets.load_params_from_file(fname):
+                GladeHandlers.__dict__['on_buttonPreview_clicked']()
+                shared.set_file_selection(fname)
         
     def on_buttonSaveAsInfo_clicked(button=None):
-
             
         dialog = gtk.FileSelection('Choose info file to save parameters to')
         dialog.set_transient_for(widgets['dlgReader'])
@@ -112,14 +107,13 @@ class GladeHandlers:
 
     
     def on_buttonCancel_clicked(button=None):
-        gtk.mainquit()
+        gtk.main_quit()
 
     def on_radiobuttonDimOther_toggled(button=None):
         if button.get_active(): otherSens = 1
         else: otherSens = 0
         widgets['entryDim1'].set_sensitive(otherSens)
         widgets['entryDim2'].set_sensitive(otherSens)
-        
     def on_radiobuttonBytes1_toggled(button=None):
 
         # if BMP is on, turn of the vol16 widgets
@@ -145,7 +139,7 @@ class GladeHandlers:
         widgets.preview.Render()
 
     def on_hscrollbarSlice_value_changed(bar):
-        print 'slice #', bar.get_value()
+        #print 'slice #', bar.get_value()
         widgets.viewer.SetZSlice(int(bar.get_value()))
         widgets.preview.Render()
 
@@ -173,7 +167,7 @@ class WidgetsWrapper:
 
         self.renderer = self.viewer.GetRenderer()
         self.preview.GetRenderWindow().AddRenderer(self.renderer)
-        self['vboxPreview'].pack_start(self.preview, gtk.FALSE, gtk.FALSE)
+        self['vboxPreview'].pack_start(self.preview, False, False)
         self['vboxPreview'].reorder_child(self.preview, 1)
         
     # Gives us the ability to do: widgets['widget_name'].action()
@@ -186,17 +180,17 @@ class WidgetsWrapper:
         elif widgets['radiobuttonDimOther'].get_active():
             dim = (widgets['entryDim1'].get_text(),
                    widgets['entryDim2'].get_text())
-
         
         if widgets['radiobuttonBytes1'].get_active():
             readerClass = 'vtkBMPReader'
         elif widgets['radiobuttonBytes2'].get_active():
             readerClass = 'vtkImageReader2'
+        elif widgets['radiobuttonBytes3'].get_active():
+            readerClass = 'vtkDICOMImageReader'
         else: readerClass = None
         if widgets['radiobuttonOrderBig'].get_active(): order = 'big endian'
         elif widgets['radiobuttonOrderLittle'].get_active(): order = 'little endian'
         else: order = None
-
 
         p = Params()
         
@@ -225,8 +219,9 @@ class WidgetsWrapper:
 
        p = Params()
        p.from_string(s)
-
+       
        widgets.set_params(p)     
+
        widgets['entryInfoFile'].set_text(fname)
        return 1
 
@@ -255,9 +250,12 @@ class WidgetsWrapper:
 
     def set_params(self, o):
        
-
-       if o.readerClass=='vtkImageReader2': bytes2=1
-       else: bytes2 = 0
+       if o.readerClass=='vtkDICOMImageReader':
+            bytes2=2
+       elif o.readerClass=='vtkImageReader2':
+            bytes2=1
+       else: 
+            bytes2 = 0
 
        group = widgets['radiobuttonOrderBig'].get_group()            
        for b in group: b.set_sensitive(bytes2)
@@ -271,13 +269,16 @@ class WidgetsWrapper:
        elif o.order == 'little endian':
           widgets['radiobuttonOrderLittle'].set_active(1)
 
-       if bytes2:
+       if bytes2==2: #vtkDICOMImageReader
+          widgets['radiobuttonBytes3'].set_active(1) 
+       elif bytes2==1: #vtkImageReader2
           widgets['radiobuttonBytes2'].set_active(1) 
-       else:
+       else: #vtkBITMAP
           widgets['radiobuttonBytes1'].set_active(1)
 
-
-
+       if os.path.isdir(o.dir):
+          widgets['entryDir'].set_text(o.dir)
+          
        if o.dimensions[0] == 256 and o.dimensions[1] == 256:
           widgets['radiobuttonDim256'].set_active(1)
        elif o.dimensions[0] == 512 and o.dimensions[1] == 512:
@@ -286,10 +287,6 @@ class WidgetsWrapper:
           widgets['radiobuttonDimOther'].set_active(1)
           widgets['entryDim1'].set_text(str(o.dimensions[0]))
           widgets['entryDim2'].set_text(str(o.dimensions[1]))
-
-
-       if os.path.isdir(o.dir):
-          widgets['entryDir'].set_text(o.dir)
 
        widgets['entryPrefix'].set_text(o.prefix)
        widgets['entryExt'].set_text(o.extension)
@@ -394,6 +391,8 @@ class WidgetsWrapper:
        
         reader = get_reader(o)
         self.reader = reader
+        widgets.set_params(o)
+
         return reader
 
     def get_color_level(self):
@@ -412,6 +411,8 @@ def get_reader(o):
         ReaderClass = vtk.vtkBMPReader
     elif o.readerClass=='vtkImageReader2':
         ReaderClass = vtk.vtkImageReader2
+    elif o.readerClass=='vtkDICOMImageReader':
+        ReaderClass = vtk.vtkDICOMImageReader
     reader = ReaderClass()
     
     if ReaderClass==vtk.vtkImageReader2:
@@ -428,13 +429,27 @@ def get_reader(o):
             reader.SetDataMask(o.mask)
 
         if o.header!=0:
-            reader.SetHeaderSize(o.header)
-
+            reader.SetHeaderSize(o.header)          
 
     elif ReaderClass==vtk.vtkBMPReader:
-         reader.SetDataExtent(0, o.dimensions[0]-1,
-                              0, o.dimensions[1]-1,
-                              o.first, o.last)
+        reader.SetDataExtent(0, o.dimensions[0]-1,
+                             0, o.dimensions[1]-1,
+                             o.first, o.last)
+    elif ReaderClass==vtk.vtkDICOMImageReader:
+        reader.SetDirectoryName(o.dir)
+        reader.Update()
+        
+        #Update Param file from the reader 
+        o.dimensions = [reader.GetWidth() , reader.GetHeight()]
+        
+        if reader.GetDataByteOrder()==1:
+            o.order=='big endian'
+        else:
+            o.order=='little endian'
+            
+        spc = reader.GetDataSpacing()
+        o.spacing = spc[2]
+        o.dfov    = o.dimensions[0] * spc[0]
     else:
         raise NotImplementedError, "Can't handle reader %s" % o.readerClass
 
@@ -452,7 +467,7 @@ def get_reader(o):
             val = r.GetProgress()
             progressDlg.bar.set_fraction(val)            
             if val==1: progressDlg.destroy()
-            while gtk.events_pending(): gtk.mainiteration()
+            while gtk.events_pending(): gtk.main_iteration()
 
 
         reader.AddObserver('ProgressEvent', progress)
@@ -547,6 +562,7 @@ class Params:
          key, val = line.split(':', 1)
          key = key.strip()
          val = val.strip()
+         #print '>>>> key:' , key , ': val:' , val , ':'
          self.__dict__[key] = converters.get(key, str)(val)
          
          

@@ -9,7 +9,8 @@ import vtk
 
 from loc3djr.GtkGLExtVTKRenderWindowInteractor import GtkGLExtVTKRenderWindowInteractor
 
-from matplotlib.numerix import array, take, cross_correlate, fromstring, arange, Int16, Float, log10
+#from matplotlib.numerix import array, take, cross_correlate, fromstring, arange, Int16, Float, log10
+from scipy import array, take, cross_correlate, fromstring, arange, Int16, Float, log10
 
 from pbrainlib.gtkutils import error_msg, simple_msg, make_option_menu,\
      get_num_value, get_num_range, get_two_nums, str2num_or_err
@@ -38,19 +39,22 @@ class EmbedWin(gtk.Window, Observer):
 
 
 
+        #print "EmbedWin.__init__(): making GLExtVTKRenderWindowInteractor"
         interactor = GtkGLExtVTKRenderWindowInteractor()
-        vbox.pack_start(interactor, gtk.TRUE, gtk.TRUE)
+        vbox.pack_start(interactor, True, True)
 
         toolbar = self.make_toolbar()
         toolbar.show()
-        vbox.pack_start(toolbar, gtk.FALSE, gtk.FALSE)
+        vbox.pack_start(toolbar, False, False)
 
+        #print "EmbedWin.__init__(): to interactor: show(), Initialize(), Start(), AddObserver('ExitEvent', ...)"
         interactor.show()
         interactor.Initialize()
         interactor.Start()
         interactor.AddObserver("ExitEvent", lambda o,e,x=None: x)
 
         self.renderer = vtk.vtkRenderer()
+        #print "EmbedWin.__init__(): "
         interactor.GetRenderWindow().AddRenderer(self.renderer)
         self.interactor = interactor
 
@@ -130,6 +134,7 @@ class EmbedWin(gtk.Window, Observer):
         torig, data, trode = selected
         gname, gnum = trode
         label = '%s %d' % (gname, gnum)
+        #print "EmbedWin.make_embed(): examining selected EEG channel %s" % label
 
         Fs = self.eegplot.eeg.freq
         dt = 1.0/Fs
@@ -148,36 +153,48 @@ class EmbedWin(gtk.Window, Observer):
         pnts = []
         ind = arange(dim)*lag
 
+        #print "EmbedWin.make_embed(): ind=" , ind
+
         while 1:
             if ind[-1]>=len(data): break
+            print "EmbedWin.make_embed(): appending to pnts: " , (take(data,ind)[:3])
             pnts.append( take(data, ind)[:3] )  # plot 3 dims
             ind += 1
 
 
+        #print "EmbedWin.make_embed(): polyData = vtk.vtkPolyData()"
         polyData = vtk.vtkPolyData()
 
+        #print "EmbedWin.make_embed(): points = vtk.vtkPoints()"
         points = vtk.vtkPoints()
 
         for i, pnt in enumerate(pnts):
             x, y, z = pnt
+            print "EmbedWin.make_embed(): inserting point " , i, x, y , z
             points.InsertPoint(i, x, y, z)
 
         polyData = vtk.vtkPolyData()
+        #print "EmbedWin.make_embed(): polyData.SetPoints(points)"
         polyData.SetPoints(points)
 
+        #print "EmbedWin.make_embed(): vtkSphereSource()"
         sphere = vtk.vtkSphereSource()
         res = 5
         sphere.SetThetaResolution(res)
         sphere.SetPhiResolution(res)
         sphere.SetRadius(10)
 
+        #print "EmbedWin.make_embed(): filter = vtk.vtkGlyph3D()"
         filter = vtk.vtkGlyph3D()
         filter.SetInput(polyData)
         filter.SetSource(0, sphere.GetOutput())
 
+        #print "EmbedWin.make_embed(): mapper = vtk.vtkPolyDataMapper()"
         mapper = vtk.vtkPolyDataMapper()
+        #print "EmbedWin.make_embed(): mapper.SetInput(filter.GetOutput())"
         mapper.SetInput(filter.GetOutput())
 
+        #print "EmbedWin.make_embed(): "
         actor = vtk.vtkActor()
         actor.SetMapper(mapper)
         actor.GetProperty().SetColor( 1,1,0 )

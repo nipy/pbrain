@@ -93,6 +93,7 @@ CodeRegistry.register_code(
             ('Neuroscan CNT' , 3),
             ('Float array' , 4),
             ('W18' , 5),
+            ('AXONASCII' , 6),
             ('Other' ,  98),
             ('Unknown' , 99),
             ] ) )

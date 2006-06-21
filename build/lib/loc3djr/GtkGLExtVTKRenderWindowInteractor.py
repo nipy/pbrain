@@ -9,8 +9,6 @@ John Hunter jdhunter@ace.bsd.uchicago.edu
 """
 
 import math, sys
-import pygtk
-pygtk.require('2.0')
 import gtk
 from gtk import gdk
 import gtk.gtkgl
@@ -27,7 +25,7 @@ class GtkGLExtVTKRenderWindowInteractor(gtk.gtkgl.DrawingArea):
     def __init__(self, *args):
         gtk.gtkgl.DrawingArea.__init__(self)
 
-        self.set_double_buffered(gtk.FALSE)
+        self.set_double_buffered(False)
         
         self._RenderWindow = vtk.vtkRenderWindow()
 
@@ -47,10 +45,10 @@ class GtkGLExtVTKRenderWindowInteractor(gtk.gtkgl.DrawingArea):
 
 
     def set_size_request(self, w, h):
-	gtk.gtkgl.DrawingArea.set_size_request(self, w, h)
-	self._RenderWindow.SetSize(w, h)
-	self._Iren.SetSize(w, h)
-	self._Iren.ConfigureEvent()
+        gtk.gtkgl.DrawingArea.set_size_request(self, w, h)
+        self._RenderWindow.SetSize(w, h)
+        self._Iren.SetSize(w, h)
+        self._Iren.ConfigureEvent()
 	
     def ConnectSignals(self):
         
@@ -111,24 +109,24 @@ class GtkGLExtVTKRenderWindowInteractor(gtk.gtkgl.DrawingArea):
             self._RenderWindow.SetWindowInfo(win_id)
             #self._Iren.Initialize()
             self.__Created = 1
-        return gtk.TRUE
+        return True
     
     def OnConfigure(self, widget, event):
         self.widget=widget
         self._Iren.SetSize(event.width, event.height)
         self._Iren.ConfigureEvent()
         self.Render()
-        return gtk.TRUE
+        return True
 
     def OnExpose(self, *args):
         self.Render()
-        return gtk.TRUE
+        return True
 
     def OnDestroy(self, event=None):
         self.hide()
         del self._RenderWindow
         self.destroy()
-        return gtk.TRUE
+        return True
 
     def _GetCtrlShift(self, event):
         ctrl, shift = 0, 0        
@@ -147,15 +145,15 @@ class GtkGLExtVTKRenderWindowInteractor(gtk.gtkgl.DrawingArea):
         button = event.button
         if button == 3:
             self._Iren.RightButtonPressEvent()
-            return gtk.TRUE
+            return True
 	elif button == 1:
             self._Iren.LeftButtonPressEvent()
-            return gtk.TRUE
+            return True
 	elif button == 2:
             self._Iren.MiddleButtonPressEvent()
-            return gtk.TRUE
+            return True
         else:
-            return gtk.FALSE
+            return False
     
     def OnButtonUp(self, wid, event):
         """Mouse button released."""
@@ -166,15 +164,15 @@ class GtkGLExtVTKRenderWindowInteractor(gtk.gtkgl.DrawingArea):
         button = event.button
         if button == 3:
             self._Iren.RightButtonReleaseEvent()
-            return gtk.TRUE
+            return True
 	elif button == 1:
             self._Iren.LeftButtonReleaseEvent()
-            return gtk.TRUE
+            return True
 	elif button == 2:
             self._Iren.MiddleButtonReleaseEvent()
-            return gtk.TRUE
+            return True
         
-        return gtk.FALSE
+        return False
 
     def OnMouseMove(self, wid, event):
         """Mouse has moved."""
@@ -183,7 +181,7 @@ class GtkGLExtVTKRenderWindowInteractor(gtk.gtkgl.DrawingArea):
         self._Iren.SetEventInformationFlipY(m[0], m[1], ctrl, shift,
                                             chr(0), 0, None)
         self._Iren.MouseMoveEvent()
-        return gtk.TRUE
+        return True
 
     def OnEnter(self, wid, event):
         """Entering the vtkRenderWindow."""
@@ -193,7 +191,7 @@ class GtkGLExtVTKRenderWindowInteractor(gtk.gtkgl.DrawingArea):
         self._Iren.SetEventInformationFlipY(m[0], m[1], ctrl, shift,
                                             chr(0), 0, None)
         self._Iren.EnterEvent()
-        return gtk.TRUE
+        return True
 
     def OnLeave(self, wid, event):
         """Leaving the vtkRenderWindow."""
@@ -202,7 +200,7 @@ class GtkGLExtVTKRenderWindowInteractor(gtk.gtkgl.DrawingArea):
         self._Iren.SetEventInformationFlipY(m[0], m[1], ctrl, shift,
                                             chr(0), 0, None)
         self._Iren.LeaveEvent()
-        return gtk.TRUE
+        return True
     
     def OnKeyPress(self, wid, event):
         """Key pressed."""
@@ -216,7 +214,7 @@ class GtkGLExtVTKRenderWindowInteractor(gtk.gtkgl.DrawingArea):
                                             key, 0, keysym)
         self._Iren.KeyPressEvent()
         self._Iren.CharEvent()
-        return gtk.TRUE
+        return True
 
     def OnKeyRelease(self, wid, event):
         "Key released."
@@ -229,7 +227,7 @@ class GtkGLExtVTKRenderWindowInteractor(gtk.gtkgl.DrawingArea):
         self._Iren.SetEventInformationFlipY(m[0], m[1], ctrl, shift,
                                             key, 0, keysym)
         self._Iren.KeyReleaseEvent()
-        return gtk.TRUE
+        return True
 
     def Initialize(self):
 	if self.__Created:
@@ -245,8 +243,8 @@ def main():
     # The main window
     window = gtk.Window(gtk.WINDOW_TOPLEVEL)
     window.set_title("A GtkVTKRenderWindow Demo!")
-    window.connect("destroy", gtk.mainquit)
-    window.connect("delete_event", gtk.mainquit)
+    window.connect("destroy", gtk.main_quit)
+    window.connect("delete_event", gtk.main_quit)
     window.set_border_width(10)
 
     # A VBox into which widgets are packed.
@@ -280,13 +278,13 @@ def main():
 
     # A simple quit button
     quit = gtk.Button("Quit!")
-    quit.connect("clicked", gtk.mainquit)
+    quit.connect("clicked", gtk.main_quit)
     vbox.pack_start(quit)
     quit.show()
 
     # show the main window and start event processing.
     window.show()
-    gtk.mainloop()
+    gtk.main()
 
 
 if __name__ == "__main__":
