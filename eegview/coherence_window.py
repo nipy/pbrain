@@ -6,9 +6,9 @@ import gtk, gobject
 from events import Observer
 
 #from Numeric import fromstring, arange, Int16, Float, log10, zeros
-from scipy import fromstring, arange, Int16, Float, log10, zeros
-from scipy import arange, sin, pi, zeros, ones, reshape, Float, Float0, \
-     greater_equal, transpose, array, arange, resize, Int16, \
+from scipy import fromstring, arange, log10, zeros
+from scipy import arange, sin, pi, zeros, ones, reshape,  \
+     greater_equal, transpose, array, arange, resize,  \
      absolute, nonzero, rand
 
 

@@ -6,8 +6,8 @@ from datetime import date, time
 import data
 from struct import unpack
 
-#from matplotlib.numerix import UInt8, fromstring, Float
-from scipy import UInt8, fromstring, Float
+#from matplotlib.numerix import UInt8, fromstring
+from scipy import fromstring
 
 #import matplotlib.numerix as nx
 
@@ -881,7 +881,7 @@ class NeuroscanEpochFile:
         self.points = int(header['Points'])
         self.sweeps = int(header['Sweeps'])
 
-        self.X = zeros((self.sweeps*self.points, self.channels), Float)
+        self.X = zeros((self.sweeps*self.points, self.channels), 'd')
 
         sweepnum = 0
         while 1:
@@ -974,7 +974,7 @@ def get_w18_data(fh, indmin, indmax):
         else:
             a[ind:ind+1000] = record.data
             ind += 1000
-    return a.astype(Float)
+    return a.astype('d')
     #return a
 
 def to_hertz(s):

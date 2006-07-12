@@ -14,10 +14,10 @@ from gtk import gdk
 #from matplotlib.numerix import fromstring, arange, Int16, Float, log10
 #from matplotlib.numerix import minimum 
 #from matplotlib.numerix import maximum
-from scipy import arange, sin, pi, zeros, ones, reshape, Float, Float0, \
-     greater_equal, transpose, array, arange, resize, Int16, \
+from scipy import arange, sin, pi, zeros, ones, reshape, \
+     greater_equal, transpose, array, arange, resize, \
      absolute, nonzero
-from scipy import fromstring, arange, Int16, Float, log10
+from scipy import fromstring, arange, log10
 from scipy import minimum, maximum
 
 from matplotlib.cbook import enumerate, exception_to_str, popd
@@ -54,8 +54,8 @@ from matplotlib.transforms import get_bbox_transform, Point, Value, Bbox,\
      unit_bbox, blend_xy_sep_transform
 from matplotlib.patches import Rectangle
 
-from scipy import arange, sin, pi, zeros, ones, reshape, Float, Float0, \
-     greater_equal, transpose, array, arange, resize, Int16, \
+from scipy import arange, sin, pi, zeros, ones, reshape, \
+     greater_equal, transpose, array, arange, resize, \
      absolute, nonzero
 
 from scipy.signal import buttord, butter, lfilter
@@ -1222,7 +1222,7 @@ class EEGPlot(Observer):
 
         ind = int((t-tmin)/dt)
 
-        ys = zeros( (len(self.lines), ), Int16)
+        ys = zeros( (len(self.lines), ), 'h')
 
         xdata = self.lines[0].get_xdata()
         if ind>=len(xdata): return None
@@ -2222,7 +2222,7 @@ class MainWindow(PrefixWrapper):
 
             # mccXXX: This conversion needs fixing... rectified signals wind up with 0 = SHRT_MIN. NO GOOD.
 
-            shrt_array = zeros(len(wav_array), Int16)
+            shrt_array = zeros(len(wav_array), 'h')
 
             wav_max_max = max(wav_max, abs(wav_min))
             

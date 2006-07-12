@@ -9,7 +9,7 @@ from matplotlib.cbook import mkdirs, listFiles
 #     arange, fromstring, take, sqrt, sum, zeros, resize,\
 #    transpose
 #from matplotlib.numerix import median
-from scipy import array, Int16, Float, Float16, \
+from scipy import array,  \
      arange, fromstring, take, sqrt, sum, zeros, resize,\
      transpose
 from scipy import median
@@ -49,7 +49,7 @@ class Electrode:
 
     def set_xyz(self, xyz):
         try: xyz.shape
-        except AttributeError: xyz = array(xyz, Float)
+        except AttributeError: xyz = array(xyz, 'd')
         self.xyz = xyz
 
     def get_xyz(self):
@@ -1009,9 +1009,9 @@ class EEGBase:
         numbytes = (indmax-indmin)*BYTES_PER_SAMPLE
 
         self.fh.seek(byte0)
-        data = fromstring(self.fh.read(numbytes), Int16)
+        data = fromstring(self.fh.read(numbytes), 'h')
         if sys.byteorder=='big': data = data.byteswapped()
-        data = data.astype(Float)
+        data = data.astype('d')
         data.shape = -1, self.channels
 
         if self.scale is not None:
@@ -1164,7 +1164,7 @@ class EEGBase:
         """Load an array of C floats."""
 
         fh = file(fname, 'rb')
-        data = fromstring(fh.read(), Float16)
+        data = fromstring(fh.read(), 'f')
         data.shape = -1, self.channels
         return data
 

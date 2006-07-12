@@ -18,7 +18,8 @@ from matplotlib.backends.backend_gtk import NavigationToolbar, NavigationToolbar
 from matplotlib.figure import Figure
 from matplotlib.mlab import detrend_none, detrend_mean, detrend_linear
 #from matplotlib.numerix import array, take, cross_correlate, fromstring, arange, Int16, Float, log10, searchsorted, minimum, maximum
-from scipy import array, take, cross_correlate, fromstring, arange, Int16, Float, log10, searchsorted, minimum, maximum
+#from scipy import array, take, cross_correlate, fromstring, arange, log10, searchsorted, minimum, maximum
+from scipy import array, take, correlate, fromstring, arange, log10, searchsorted, minimum, maximum
 
 from pbrainlib.gtkutils import error_msg, simple_msg, make_option_menu,\
      get_num_value, get_num_range, get_two_nums, str2num_or_err,\
@@ -562,7 +563,8 @@ class AcorrWin(MPLWin):
         dt = t[1]-t[0]
         self._dt = dt # for get_msg
 
-        corr = cross_correlate(data, data, mode=2)
+        #corr = cross_correlate(data, data, mode=2)
+        corr = correlate(data, data, mode=2)
         corr = corr/corr[len(data)-1] # normed so autocorr at zero lag is 1
         lags = arange(-len(data)+1, len(data))*dt
         self.axes.plot(lags, corr)

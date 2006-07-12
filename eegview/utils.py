@@ -12,7 +12,7 @@ from math import floor, ceil
 
 #from matplotlib.numerix import zeros, ones, exp, Float, array, pi
 
-from scipy import mean, zeros, ones, exp, Float, array, pi
+from scipy import mean, zeros, ones, exp, array, pi
 from scipy import array, arange, std, rand
 
 import scipy.signal
@@ -285,7 +285,7 @@ def cohere_dict_to_array(m, keys):
         else:
             a = zeros( (len(keys),), band.dtype)
     else: 
-        a = zeros( (len(keys),), Float)
+        a = zeros( (len(keys),), 'd')
         
     for count, key in enumerate(keys):
         a[count] = m[key]
@@ -615,7 +615,7 @@ def filter_grand_mean(X):
     X is a numSamples by numChannels numeric array.  Return X with
     the grand mean removed
     """
-    X = array(X, Float)
+    X = array(X, 'd')
     gm =  eeg_grand_mean(X)
     print "utils.filter_grand_mean(): type(gm)=", gm.dtype
 
@@ -670,8 +670,8 @@ def get_best_exp_params(x, y, guess=(1.0, -.5, 0.0)):
     def errfunc(pars): 
         return y - get_exp_prediction(pars, x)  #return the error 
 
-    J = zeros( (3,len(x)), Float)  # init the Jacobian only once 
-    ddk = -ones((len(x),), Float)  # d/dk indep of k 
+    J = zeros( (3,len(x)), 'd')  # init the Jacobian only once 
+    ddk = -ones((len(x),), 'd')  # d/dk indep of k 
     def deriv_errfunc(pars): 
         'The Jacobian of the errfunc is -Jacobian of the func' 
 

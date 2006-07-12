@@ -10,7 +10,7 @@ import vtk
 from loc3djr.GtkGLExtVTKRenderWindowInteractor import GtkGLExtVTKRenderWindowInteractor
 
 #from matplotlib.numerix import array, take, cross_correlate, fromstring, arange, Int16, Float, log10
-from scipy import array, take, cross_correlate, fromstring, arange, Int16, Float, log10
+from scipy import array, take, cross_correlate, fromstring, arange, log10
 
 from pbrainlib.gtkutils import error_msg, simple_msg, make_option_menu,\
      get_num_value, get_num_range, get_two_nums, str2num_or_err

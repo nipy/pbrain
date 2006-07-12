@@ -14,9 +14,9 @@ from shared import fmanager
 
 from sets import Set
 
-#from Numeric import array, zeros, ones, sort, absolute, Float, sqrt, divide,\
+#from Numeric import array, zeros, ones, sort, absolute, sqrt, divide,\
 #     argsort, take, arange
-from scipy import array, zeros, ones, sort, absolute, Float, sqrt, divide,\
+from scipy import array, zeros, ones, sort, absolute, sqrt, divide,\
      argsort, take, arange
 
 from amp_dialog import AmpDialog
@@ -616,9 +616,9 @@ class GridManager:
 
             if buttonSampChan.get_active():
                 # transpose the data to channels x samples
-                X = array(zip(*X), Float)
+                X = array(zip(*X), 'd')
             else:
-                X = array(X, Float)
+                X = array(X, 'd')
 
             numChannels, numSamples = X.shape
             self.X = X
@@ -1446,7 +1446,7 @@ class GridManager:
         # todo: fix me so normals rotate too!  will need some
         # transform goop
         for i, marker in enumerate(markers):
-            thisNorm = array([normVecs.GetComponent(i,0), normVecs.GetComponent(i,1), normVecs.GetComponent(i,2)], Float)
+            thisNorm = array([normVecs.GetComponent(i,0), normVecs.GetComponent(i,1), normVecs.GetComponent(i,2)], 'd')
 
             marker.normal = thisNorm
 
@@ -1462,7 +1462,7 @@ class GridManager:
         normVecs =  norms.GetOutput().GetPointData().GetNormals()
 
         for i, marker in enumerate(markers):
-            thisNorm = array([normVecs.GetComponent(i,0), normVecs.GetComponent(i,1), normVecs.GetComponent(i,2)], Float)
+            thisNorm = array([normVecs.GetComponent(i,0), normVecs.GetComponent(i,1), normVecs.GetComponent(i,2)], 'd')
 
             marker.normal = thisNorm
 
@@ -1471,9 +1471,9 @@ class GridManager:
             
 def coherence_matrix(Cxy, Pxy, xyzd, eoi, bandind):
     N = len(eoi)
-    M = zeros( (N,N), Float)
-    P = zeros( (N,N), Float)
-    D = zeros( (N,N), Float)
+    M = zeros( (N,N), 'd')
+    P = zeros( (N,N), 'd')
+    D = zeros( (N,N), 'd')
     
     for i in range(N):
         for j in range(N):

@@ -2,9 +2,9 @@ from __future__ import division
 import sys, os, math
 import vtk
 
-#from Numeric import array, zeros, ones, sort, absolute, Float, sqrt, divide,\
+#from Numeric import array, zeros, ones, sort, absolute, sqrt, divide,\
 #     argsort, take, arange
-from scipy import array, zeros, ones, sort, absolute, Float, sqrt, divide,\
+from scipy import array, zeros, ones, sort, absolute, sqrt, divide,\
      argsort, take, arange
 
 import gtk, gobject
@@ -78,7 +78,7 @@ class ArrayMapper(gtk.Window, ScalarMapper):
         ind = int(bar.get_value())
         datad = self.get_datad(ind)
         self.gridManager.set_scalar_data(datad)
-        xdata = array([ind, ind], typecode=Float)
+        xdata = array([ind, ind], 'd')
         for line in self.lines:
             line.set_xdata(xdata)
         self.canvas.draw()

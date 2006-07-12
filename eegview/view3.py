@@ -46,7 +46,7 @@ import gtk, gobject
 
 from sets import Set
 
-from scipy import array, zeros, ones, sort, absolute, Float, sqrt, divide,\
+from scipy import array, zeros, ones, sort, absolute, sqrt, divide,\
      argsort, take, arange
 from scipy import mean, std
 
@@ -979,7 +979,7 @@ class View3(gtk.Window, Observer):
 
         threshType, threshVal = self.thresholdParams
         if threshType=='abs.':
-            predicted = ones(cvec.shape, Float)
+            predicted = ones(cvec.shape, 'd')
             return dvec, cvec, predicted, None
         
 
@@ -1034,7 +1034,7 @@ class View3(gtk.Window, Observer):
             ax = fig.add_subplot(111)
             ax.plot(dvec, cvec, 'b,')
             if threshType=='abs.':
-                ax.plot(dvec, cutoff*ones(dvec.shape, Float), 'r-')
+                ax.plot(dvec, cutoff*ones(dvec.shape, 'd'), 'r-')
 
         else:
 
@@ -1047,19 +1047,19 @@ class View3(gtk.Window, Observer):
                      dsort, psort, 'g-')
 
             if threshType=='abs.':
-                ax1.plot(dvec, cutoff*ones(dvec.shape, Float), 'r-')
+                ax1.plot(dvec, cutoff*ones(dvec.shape, 'd'), 'r-')
             ax1.set_ylabel('Absolute')
 
             ax2 = fig.add_subplot(212)
             ax2.plot(dvec, normedvec, 'k,',
-                     dsort, ones(dsort.shape, Float), 'g-')
+                     dsort, ones(dsort.shape, 'd'), 'g-')
             ax2.set_ylabel('Normalized')
             ax2.set_xlabel('Distance (cm)')            
 
             #print 'threshType', threshType
             if threshType in ('pct.', 'STD', 'ratio'):
                 #print 'plotting line at', threshVal
-                ax2.plot(dvec, cutoff*ones(dvec.shape, Float), 'r-')
+                ax2.plot(dvec, cutoff*ones(dvec.shape, 'd'), 'r-')
                 
 
         toolbar = NavigationToolbar(self.canvas, win)
