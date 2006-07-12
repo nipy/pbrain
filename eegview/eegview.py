@@ -10,10 +10,10 @@ import distutils.sysconfig
 import gtk
 from gtk import gdk
 
-#from Numeric import fromstring, arange, Int16, Float, log10
-#from matplotlib.numerix import fromstring, arange, Int16, Float, log10
-#from matplotlib.numerix import minimum 
-#from matplotlib.numerix import maximum
+##from Numeric import fromstring, arange, Int16, Float, log10
+##from matplotlib.numerix import fromstring, arange, Int16, Float, log10
+##from matplotlib.numerix import minimum 
+##from matplotlib.numerix import maximum
 from scipy import arange, sin, pi, zeros, ones, reshape, \
      greater_equal, transpose, array, arange, resize, \
      absolute, nonzero
