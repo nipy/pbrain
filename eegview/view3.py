@@ -80,7 +80,7 @@ from grid_manager import GridManager
 
 from mpl_windows import VoltageMapWin
 
-
+from amp_dialog import AmpDialog
 
 
 def dist(x,y):
@@ -124,6 +124,8 @@ class View3(gtk.Window, Observer):
         self.eoiPairs = all_pairs_eoi(self.eoi)
         self.selected = None
         self.cohCache = None  # cache coherence results from other window
+
+        self.csv_fname = None
         
         self.filterGM = eegplot.filterGM
         self.gridManager = None
@@ -156,7 +158,7 @@ class View3(gtk.Window, Observer):
         interactor.GetRenderWindow().AddRenderer(self.renderer)
         self.interactor = interactor
 
-        self.set_title("View3 Window")
+        #self.set_title("View3 Window")
         self.set_border_width(10)
 
         vbox = gtk.VBox(spacing=3)
@@ -178,6 +180,9 @@ class View3(gtk.Window, Observer):
             ok = self.load_markers()
         if not ok:
             return
+
+        self.set_title("View3: " + self.eeg.filename + " " + self.csv_fname)
+
         
         toolbar1 = self.make_toolbar1()
         toolbar1.show()
@@ -690,7 +695,6 @@ class View3(gtk.Window, Observer):
 
     def coherence_from_file(self, *args):
 
-
         filename = fmanager.get_filename()
         if filename is None: return
         if not os.path.exists(filename):
@@ -715,7 +719,8 @@ class View3(gtk.Window, Observer):
             seen[j] = 1
         channels = seen.keys()
         channels.sort()
-            
+
+        print "coherence_from_file(): channels is ", channels, "starting AmpDialog"
         ampDlg = AmpDialog(channels)
         ampDlg.show()
         amp = ampDlg.get_amp()
@@ -786,13 +791,13 @@ class View3(gtk.Window, Observer):
 
         infile = kwargs.get('infile', None)
         if infile is None:
-            fname = fmanager.get_filename(title='Enter marker filename: *.csv')
-            if fname is None: return
+            self.csv_fname = fmanager.get_filename(title='Enter marker filename: *.csv')
+            if self.csv_fname is None: return
 
-            try: infile = file(fname, 'r')
+            try: infile = file(self.csv_fname, 'r')
             except IOError, msg:
                 err = '\n'.join(map(str, msg))
-                error_msg('Could not open %s for reading\n%s' % (fname,err),
+                error_msg('Could not open %s for reading\n%s' % (self.self.csv_fname,err),
                           parent=self)
                 self.gridManager.markers = None
                 return
