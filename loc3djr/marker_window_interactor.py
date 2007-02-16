@@ -154,6 +154,7 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
             
         def button_up(*args):
             #print "button up on brain interact."
+            pass
 
         self.pressHooks[1] = button_down
         self.releaseHooks[1] = button_up
