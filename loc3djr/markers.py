@@ -2,6 +2,10 @@ import math
 import vtk
 
 class Marker(vtk.vtkActor):
+    """
+    CLASS: Marker
+    DESCR: Represents, e.g., an individual grid location as a vtk sphere
+    """
     def __init__(self, xyz, radius=0.2, rgb=None):
         if rgb is None: rgb = (0,0,1)
 
@@ -59,6 +63,7 @@ class Marker(vtk.vtkActor):
         return self.sphere.SetRadius(s)
 
     def set_color(self, color):
+        print "Marker.GetProperty().SetColor(", color, ")"
         self.GetProperty().SetColor( color )
 
     def get_color(self):

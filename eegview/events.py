@@ -1,6 +1,10 @@
 from sets import Set
 
 class Observer:
+    """
+    CLASS: Observer
+    DESCR: 
+    """
     SET_TIME_LIM, SELECT_CHANNEL, SAVE_FRAME, COMPUTE_COHERENCE,\
                   GMTOGGLED, LOCK_TRODE_TOGGLED= range(6)
     observers = Set()

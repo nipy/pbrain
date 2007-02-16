@@ -1,15 +1,12 @@
 from __future__ import division
 
-import math, re, os, sys
+import math, re, os, sys, string
 from sets import Set
 from datetime import date, time
 import data
 from struct import unpack
 
-#from matplotlib.numerix import UInt8, fromstring
 from scipy import fromstring
-
-#import matplotlib.numerix as nx
 
 import datetime
 
@@ -17,8 +14,24 @@ from scipy import zeros, array
 
 import re
 
-class FileFormat_AlphaomegaAscii:
+def mask(charlist):
+        """Construct a mask suitable for string.translate,
+        which marks letters in charlist as "t" and ones not as "b" """
+        mask=""
+        for i in range(256):
+                if chr(i) in charlist: mask=mask+"t"
+                else: mask=mask+"b"
+        return mask
 
+ascii7bit=string.joinfields(map(chr, range(32,127)), "")+"\r\n\t\b"
+ascii7bit_mask=mask(ascii7bit)
+
+
+class FileFormat_AlphaomegaAscii:
+    """
+    CLASS: FileFormat_AlphaomegaAscii
+    DESCR: Reads ASCII-exported data files from the 'Alpha Omega' software
+    """
     def get_channel_maps(self, ascfile):
         channel_name_map = {}
         channel_num_map = {}
@@ -51,8 +64,7 @@ class FileFormat_AlphaomegaAscii:
                 channel_number = int(asc_split[1])
                 channel_count[channel_number] = channel_count[channel_number] + (len(asc_split)-3)
                 #print "found" , len(asc_split)-3, "values for channel ", channel_name_map[channel_number], "total: ", channel_count[channel_number]
-        print "FOO"
-        print "channel_name_map", channel_name_map
+        print "channel_name_map: ", channel_name_map
         for k,v in channel_count.iteritems():
             print channel_name_map[k], ":", v, channel_sr_map[k]
         return channel_name_map, channel_num_map, channel_sr_map, channel_count
@@ -86,7 +98,7 @@ class FileFormat_AlphaomegaAscii:
                 #sys.exit()
                 
                 
-                #print "values are uhhh ", values
+                #print "values are: ", values
                 #print "adding to index " , index
                 data_index_ends[index] = data_index_starts[index] + len(values)
                 if ((data_index_ends[index]- data_index_starts[index]) != len(float_values)):
@@ -101,10 +113,10 @@ class FileFormat_AlphaomegaAscii:
         ascfile = file(path)
         beginning_position = ascfile.tell() 
         topline = ascfile.readline()
-        print "FileFormat_AlphaomegaAscii(): top line is this crap ", topline
+        #print "FileFormat_AlphaomegaAscii(): top line is: ", topline
         p = re.compile('[\ \t\r\n]*')
         top_split = p.split(topline)
-        print "FileFormat_AlphaomegaAscii(): top split is ", top_split
+        #print "FileFormat_AlphaomegaAscii(): top split is: ", top_split
         # ['C:\\Logging_Data\\A2112001.map', 'Thr', '21/12/2005', '21:39:21', '']
         date_str = top_split[2]
         time_str = top_split[3]
@@ -119,7 +131,7 @@ class FileFormat_AlphaomegaAscii:
         ascline = ascfile.readline()
         print "FileFormat_AlphaomegaAscii(): top line is this crap ", ascline
 
-        # arbitrarily choose which channels to take XXX crap 
+        # XXX: arbitrarily choose which channels to take
         #dbs_0_channelname = 'DBS_0'
         dbs_0_channelname = 'LFP_1'
 
@@ -156,18 +168,11 @@ class FileFormat_AlphaomegaAscii:
         amp.extend(amp_channels)
         
         params = {
-            #'pid' : self.params.get('PatientId', 'Unknown'),
             'date' : alphaomegadate,
             'filename' : path,     
-            #'description' : self.params.get('Comment', ''),  
             'channels' : len(arbitrary_channel_list),
             'freq' : arbitrary_sr,
-            #'classification' : 99,
-            #'file_type' : data.AXONASCII, #XXX: wtf
             'file_type': 8,
-            #'behavior_state' : 99,
-
-            # XXX: put actual parsed data in useful (Numeric or whatever) format here!
             'raw_data': channel_data
         }
 
@@ -176,45 +181,86 @@ class FileFormat_AlphaomegaAscii:
 
     
 class FileFormat_NeuroscanAscii:
+    """
+    CLASS: FileFormat_NeuroscanAscii
+    DESCR: Parses ASCII file exported from the 'Neuroscan' software
+    """
     electrode_labels = []
     channel_names = []
     channel_numbers = []
 
+
+    def istext(self, file, check=1024, mask=ascii7bit_mask):
+        """Returns true if the first check characters in file
+        are within mask, false otherwise"""
+
+        try:
+            s=file.read(check)
+            s=string.translate(s, mask)
+            if string.find(s, "b") != -1: return 0
+            return 1
+        except (AttributeError, NameError): # Other exceptions?
+            return istext(open(file, "r"))
+
+
+
     def parse_electrode_labels(self, ascline):
         electrode_strs = ascline.split ('\t')
-        print electrode_strs, len(electrode_strs)
+        #print electrode_strs, len(electrode_strs)
         for i in electrode_strs:
-            print "i is " , i
+            #print "i is " , i
             # somehow drop leading whitespace from the string after the bracket
             p = re.compile('\[\ *(.*)\]')
             m =  p.match(i)
             if (m):
                 curr_electrode_label =  m.groups(0)[0]
-                print "FileFormat_NeuroscanAscii(): curr_electrode_label =", curr_electrode_label
+                #print "FileFormat_NeuroscanAscii(): curr_electrode_label =", curr_electrode_label
                 self.electrode_labels.append(curr_electrode_label)
 
 
-        print "electrode_labels: " , self.electrode_labels
+        #print "electrode_labels: " , self.electrode_labels
         for i in self.electrode_labels:
             electrode_label_split = i.split(' ')
+            # special case for when the electrode name is just one string - -b
+            # put 'NS' in front arbitrarily. (XXX: for Sozari, kind of wack)
+            #print "len(electrode_label_split)=",len(electrode_label_split)
+            if (len(electrode_label_split) == 1):
+                electrode_label_split = ['NS', electrode_label_split[0]]
             self.channel_names.append(electrode_label_split[0])
-            print "electrode_label_split = ", electrode_label_split, "appending 1"
+            #print "electrode_label_split = ", electrode_label_split, "appending 1"
             self.channel_numbers.append(int(electrode_label_split[1]))
-    
+
+    def parse_sampling_rate(self, ascline):
+        sr_strs = ascline.split ('\t')
+        print "parse_sampling_rate(): ", sr_strs, len(sr_strs)
+        self.sampling_rate = float(sr_strs[1])
+        
+        
+
     def __init__(self, path):
         ascfile = file(path)
         beginning_position = ascfile.tell()
+        if(self.istext(ascfile) == 0): 
+            raise IOError('%s not an ASCII file' %path)
+           
+
+        ascfile.seek(beginning_position, 0)
         still_file = 1
 
-        # XXX: don't assume "trial count"
-        #trial_count = 0
         line_count = 0
         found_eof = 0
+        # mcc: XXX
+        n_channels = -1
+        
+        
         while (1 == still_file):
             if (still_file != 1):
                 break
             while 1:
                 ascline = ascfile.readline()
+                #ascline = ascline[:-1]
+                ascline = ascline.strip()
+                #print "ascline is ", ascline
                 if not ascline:
                     print "FOUND EOF"
                     found_eof = 1
@@ -224,11 +270,19 @@ class FileFormat_NeuroscanAscii:
                     #print "ascline is", ascline[:-2] # [:-2] for \r\n
 
                     # on initial parse, grab "electrode_labels" (a.k.a. "channels" for Amp class)
-                    if (ascline[:-2] == '[Electrode Labels]'):
+                    if (ascline == '[Electrode Labels]'):
                         ascline = ascfile.readline()
-                        electrode_labels = self.parse_electrode_labels(ascline[:-2])
+                        #print "parsing electrode_labels: ",ascline
+                        electrode_labels = self.parse_electrode_labels(ascline)
+                    elif (ascline.find('[Rate]') == 0):
+                        sampling_rate = self.parse_sampling_rate(ascline)
                     continue
                 else:
+                    if (n_channels == -1):
+                        n_channels = len(ascline.split('\t'))
+                    else:
+                        if (n_channels != len(ascline.split('\t'))):
+                            print "wtf , got %d channels but already had %d n_channels", (len(ascline.split('\t')), n_channels)
                     line_count = line_count + 1
                     # we have found numbers, break out 
                     break
@@ -237,22 +291,15 @@ class FileFormat_NeuroscanAscii:
                 break
             #asc_split = ascline.split('	')
 
-        # XXX: don't do "trial count"
-        #if not found_eof:
-        #   trial_count += 1
-
-        #print "trial_count is " , trial_count
         print "line_count is " , line_count
         # ok this seems to work
             
-        #channel_data = zeros((64, trial_count * 512), 'f')
-        channel_data = zeros((64, line_count), 'f')
+        channel_data = zeros((n_channels, line_count), 'f')
         print "channel_data.shape is " , channel_data.shape
 
         print "seeking to beginning"
         ascfile.seek(beginning_position, 0)
 
-        #trial_count = 0
         line_count = 0
         found_eof = 0
         still_file = 1
@@ -262,6 +309,8 @@ class FileFormat_NeuroscanAscii:
                 break
             while 1:
                 ascline = ascfile.readline()
+                #print "ascline is ", ascline[:-1]
+                ascline = ascline.strip()
                 if not ascline:
                     print "FOUND EOF"
                     found_eof = 1
@@ -274,408 +323,59 @@ class FileFormat_NeuroscanAscii:
             if  not still_file:
                 break
             asc_split = ascline.split('	')
-            # we now have 64 channel values which basically consist of a column of data in channel_data, sweet
+            # we now have n_channels channel values which basically consist of a column of data in channel_data, sweet
+            #print "asc_split is", asc_split
             #print "asc_split is of size " , len(asc_split)
             #print "setting data[:, ", line_count, "]"
-            channel_data[:, line_count] = map(float, asc_split[0:64])
+            #print "dude float(asc_split[0] is", float(asc_split[0])
+            for i in range(0,n_channels):
+                #print "asc_split[%d] is " % i, asc_split[i]
+                pass
+            channel_data[:, line_count] = map(float, asc_split[0:n_channels])
             #channel_data[:, trial_count*512+i] = map(float, asc_split[0:64])
             #print "assigned channel_data[:,", (trial_count * 512)+i, "]"
             channel_assign_count += 1
             #print channel_data[:,trial_count*512]
                 
             if not found_eof:
-                #trial_count += 1
                 line_count += 1
 
-        "ok done with channel_data!!! assigned " , channel_assign_count, " channels"
-
-        """
-        in this artificial case, channel names are as follows:
-
-        (add 1 to everything here to get original amplifier channel names)
-
-        channels 0-31:
-        
-        LFS1-8
-        LAT1-8
-        LST1-8
-        LPS1-8
-
-        channels 32-63:
-        32: microphone
-
-        33/34: shorted
-
-        35-39: RFG 60-RFG64
-
-        40-47: RAT1-8 (RAT7 seems bad)
-        48-55:RST1-8
-        56-63:RPG9-16
-        
-        
-        """
-
+        "ok, done with channel_data. assigned " , channel_assign_count, " channels"
 
         amp = data.Amp()
 
         channels = []
-        #channel_names = map(str, range(0,64))
-        #channel_names = ['LFS', 'LFS', 'LFS', 'LFS', 'LFS', 'LFS', 'LFS', 'LFS',
-        #                 'LAT', 'LAT', 'LAT', 'LAT', 'LAT', 'LAT', 'LAT', 'LAT',
-        #                 'LST', 'LST', 'LST', 'LST', 'LST', 'LST', 'LST', 'LST',
-        #                 'LPS', 'LPS', 'LPS', 'LPS', 'LPS', 'LPS', 'LPS', 'LPS',
-        #                 'MIC',
-        #                 'SHORT','SHORT',
-        #                 'RFG','RFG','RFG','RFG','RFG',
-        #                 'RAT', 'RAT','RAT', 'RAT','RAT', 'RAT','RAT', 'RAT',
-        #                 'RST', 'RST','RST', 'RST','RST', 'RST','RST', 'RST',
-        #                 'RPG', 'RPG','RPG', 'RPG','RPG', 'RPG','RPG', 'RPG']
-
-        channel_names_NaNa = ['L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'R','R','R','R','R','R','R','R',
-                              'R','R','R','R','R','R','R','R',
-                              'R','R','R','R','R','R','R','R',
-                              'R','R','R','R','R','R','R','R']
-
-        channel_names_ErCa = ['L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L']
-        
-        channel_names_StLo = ['L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L']
-        
-        #channel_nums = [1,2,3,4,5,6,7,8,
-        #                1,2,3,4,5,6,7,8,
-        #                1,2,3,4,5,6,7,8,
-        #                1,2,3,4,5,6,7,8,
-        #                1,
-        #                1,2,
-        #                60,61,62,63,64,
-        #                1,2,3,4,5,6,7,8,
-        #                1,2,3,4,5,6,7,8,
-        #                9,10,11,12,13,14,15,16]
-
-        channel_nums_NaNa = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,
-                             17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,
-                             1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,
-                             17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]
-
-        channel_nums_ErCa = [25,26,27,28,29,30,31,32,
-                             33,34,35,36,37,38,39,40,
-                             41,42,43,44,45,46,47,48,
-                             17,18,19,20,21,22,23,24,
-                             49,50,51,52,53,54,55,56,
-                             9,10,11,12,13,14,15,16,
-                             57,58,59,60,61,62,63,64,
-                             1,2,3,4,5,6,7,8]
-
-        channel_nums_StLo = [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
-                             57, 58, 59, 60, 61, 62, 63, 64,
-                             8,7,6,5,4,3,2,1,
-                             49, 50, 51, 52, 53, 54, 55, 56,
-                             16,15,14,13,12,11,10,9]
-                             
-        #channel_names = channel_names_StLo
-        #channel_nums = channel_nums_StLo
                         
-                         
-        #XXX instead of doing this hand coded hackery..
-        #for i in range(0,64):
-        #    print "appending to channels " , ((i+1, channel_names[i], channel_nums[i]))
-        #    channels.append((i+1, channel_names[i], channel_nums[i]))
-        n_channels = 64
-        #
-        #amp.extend(channels)
-        # .. do THIS
         for i in range(0, len(self.electrode_labels)):
             print "appending to channels " , ((i+1, self.channel_names[i], self.channel_numbers[i]))
             channels.append((i+1, self.channel_names[i], self.channel_numbers[i]))
-        amp.extend(channels)
-        sampling_rate = 500 
 
-        params = {
-            #'pid' : self.params.get('PatientId', 'Unknown'),
-            'date' : datetime.datetime.now(),
-            'filename' : path,     
-            #'description' : self.params.get('Comment', ''),  
-            'channels' : n_channels,
-            'freq' : sampling_rate,
-            #'classification' : 99,
-            #'file_type' : data.AXONASCII, #XXX: wtf
-            'file_type': 7,
-            #'behavior_state' : 99,
-
-            # XXX: put actual parsed data in useful (Numeric or whatever) format here!
-            'raw_data': channel_data
-        }
-
-
-        print "yo called amp.extend(channels); amp=", amp
-
-        self.eeg = data.EEGFileSystem(path, amp, params)
-
-
-class FileFormat_NeuroscanAscii512:
-    electrode_labels = []
-    channel_names = []
-    channel_numbers = []
-
-    def parse_electrode_labels(self, ascline):
-        electrode_strs = ascline.split ('\t')
-        print electrode_strs, len(electrode_strs)
-        for i in electrode_strs:
-            print "i is " , i
-            # somehow drop leading whitespace from the string after the bracket
-            p = re.compile('\[\ *(.*)\]')
-            m =  p.match(i)
-            if (m):
-                curr_electrode_label =  m.groups(0)[0]
-                print "FileFormat_NeuroscanAscii(): curr_electrode_label =", curr_electrode_label
-                self.electrode_labels.append(curr_electrode_label)
-
-
-        print "electrode_labels: " , self.electrode_labels
-        for i in self.electrode_labels:
-            electrode_label_split = i.split(' ')
-            self.channel_names.append(electrode_label_split[0])
-            print "electrode_label_split = ", electrode_label_split, "appending 1"
-            self.channel_numbers.append(int(electrode_label_split[1]))
-    
-    def __init__(self, path):
-        ascfile = file(path)
-        beginning_position = ascfile.tell()
-        still_file = 1
-
-        trial_count = 0
-        found_eof = 0
-        while (1 == still_file):
-            for i in range(0, 512):
-                if (still_file != 1):
-                    break
-                while 1:
-                    ascline = ascfile.readline()
-                    if not ascline:
-                        print "FOUND EOF"
-                        found_eof = 1
-                        still_file = 0
-                        break
-                    elif (ascline[0] == '['):
-                        #print "ascline is", ascline[:-2] # [:-2] for \r\n
-
-                        # on initial parse, grab "electrode_labels" (a.k.a. "channels" for Amp class)
-                        if (ascline[:-2] == '[Electrode Labels]'):
-                            ascline = ascfile.readline()
-                            electrode_labels = self.parse_electrode_labels(ascline[:-2])
-                        continue
-                    else:
-                        # we have found numbers, break out 
-                        break
-                    
-                if  not still_file:
-                    break
-                #asc_split = ascline.split('	')
-                
-            if not found_eof:
-                trial_count += 1
-
-        print "trial_count is " , trial_count
-        # ok this seems to work
+        print "electrode_labels = ", self.electrode_labels
+        print "channels = ", channels
             
-        channel_data = zeros((64, trial_count * 512), 'f')
-        print "channel_data.shape is " , channel_data.shape
-
-        print "seeking to beginning"
-        ascfile.seek(beginning_position, 0)
-
-        trial_count = 0
-        found_eof = 0
-        still_file = 1
-        channel_assign_count = 0
-        while (1 == still_file):
-            for i in range(0, 512):
-                if (still_file != 1):
-                    break
-                while 1:
-                    ascline = ascfile.readline()
-                    if not ascline:
-                        print "FOUND EOF"
-                        found_eof = 1
-                        still_file = 0
-                        break
-                    elif (ascline[0] == '['):
-                            continue
-                    else:
-                        break
-                if  not still_file:
-                    break
-                asc_split = ascline.split('	')
-                # we now have 64 channel values which basically consist of a column of data in channel_data, sweet
-                print "asc_split is of size " , len(asc_split)
-                channel_data[:, trial_count*512+i] = map(float, asc_split[0:64])
-                #print "assigned channel_data[:,", (trial_count * 512)+i, "]"
-                channel_assign_count += 1
-                #print channel_data[:,trial_count*512]
-                
-            if not found_eof:
-                trial_count += 1
-
-        "ok done with channel_data!!! assigned " , channel_assign_count, " channels"
-
-        """
-        in this artificial case, channel names are as follows:
-
-        (add 1 to everything here to get original amplifier channel names)
-
-        channels 0-31:
-        
-        LFS1-8
-        LAT1-8
-        LST1-8
-        LPS1-8
-
-        channels 32-63:
-        32: microphone
-
-        33/34: shorted
-
-        35-39: RFG 60-RFG64
-
-        40-47: RAT1-8 (RAT7 seems bad)
-        48-55:RST1-8
-        56-63:RPG9-16
-        
-        
-        """
-
-
-        amp = data.Amp()
-
-        channels = []
-        #channel_names = map(str, range(0,64))
-        #channel_names = ['LFS', 'LFS', 'LFS', 'LFS', 'LFS', 'LFS', 'LFS', 'LFS',
-        #                 'LAT', 'LAT', 'LAT', 'LAT', 'LAT', 'LAT', 'LAT', 'LAT',
-        #                 'LST', 'LST', 'LST', 'LST', 'LST', 'LST', 'LST', 'LST',
-        #                 'LPS', 'LPS', 'LPS', 'LPS', 'LPS', 'LPS', 'LPS', 'LPS',
-        #                 'MIC',
-        #                 'SHORT','SHORT',
-        #                 'RFG','RFG','RFG','RFG','RFG',
-        #                 'RAT', 'RAT','RAT', 'RAT','RAT', 'RAT','RAT', 'RAT',
-        #                 'RST', 'RST','RST', 'RST','RST', 'RST','RST', 'RST',
-        #                 'RPG', 'RPG','RPG', 'RPG','RPG', 'RPG','RPG', 'RPG']
-
-        channel_names_NaNa = ['L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'R','R','R','R','R','R','R','R',
-                              'R','R','R','R','R','R','R','R',
-                              'R','R','R','R','R','R','R','R',
-                              'R','R','R','R','R','R','R','R']
-
-        channel_names_ErCa = ['L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L']
-        
-        channel_names_StLo = ['L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L',
-                              'L','L','L','L','L','L','L','L']
-        
-        #channel_nums = [1,2,3,4,5,6,7,8,
-        #                1,2,3,4,5,6,7,8,
-        #                1,2,3,4,5,6,7,8,
-        #                1,2,3,4,5,6,7,8,
-        #                1,
-        #                1,2,
-        #                60,61,62,63,64,
-        #                1,2,3,4,5,6,7,8,
-        #                1,2,3,4,5,6,7,8,
-        #                9,10,11,12,13,14,15,16]
-
-        channel_nums_NaNa = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,
-                             17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,
-                             1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,
-                             17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]
-
-        channel_nums_ErCa = [25,26,27,28,29,30,31,32,
-                             33,34,35,36,37,38,39,40,
-                             41,42,43,44,45,46,47,48,
-                             17,18,19,20,21,22,23,24,
-                             49,50,51,52,53,54,55,56,
-                             9,10,11,12,13,14,15,16,
-                             57,58,59,60,61,62,63,64,
-                             1,2,3,4,5,6,7,8]
-
-        channel_nums_StLo = [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
-                             57, 58, 59, 60, 61, 62, 63, 64,
-                             8,7,6,5,4,3,2,1,
-                             49, 50, 51, 52, 53, 54, 55, 56,
-                             16,15,14,13,12,11,10,9]
-                             
-        #channel_names = channel_names_StLo
-        #channel_nums = channel_nums_StLo
-                        
-                         
-        #XXX instead of doing this hand coded hackery..
-        #for i in range(0,64):
-        #    print "appending to channels " , ((i+1, channel_names[i], channel_nums[i]))
-        #    channels.append((i+1, channel_names[i], channel_nums[i]))
-        n_channels = 64
-        #
-        #amp.extend(channels)
-        # .. do THIS
-        for i in range(0, len(self.electrode_labels)):
-            print "appending to channels " , ((i+1, self.channel_names[i], self.channel_numbers[i]))
-            channels.append((i+1, self.channel_names[i], self.channel_numbers[i]))
         amp.extend(channels)
-        sampling_rate = 500 
 
         params = {
-            #'pid' : self.params.get('PatientId', 'Unknown'),
             'date' : datetime.datetime.now(),
             'filename' : path,     
-            #'description' : self.params.get('Comment', ''),  
             'channels' : n_channels,
-            'freq' : sampling_rate,
-            #'classification' : 99,
-            #'file_type' : data.AXONASCII, #XXX: wtf
+            'freq' : self.sampling_rate,
             'file_type': 7,
-            #'behavior_state' : 99,
-
-            # XXX: put actual parsed data in useful (Numeric or whatever) format here!
             'raw_data': channel_data
         }
 
 
-        print "yo called amp.extend(channels); amp=", amp
+        #print "called amp.extend(channels); amp=", amp
 
         self.eeg = data.EEGFileSystem(path, amp, params)
+
 
                 
 class FileFormat_AxonAscii:
+    """
+    CLASS: FileFormat_AxonAscii
+    DESCR: Parses ASCII file exported from the 'Axon' software
+    """
     def __init__(self, path):
         """
         Given a .axonascii filename, create a EEGFileSystem object w/ appropriate member variables
@@ -688,12 +388,12 @@ class FileFormat_AxonAscii:
         ascfile.readline() # skip blank line
         name_line = ascfile.readline().split(": ")
         name = ((name_line[1])[:-2])
-        #print "load_axonascii(): yo name is \'%s\'" % name
+        #print "load_axonascii(): name is \'%s\'" % name
         date_line = ascfile.readline().split(":  ")
         date = (date_line[1])[:-2]
         [datestamp, timestamp] = date.split(", ")
         axondate = self.get_axondate(datestamp, timestamp)
-        #print "load_axonascii(): yo date is", axondate # we want to use the first date in the data stream, though, not this one
+        #print "load_axonascii(): date is", axondate # we want to use the first date in the data stream, though, not this one
 
         ampset = Set()
         n_channels = 0
@@ -718,7 +418,7 @@ class FileFormat_AxonAscii:
             if (len(asc_split) <2): # last (presumably blank) line
                 break
 
-            #curr_amp_num = int(asc_split[0])  # mccXXX
+            #curr_amp_num = int(asc_split[0])  # mcc XXX
             channel_str = asc_split[1]
             channel_str = re.sub('\"', '', channel_str)
             channel_str_split = channel_str.split(':')
@@ -744,7 +444,7 @@ class FileFormat_AxonAscii:
                             sampling_rate_counter += len(curr_vals)
                         
                     else:
-                        # mccXXX argh, should this next if statement be commented ?? this seems necessary for, e.g., Bru...2.mcc.axonascii
+                        # mcc: XXX should this next if statement be commented ?? this seems necessary for certain example files
                         #if (sampling_rate_counter == 0):
                         sampling_rate_counter += len(curr_vals)
                         sampling_rate = float(sampling_rate_counter)/float((curr_axondate-old_axondate).seconds)
@@ -752,7 +452,7 @@ class FileFormat_AxonAscii:
                         have_calculated_sr = True
                 n_channels = len(ampset)
             else:
-                #print "load_axonascii(): axon channel %d/%s: yo read %d vals at date %s" % (curr_channel_num, curr_channel_name, len(curr_vals), str(curr_axondate))
+                #print "load_axonascii(): axon channel %d/%s: read %d vals at date %s" % (curr_channel_num, curr_channel_name, len(curr_vals), str(curr_axondate))
                 old_axondate = curr_axondate
                 #ampset.add(curr_amp_num)
                 ampset.add(curr_channel_num)
@@ -792,7 +492,7 @@ class FileFormat_AxonAscii:
 
             curr_vals = (asc_split[4:])
 
-            #print "channel %d/%s: yo read %d vals at date %s" % (curr_channel_num, curr_channel_name, len(curr_vals), str(curr_axondate))
+            #print "channel %d/%s: read %d vals at date %s" % (curr_channel_num, curr_channel_name, len(curr_vals), str(curr_axondate))
 
             index = 0
             for x in curr_vals:
@@ -803,29 +503,22 @@ class FileFormat_AxonAscii:
     
             curr_line_num = curr_line_num+1
         
-        #print "yo: n_channels = ", n_channels
+        #print "n_channels = ", n_channels
         #print "and channels = ", channels
        
         params = {
-            #'pid' : self.params.get('PatientId', 'Unknown'),
             'date' : axondate,
             'filename' : path,     
-            #'description' : self.params.get('Comment', ''),  
             'channels' : n_channels,
             'freq' : sampling_rate,
-            #'classification' : 99,
-            #'file_type' : data.AXONASCII, #XXX: wtf
             'file_type': 6,
-            #'behavior_state' : 99,
-
-            # XXX: put actual parsed data in useful (Numeric or whatever) format here!
             'raw_data': channel_data
         }
 
         amp = data.Amp()
         amp.extend(channels)
 
-        #print "yo called amp.extend(channels); amp=", amp
+        #print "called amp.extend(channels); amp=", amp
 
         self.eeg = data.EEGFileSystem(path, amp, params)
     
@@ -848,6 +541,10 @@ class FileFormat_AxonAscii:
     
   
 class NeuroscanEpochFile:
+    """
+    CLASS: NeuroscanEpochFile
+    DESCR: 
+    """
     ### note we haven't implemented accepted/rejected sweeps
     def __init__(self, fname):
 
@@ -907,6 +604,10 @@ class NeuroscanEpochFile:
             self.X[start+i] = nx.array(vals)
 
 class W18Header:
+    """
+    CLASS: W18Header
+    DESCR: 
+    """
     def __init__(self, fh): 
 
         self.name = unpack('19s', fh.read(19))[0].strip()
@@ -934,6 +635,10 @@ class W18Header:
         self.reserved = unpack('172s', fh.read(172))
 
 class W18Record:
+    """
+    CLASS: W18Record
+    DESCR: 
+    """
     def __init__(self, s):
         self.data = fromstring(s[:18000], UInt8)
         self.data.shape = -1, 18
@@ -1006,6 +711,10 @@ def list_ints(s):
     return [int_or_none(val) for val in s.split(',')]
 
 class FileFormat_BNI:
+    """
+    CLASS: FileFormat_BNI
+    DESCR: Parses 'Nicolet' .BNI/.EEG file pair
+    """
 
     keys = Set(['FileFormat', 'Filename', 'Comment', 'PatientName',
                 'PatientId', 'PatientDob', 'Sex', 'Examiner', 'Date',

@@ -9,7 +9,10 @@ import MySQLdb, MySQLdb.cursors
 
 
 class SQL:
-
+    """
+    CLASS: SQL
+    DESCR: 
+    """
     def init(self, dbname, host, user, passwd, port):
         db = MySQLdb.connect(db=dbname,
                              host=host,
@@ -27,7 +30,10 @@ class SQL:
 
 
 class DataManager:
-    "Handles retrieval from web and cacheing to local machine in the cachedir"
+    """
+    CLASS: DataManager
+    DESCR: Handles retrieval from web and cacheing to local machine in the cachedir
+    """
     def init(self, url, user, passwd, cachedir):
         "if cachedir is 'tempdir', use tempfile.gettempdir"
         if cachedir == 'tempdir':

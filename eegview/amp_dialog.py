@@ -5,12 +5,24 @@ import vtk
 import gtk, gobject
 
 from data import Amp
-from pbrainlib.gtkutils import str2int_or_err
+from pbrainlib.gtkutils import str2int_or_err, error_msg, Dialog_FileSelection
+from shared import fmanager
 
-
+######################################################################
+# CLASS: AmpDialog
+# DESCR: GUI element displaying the 'Amp', a mapping of channel
+#        numbers to names
+#
+######################################################################
 class AmpDialog(gtk.Dialog):
+    """
+    CLASS: AmpDialog
+    DESCR: GUI element displaying the 'Amp', a mapping of channel numbers
+    to names
+    """
     def __init__(self, channels):
-        gtk.Dialog.__init__(self, 'Channel num to electrode mapping')
+        print "AmpDialog.__init__(): channels=", channels
+        gtk.Dialog.__init__(self, 'Channel num to electrode mapping', parent=None)
 
         self.channels = channels
         self.numChannels = len(channels)
@@ -45,6 +57,7 @@ class AmpDialog(gtk.Dialog):
                      xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         entries = []
         for i,cnum in enumerate(channels):
+            print "i=", i, "cnum=", cnum, "channels=", channels
             label = gtk.Label('%d' % cnum)
             label.show()
             entryName = gtk.Entry()
@@ -113,15 +126,20 @@ class AmpDialog(gtk.Dialog):
                      xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
 
         def fill_it(button):
+            print "fill_it()"
             gname = entryGname.get_text()
+            print "gname is '%s'" % gname
             cstart = str2int_or_err(entryStart.get_text(), labelStart, parent=self)
-
+            print "cstart is '%s'" % cstart
+            
             if cstart is None: return
             cend = str2int_or_err(entryEnd.get_text(), labelEnd, parent=self)
             if cend is None: return
 
             cnt = 1
 
+            print "entries is ", entries
+            print "cend is '%s', len(entries)=%d"  % (cend, len(entries))
             if cend>len(entries):
                 #TODO: i not defined
                 error_msg('Channel #%d out of range' % i, parent=self)
@@ -129,6 +147,7 @@ class AmpDialog(gtk.Dialog):
 
 
             for i in range(cstart, cend+1):
+                print "trying to set_text(", gname, ") for slot i=", i
                 label, ename, enum = entries[i-1]
                 ename.set_text(gname)
                 enum.set_text('%d'%cnt)
@@ -140,10 +159,82 @@ class AmpDialog(gtk.Dialog):
 
         button.connect('clicked', fill_it)
 
+        def parse_amp_file(fh):
+            amp_list = []
+            while 1:
+                line = fh.readline().strip()
+                print "line='%s'" % line
+                if (line == None):
+                    break
+                if (line == ''):
+                    break
+                if (line[0] == '#'):
+                    continue
+                # every line should be like
+                # [int] [letters] [int]
+                # e.g. 1 FG 4
+                vals = line.split()
+                print vals
+                if (len(vals) != 3):
+                    raise RuntimeError, 'Bad .amp file on line %s' % line
+                amp_list.append((int(vals[0]),vals[1], int(vals[2])))
+            fh.close()
+            return amp_list
+                         
+        def from_amp_file(button):
+            def ok_callback(dialog):
+                fname = dialog.get_filename()
+                print "from_amp_file.ok_callback: filename is " , fname
+                try: fh = file(fname)
+                except IOError, msg:
+                    msg = exception_to_str('Could not open %s' % filename)
+                    error_msg(msg)
+                    return None
+                amp_from_file = parse_amp_file(fh)
+                # we could do this:
+                #   amp = Amp()
+                #   amp.set_channels(fh)
+                # what the hell do I do with this.. fill the list??
+                # I can't figure out how to nest dialogs..
+                #gname = entryGname.get_text()
+                #for i in range(1, len(amp_from_file)):
+                #    print "trying to set_text(", amp_from_file[i], ") for slot i=", i
+                #    label, ename, enum = entries[i-1]
+                #    foo, bar, baz = amp_from_file[i]
+                #    ename.set_text(bar)
+                #    enum.set_text(str(baz))
+                # dialog.destroy()
+                print "parsed amp file"
+            self.hide()
+            d = Dialog_FileSelection(defaultDir=fmanager.get_lastdir(),
+                                     okCallback=ok_callback,
+                                     title='Select amp file')
+            self.show()
+            
+            
+        # or read from a file.. uhhh
+        frame = gtk.Frame('from .amp file')
+        frame.show()
+        vbox.pack_start(frame, True, True)
+        frame.set_border_width(5)
 
+        vboxFrame = gtk.VBox()
+        vboxFrame.show()
+        frame.add(vboxFrame)
+
+        # button that will bring up dialog..
+        button = gtk.Button("From .amp file")
+        button.show()
+        vboxFrame.pack_start(button, False, False)
+
+        button.connect('clicked', from_amp_file)
+        
+
+        # special response buttons
         self.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
         self.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
 
+    # fuck this while loop
     def get_amp(self):
         
         while 1:

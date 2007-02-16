@@ -5,7 +5,6 @@ import vtk
 import gtk
 import gtk.glade
 from gtk import gdk
-from GtkGLExtVTKRenderWindowInteractor import GtkGLExtVTKRenderWindowInteractor
 from GtkGLExtVTKRenderWindow import GtkGLExtVTKRenderWindow
 
 from scipy import array
@@ -19,6 +18,10 @@ import distutils.sysconfig
 # We put all of our gtk signal handlers into a class.  This lets us bind
 # all of them at once, because their names are in the class dict.
 class GladeHandlers:
+    """
+    CLASS: GladeHandlers
+    DESCR:
+    """
     def on_buttonDir_clicked(button=None):
 
             
@@ -75,17 +78,22 @@ class GladeHandlers:
        widgets.save_params_to_file(fname)
 
     def on_buttonPreview_clicked(button=None):
-        
         pars = widgets.get_params()
+        print "type(pars)=", type(pars)
         pars = widgets.validate(pars)
         if pars is None: return
+        print "on_buttonPreview_clicked: pars = ", pars
         reader = widgets.get_reader(pars)
         inDim1, inDim2 = pars.dimensions
+        print "on_buttonPreview_clicked(): pars.dimensions = ", pars.dimensions
         
         outDim1, outDim2 = widgets.outDim
+        print "on_buttonPreview_clicked(): outDim = ", widgets.outDim
         scale1 = outDim1/inDim1
         scale2 = outDim2/inDim2
+        print "on_buttonPreview_clicked(): scale1 = ", scale1, "scale2=", scale2
         resample = vtk.vtkImageResample()
+        print "on_buttonPreview_clicked(): calling reader.GetOutput()"
         resample.SetInput(reader.GetOutput())
         resample.SetAxisMagnificationFactor(0, scale1)
         resample.SetAxisMagnificationFactor(1, scale2)
@@ -332,6 +340,7 @@ class WidgetsWrapper:
 
         fnames = self.get_file_names(o)
         for fname in fnames:
+            print "validate(): doing fname ", fname
             if not os.path.exists(fname):
                 return error_msg('Could not find file %s' % fname, dlg)
             if o.readerClass=='vtkBMPReader':
@@ -343,11 +352,13 @@ class WidgetsWrapper:
 
         # Depth Field Of View
         val = o.dfov = str2posnum_or_err(o.dfov, widgets['labelDFOV'], dlg)
+        print "dfov=", val
         if val is None: return None
 
         # Spacing between slices
         val = o.spacing = str2posnum_or_err(
             o.spacing, widgets['labelSpacing'], dlg)
+        print "spacing=", val
         if val is None: return None
 
         # Size of header
@@ -356,6 +367,7 @@ class WidgetsWrapper:
            val = o.header = str2int_or_err(
               o.header, widgets['labelHeader'], dlg)
            if val is None: return None
+        print "header=", val
 
         # Data mask
         if o.mask is not None:
@@ -365,6 +377,7 @@ class WidgetsWrapper:
                val = o.mask = str2int_or_err(
                    o.mask, widgets['labelMask'], dlg)
                if val is None: return None
+        print "mask=", val
 
         return o
     
@@ -429,7 +442,7 @@ def get_reader(o):
             reader.SetDataMask(o.mask)
 
         if o.header!=0:
-            reader.SetHeaderSize(o.header)          
+            reader.SetHeaderSize(o.header)   
 
     elif ReaderClass==vtk.vtkBMPReader:
         reader.SetDataExtent(0, o.dimensions[0]-1,
@@ -483,6 +496,8 @@ def get_reader(o):
     if len(o.extension) > 0:
         pattern += '.' + o.extension
     reader.SetFilePattern(pattern)
+    print "reader.SetDataSpacing(", o.dfov/o.dimensions[0], o.dfov/o.dimensions[1], o.spacing , "). dfov=", o.dfov, "dimensions=", o.dimensions, "spacing=", o.spacing
+                          
     reader.SetDataSpacing(o.dfov/o.dimensions[0],
                           o.dfov/o.dimensions[1],
                           o.spacing )

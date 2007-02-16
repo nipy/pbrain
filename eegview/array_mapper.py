@@ -13,11 +13,10 @@ from matplotlib.backends.backend_gtkagg import NavigationToolbar
 from matplotlib.figure import Figure
 
 
-
-
 class ScalarMapper:
     """
-    Classes that provide data to the grid manager
+    CLASS: ScalarMapper
+    DESCR: Classes that provide data to the grid manager
 
     The derived classes are responsible for loading data and building
     the electrode->scalar maps required by GridManager.set_scalar_data
@@ -28,16 +27,22 @@ class ScalarMapper:
 
 
 class ArrayMapper(gtk.Window, ScalarMapper):
-
+    """
+    CLASS: ArrayMapper
+    DESCR: 
+    """
     def __init__(self, gridManager, X, channels, amp):
         ScalarMapper.__init__(self, gridManager)
         gtk.Window.__init__(self)
+        self.resize(400,600)
         self.set_title('Array data')
 
         self.channels = channels        
         self.amp = amp
         self.trodes = [(gname, gnum) for cnum, gname, gnum in amp]
         self.X = X
+
+        self.ax = None
 
         self.numChannels, self.numSamples = X.shape
         
@@ -68,6 +73,11 @@ class ArrayMapper(gtk.Window, ScalarMapper):
         scrollbar.connect('value_changed', self.set_sample_num)
         self.scrollbarIndex = scrollbar
 
+
+        self.numlabel = gtk.Label(str(scrollbar.get_value()))
+        self.numlabel.show()
+        hbox.pack_start(self.numlabel,False, False)
+
         toolbar = NavigationToolbar(self.canvas, self)
         toolbar.show()
         vbox.pack_start(toolbar, False, False)
@@ -76,11 +86,15 @@ class ArrayMapper(gtk.Window, ScalarMapper):
 
     def set_sample_num(self, bar):
         ind = int(bar.get_value())
+        #print "ArrayMapper.set_sample_num(", ind, ")"
         datad = self.get_datad(ind)
         self.gridManager.set_scalar_data(datad)
         xdata = array([ind, ind], 'd')
         for line in self.lines:
             line.set_xdata(xdata)
+
+        self.numlabel.set_text(str(int(bar.get_value())))
+        #print "self.fig.get_axes() = ", self.fig.get_axes()
         self.canvas.draw()
 
 
@@ -97,17 +111,20 @@ class ArrayMapper(gtk.Window, ScalarMapper):
         self.lines = []
         N = len(self.channels)
         for i, channel in enumerate(self.channels):
-            ax = fig.add_subplot(N, 1, i+1)
+            self.ax = fig.add_subplot(N, 1, i+1)
+            #print "ArrayMapper.make_fig(): self.X is is " , self.X, type(self.X) 
+
+            #print "channel is ", channel
             x = self.X[channel-1,:]
-            ax.plot(arange(self.numSamples), x)
-            ax.grid(True)
+            self.ax.plot(arange(self.numSamples), x)
+            self.ax.grid(True)
             mid = self.numSamples/2.0
-            line = ax.plot([mid, mid], [min(x), max(x)])[0]
-            ax.add_line(line)
-            ax.set_ylabel('Chan #%d' % channel)
+            line = self.ax.plot([mid, mid], [min(x), max(x)])[0]
+            self.ax.add_line(line)
+            self.ax.set_ylabel('Chan #%d' % channel)
             self.lines.append(line)
-            if ax.is_last_row(): ax.set_xlabel('index')
-            if ax.is_first_row(): ax.set_title('Evoked response')
+            if self.ax.is_last_row(): self.ax.set_xlabel('index')
+            if self.ax.is_first_row(): self.ax.set_title('Evoked response')
 
             
         return fig

@@ -21,6 +21,7 @@ from scipy import array, zeros, ones, sort, absolute, sqrt, divide,\
 
 from amp_dialog import AmpDialog
 from array_mapper import ArrayMapper
+from data import Amp
 
 
 def identity(frac, *args):
@@ -34,10 +35,8 @@ def dist(x,y):
 
 class GridManager:
     """
-    **********************************************************************
     CLASS: GridManager
     DESCR: maintains list of VTK actors for view3d display
-    **********************************************************************
     """
     SCROLLBARSIZE = 150,20
     def __init__(self, interactor, renderer, infile, dimensiond=None):
@@ -78,7 +77,7 @@ class GridManager:
         self.scalarBar.GetTitleTextProperty().SetColor(1.0,1.0,1.0)
         #self.scalarBar.SetPosition(0.8,0.2)
         self.scalarBar.VisibilityOff()
-        # XXX mcc: turn off for leo (try to make this smaller!!) XXX
+        # XXX mcc: turn off for Leo (try to make this smaller!!) XXX
         #self.renderer.AddActor(self.scalarBar)
         
     def markers_as_collection(self):
@@ -97,7 +96,7 @@ class GridManager:
         **********************************************************************
         """
         #return # XXX: mcc
-
+        #print "GridManager.set_scalar_data(", datad, ")"
 
         self.scalarVals.extend([val for key, val in datad.items()])
         if self.dimensiond is None:
@@ -116,13 +115,13 @@ class GridManager:
         if rangeSet is not None:
             minVal, maxVal = rangeSet
 
-        print "yo uh calling scalarLookup setRange(%f, %f)"  % (minVal, maxVal)
+        #print "calling scalarLookup setRange(%f, %f)"  % (minVal, maxVal)
         #self.scalarLookup = vtk.vtkLookupTable()
         #self.scalarLookup.SetRange(minVal, maxVal)
         #self.scalarBar.SetLookupTable(self.scalarLookup)
         
         for name in self.get_grid1_names():
-            #print "set_scalar_data: doing %s" % name
+            #print "set_scalar_data: grid1_names: doing %s" % name
             items = named.get(name, None)
             if items is None: continue
             items.sort()
@@ -155,12 +154,15 @@ class GridManager:
 
                 
         for name in self.get_grid2_names():
+            #print "set_scalar_data: grid2_names: doing %s" % name
             items = named.get(name, None)
             if items is None: continue
+            #print "items is ", items
             items.sort()
 
             grid, actor, filter, markers = self.surfs[name]
-
+            #print "got grid=", grid, "actor=", actor, "filter=", filter, "markers=", markers
+            
             if len(markers)!=len(items):
                 if name not in self.gridWarned:
                     if (len(markers)<len(items)):
@@ -173,12 +175,19 @@ class GridManager:
 
             scalars = vtk.vtkFloatArray()
             for num, val in items:
+                #print "looking up self.vtkIDs[(%s, %d)]" % (name, num)
                 vtkID = self.vtkIDs.get((name, num))
                 if vtkID is None: continue
+                #print "scalars.InsertValue(%d, %f)" % (vtkID, val)
                 scalars.InsertValue(vtkID, val)
+            #print "calling grid.GetPointData().SetScalars(", scalars, ")"
+            
             grid.GetPointData().SetScalars(scalars)
+            
             if rangeSet is not None:
+                #print "doing rangeSet (??)"
                 mapper = actor.GetMapper()
+                #print "dude mapper is ", mapper
                 if 1:
                     mapper.SetColorModeToMapScalars()
                     mapper.SetScalarRange(minVal, maxVal)
@@ -334,6 +343,8 @@ class GridManager:
             msg = exception_to_str('Could not parse marker file')
             error_msg(msg)
             return
+
+        print "GridManager.load_markers(): loaded self.markers of length " , len(self.markers)
         
         self.markerd = dict([ (m.get_name_num(), m) for m in self.markers])
 
@@ -484,7 +495,7 @@ class GridManager:
         notebook.append_page(frame, label)
         self.frameNormals = frame
         
-
+        
         frame = gtk.Frame('Opacity')
         frame.show()
         frame.set_border_width(5)
@@ -494,7 +505,7 @@ class GridManager:
         self.frameOpacity = frame
 
 
-
+        
         vboxMappers = gtk.VBox()
         vboxMappers.show()
         label = gtk.Label('Scalar data')
@@ -594,7 +605,7 @@ class GridManager:
             try:
                 numHeaderLines = str2int_or_err(
                     entryHeader.get_text(), labelHeader, parent=dlg)
-                #print "load_ascii_data(): numHeaderLines is " , numHeaderLines
+                print "load_ascii_data(): numHeaderLines is " , numHeaderLines
                 if numHeaderLines is None: return
 
                 # skip the header lines
@@ -623,17 +634,72 @@ class GridManager:
             numChannels, numSamples = X.shape
             self.X = X
 
+            # instead of loading this amp dialog, load a .amp file
+            # code copied from view3 -- XXX
 
-            ampDlg = AmpDialog([(i+1) for i in range(numChannels)])
-            ampDlg.show()
-            amp = ampDlg.get_amp()
+            print "Loading amp file.."
+            
+            amp_filename = fmanager.get_filename(title="Select .amp file")
+            if amp_filename is None: return
+            if not os.path.exists(amp_filename):
+                error_msg('File %s does not exist' % amp_filename, parent=dlg)
+                return
+
+            try: fh = file(amp_filename)
+            except IOError, msg:
+                msg = exception_to_str('Could not open %s' % amp_filename)
+                error_msg(msg)
+                return
+
+            def parse_amp_file(fh):
+                amp_list = []
+                while 1:
+                    line = fh.readline().strip()
+                    print "parse_amp_file(): line='%s'" % line
+                    if (line == None):
+                        break
+                    if (line == ''):
+                        break
+                    if (line[0] == '#'):
+                        continue
+                    # every line should be like
+                    # [int] [letters] [int]
+                    # e.g. 1 FG 4
+                    vals = line.split()
+                    #print vals
+                    if (len(vals) == 1):
+                        # empty channel.. ignore
+                        print "parse_amp_file(): ignoring empty line ", vals
+                        continue
+                    if (len(vals) != 3):
+                        raise RuntimeError, 'Bad .amp file on line %s' % line
+                    # ok now make sure this channel is in self.eoi, otherwise
+                    # we don't want to try to plot that Cxy value later
+
+                    electrode = (vals[1], int(vals[2]))
+                    # XXX no eoi checking
+                    #if electrode not in self.eoi:
+                    #    print "skipping electrode ", electrode, ": not in self.eoi"
+                    #    continue
+                    amp_list.append((int(vals[0]),vals[1], int(vals[2])))
+                fh.close()
+                return amp_list
+        
+            amplist_from_file = parse_amp_file(fh)
+            amp = Amp()
+            amp.set_channels(amplist_from_file)
+        
+            #ampDlg = AmpDialog([(i+1) for i in range(numChannels)])
+            #ampDlg.show()
+            #amp = ampDlg.get_amp()
+            
             if amp is None: return
             print "setting ampAscii to amp, amp= ", amp
             self.ampAscii = amp
            
         def set_filename(button):
 
-            filename = fmanager.get_filename()
+            filename = fmanager.get_filename(title="Select .dat file")
             if filename is None: return
             if not os.path.exists(filename):
                 error_msg('File %s does not exist' % filename, parent=dlg)
@@ -837,6 +903,186 @@ class GridManager:
             fmanager, markers_openhook, markers_savehook, parent=dlg)
         hboxFile.show()
         frameVBox.pack_start(hboxFile, False, False)
+
+        ## XXX mcc color map stuff
+        frame = gtk.Frame('Colormaps')
+        frame.show()
+        frame.set_border_width(5)
+
+        label = gtk.Label('Colormaps')
+        label.show()
+        notebook.append_page(frame, label)
+
+        
+        frameVBox = gtk.VBox()
+        frameVBox.show()
+        frameVBox.set_spacing(3)
+        frame.add(frameVBox)
+
+        label = gtk.Label('Surface colormap')
+        frameVBox.pack_start(label)
+        combo1 = gtk.combo_box_new_text()
+        combo1.append_text('hot')
+        combo1.append_text('original')
+        combo1.append_text('custom')
+        combo1.set_active(1)
+        frameVBox.pack_start(combo1)
+
+        def parse_colormap_textfile(colormap_filename):
+            if colormap_filename is None: return
+            if not os.path.exists(colormap_filename):
+                error_msg('File %s does not exist' % colormap_filename, parent=dlg)
+                return
+            fh = open(colormap_filename)
+            custom_colormap = zeros((256, 4), 'd')
+            i = 0
+            while 1:
+                line = fh.readline().strip()
+                print "colormap line='%s'" % line
+                
+                if (line == ''):
+                    break
+
+                foo = line.split('\t')
+                custom_colormap[i] = map(float,foo)
+                i = i+ 1
+            print "yo custom_colormap=", custom_colormap
+            return custom_colormap
+
+        def change_colormap_surf(combo):
+            print "!! change_colormap(): combo=", combo
+            if (combo.get_active() == 0):
+                print "change to hot"
+                for name in self.get_grid2_names():
+                    grid, actor, filter, markers = self.surfs[name]
+                    mapper = actor.GetMapper()
+                    lut = mapper.GetLookupTable()
+                    print "lut is ", lut
+                    for i in range(0,128):
+                        #lut.SetTableValue(i, [float(i)/256.0, 1.0-(float(i)/256.0), 0.0, 1.0])
+                        lut.SetTableValue(i, [1.0, 1.0-(float(i)/256.0), 0.0, 1.0])
+                    for i in range(128,256):
+                        #lut.SetTableValue(i, [float(i)/256.0, 1.0-(float(i)/256.0), 0.0, 1.0])
+                        lut.SetTableValue(i, [1.0, 1.0-(float(i)/256.0), 0.0, 1.0])
+                    lut.Build()
+                    mapper.SetLookupTable(lut)
+                self.interactor.Render() 
+            elif (combo.get_active() == 1):
+                print "change to original"
+                for name in self.get_grid2_names():
+                    grid, actor, filter, markers = self.surfs[name]
+                    mapper = actor.GetMapper()
+                    lut = vtk.vtkLookupTable()
+                    lut.SetHueRange(0.667, 0.0)
+                    mapper.SetLookupTable(lut)
+                self.interactor.Render() 
+            elif (combo.get_active() == 2):
+                print "loading custom map a la Leo"
+                colormap_filename = fmanager.get_filename()
+                print "colormap_filename is " , colormap_filename
+                if colormap_filename is None: return
+                
+                custom_colormap = parse_colormap_textfile(colormap_filename)
+
+                for name in self.get_grid2_names():
+                    grid, actor, filter, markers = self.surfs[name]
+                    mapper = actor.GetMapper()
+
+                    lut = vtk.vtkLookupTable()
+                    for i in range(0, 256):
+                        lut.SetTableValue(i, custom_colormap[i])
+                    lut.Build()
+                
+                    mapper.SetLookupTable(lut)
+
+                    
+                self.interactor.Render()
+                        
+                
+        def change_colormap_pipes(combo):
+            print "!! change_colormap(): combo=", combo
+            if (combo.get_active() == 0):
+                print "change to hot"
+                for actor in self.tubeActors:
+                    mapper = actor.GetMapper()
+                    lut = mapper.GetLookupTable()
+                    print "lut is ", lut
+                    for i in range(0,128):
+                        #lut.SetTableValue(i, [float(i)/256.0, 1.0-(float(i)/256.0), 0.0, 1.0])
+                        lut.SetTableValue(i, [1.0, 1.0-(float(i)/256.0), 0.0, 1.0])
+                    for i in range(128,256):
+                        #lut.SetTableValue(i, [float(i)/256.0, 1.0-(float(i)/256.0), 0.0, 1.0])
+                        lut.SetTableValue(i, [1.0, 1.0-(float(i)/256.0), 0.0, 1.0])
+                    lut.Build()
+                    mapper.SetLookupTable(lut)
+                
+                self.interactor.Render() 
+            elif (combo.get_active() == 1):
+                print "change to original"
+
+                for actor in self.tubeActors:
+                    mapper = actor.GetMapper()
+                    lut = vtk.vtkLookupTable()
+                    lut.SetHueRange(0.667, 0.0)
+                    mapper.SetLookupTable(lut)
+                    self.interactor.Render() 
+
+                
+                self.interactor.Render()
+                
+            elif (combo.get_active() == 2):
+                print "loading custom map a la Leo"
+                colormap_filename = fmanager.get_filename()
+                print "colormap_filename is " , colormap_filename
+                if colormap_filename is None: return
+
+                custom_colormap = parse_colormap_textfile(colormap_filename)
+
+                for actor in self.tubeActors:
+                    mapper = actor.GetMapper()
+                    lut = vtk.vtkLookupTable()
+                    for i in range(0, 256):
+                        lut.SetTableValue(i, custom_colormap[i])
+                    lut.Build()
+                
+                    mapper.SetLookupTable(lut)
+                    
+                    
+                self.interactor.Render()
+                        
+                
+        label = gtk.Label('Pipes colormap')
+        frameVBox.pack_start(label)
+        combo2 = gtk.combo_box_new_text()
+        combo2.append_text('hot')
+        combo2.append_text('original')
+        combo2.append_text('custom')
+        combo2.set_active(1)
+        frameVBox.pack_start(combo2)
+
+        #def show_white_pipes(button):
+        #    if not button.get_active():
+        #        # turn off white pipes
+        #        return
+        #    else:
+        #        # turn em on
+        #        return
+        #button = gtk.CheckButton('Show white pipes')
+        #button.show()
+        #button.set_active(True)
+        #frameVBox.pack_start(button, False, False)
+        #button.connect('clicked', show_white_pipes)
+
+
+        
+        combo1.connect("changed", change_colormap_surf)
+        combo2.connect("changed", change_colormap_pipes)
+
+        frameVBox.show_all()
+        
+        
+        
+
                     
         hbox = gtk.HBox()
         hbox.show()
@@ -1021,6 +1267,7 @@ class GridManager:
                 
             def __call__(self, *args):                
                 val = self.bar.get_value()
+                #print "_make_opacity_table.SetOpacity.__call__(): prop" , self.prop, ".SetOpacity(", val, ")"
                 self.prop.SetOpacity(val)                
                 if self.renderOn:
                     self.interactor.Render()    
@@ -1037,8 +1284,8 @@ class GridManager:
             
             scrollbar = gtk.HScrollbar()
             scrollbar.show()
-            scrollbar.set_range(0, 1)
-            scrollbar.set_value(1)
+            scrollbar.set_range(0, .99)
+            scrollbar.set_value(.99)
             func = SetOpacity(prop, scrollbar, self.interactor)
             scrollbar.connect('value_changed', func)
             scrollbar.set_size_request(*self.SCROLLBARSIZE)
@@ -1066,9 +1313,9 @@ class GridManager:
 
         scrollbar = gtk.HScrollbar()
         scrollbar.show()
-        scrollbar.set_range(0, 1)
+        scrollbar.set_range(0, .99)
         scrollbar.set_increments(0.05,0.25)
-        scrollbar.set_value(1)
+        scrollbar.set_value(.99)
         scrollbar.connect('value_changed', set_opacity)
         scrollbar.set_size_request(*self.SCROLLBARSIZE)
 
@@ -1403,7 +1650,8 @@ class GridManager:
 
         markers = [marker for gnum, gname, marker in trodes]
         self.set_normals_grid2(markers, filter)  # todo: check flipped state
-        
+
+        print "GridManager.make_grid_surf(): creating mapper = vtk.vtkPolyDataMapper"
         mapper = vtk.vtkPolyDataMapper()
         mapper.SetInput(filter.GetOutput())
 
@@ -1413,7 +1661,18 @@ class GridManager:
 
         # make red hot
         lut = vtk.vtkLookupTable()
+        print "GridManager.make_grid_surf(): 'make red hot' lut.SetHueRange(0.667, 0.0)"        
         lut.SetHueRange(0.667, 0.0)
+        # sweet, this works
+        #lut.SetHueRange(0.0, 0.25)
+        #lut.SetTableRange(0,1)
+        #for i in range(0,128):
+        #    #lut.SetTableValue(i, [float(i)/256.0, 1.0-(float(i)/256.0), 0.0, 1.0])
+        #    lut.SetTableValue(i, [1.0, 1.0-(float(i)/256.0), 0.0, 1.0])
+        #for i in range(128,256):
+        #    #lut.SetTableValue(i, [float(i)/256.0, 1.0-(float(i)/256.0), 0.0, 1.0])
+        #    lut.SetTableValue(i, [1.0, 1.0-(float(i)/256.0), 0.0, 1.0])
+        #lut.Build()
         mapper.SetLookupTable(lut)
 
 
@@ -1425,7 +1684,7 @@ class GridManager:
         property.SetInterpolationToGouraud()
         #property.SetInterpolationToPhong()
         #property.SetInterpolationToFlat()
-        property.SetOpacity(1.0)
+        property.SetOpacity(0.99)
         property.EdgeVisibilityOn()
         #property.SetPointSize(10.0)
 

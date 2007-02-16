@@ -1,8 +1,11 @@
 import vtk
 from markers import Marker
 
+import pickle
+
+from scipy import array, zeros
+
 class Viewer:
-        
     def update_viewer(self, event, *args):
         raise NotImplementedError
 
@@ -106,6 +109,40 @@ class EventHandler:
             lines.append(marker.to_string())
         lines.sort()
         fh.write('\n'.join(lines) + '\n')
+
+    def set_vtkactor(self, vtkactor):
+        print "EventHandler.set_vtkactor()"
+        self.vtkactor = vtkactor
+
+    def save_registration_as(self, fname):
+        print "EventHandler.save_registration_as(", fname,")"
+        fh = file(fname, 'w')
+
+        # XXX mcc: somehow get the transform for the VTK actor. aiieeee
+        #xform = self.vtkactor.GetUserTransform()
+        loc = self.vtkactor.GetOrigin()
+        pos = self.vtkactor.GetPosition()
+        scale = self.vtkactor.GetScale()
+        mat = self.vtkactor.GetMatrix()
+        orient = self.vtkactor.GetOrientation()
+        
+        print "EventHandler.save_registration_as(): vtkactor has origin, pos, scale, mat, orient=", loc, pos, scale, mat, orient, "!!"
+
+
+        def vtkmatrix4x4_to_array(vtkmat):
+            scipy_array = zeros((4,4), 'd')
+
+            for i in range(0,4):
+                for j in range(0,4):
+                    scipy_array[i][j] = mat.GetElement(i,j)
+
+            return scipy_array
+
+        scipy_mat = vtkmatrix4x4_to_array(mat)
+
+        pickle.dump(scipy_mat, fh)
+        fh.close()
+        
         
     def load_markers_from(self, fname):
 

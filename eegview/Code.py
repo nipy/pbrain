@@ -1,9 +1,12 @@
 import types
 
 class Code:
-    """Associate integer codes with strings for two-way lookups.  You
-    give me the string, I'll give you the code.  You give me the code,
-    I'll give you the string."""
+    """
+    CLASS: Code
+    DESCR: Associate integer codes with strings for two-way lookups.
+    You give me the string, I'll give you the code.  You give me the
+    code, I'll give you the string.
+    """
     def __init__( self, desc, codes=0 ):
         """Desc is a list or tuple of descriptions.  Default values
         for codes is [0,1,2,3...N-1]"""
@@ -66,6 +69,10 @@ class Code:
 
 
 class CodeBase:
+    """
+    CLASS: CodeBase
+    DESCR: 
+    """
     def __init__(self, val):
         """val can either be a code or a description"""
         if isinstance(val, types.IntType):

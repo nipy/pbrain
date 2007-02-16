@@ -6,11 +6,7 @@ import array
 import scipy
 from matplotlib.cbook import enumerate, iterable, Bunch
 from matplotlib.mlab import cohere_pairs, fftsurr, hanning
-#import matplotlib.numerix as nx
 from math import floor, ceil
-#from matplotlib.numerix import mean
-
-#from matplotlib.numerix import zeros, ones, exp, Float, array, pi
 
 from scipy import mean, zeros, ones, exp, array, pi
 from scipy import array, arange, std, rand
@@ -21,7 +17,8 @@ import scipy.signal
 
 def hilbert_phaser(s):
     """
-    Return the instantaneous phase of s using the hilbert transform
+    FUNC: hilbert_phaser
+    DESCR: Return the instantaneous phase of s using the hilbert transform
     """
     #f = file("hilbert_fpe.pickle", "w")
     #pickle.dump(s, f)
@@ -35,6 +32,10 @@ def hilbert_phaser(s):
     return phase
 
 def synchrony(s1, s2, t, winLen, freq, overlap=.1) :
+    """
+    FUNC: synchrony
+    DESCR: phase synchrony implementation
+    """
     #print "utils.synchrony(s1(", len(s1), ",), s2(", len(s2), "), t(", len(t),"),", winLen, freq, overlap, ")"
     # Compute phase difference
     #print "utils.synchrony(): doing hilbert_phaser(s1)"
@@ -65,7 +66,8 @@ def synchrony(s1, s2, t, winLen, freq, overlap=.1) :
 
 def sync_gamma(psi):
     """
-    Compute the measure gamma
+    FUNC: sync_gamma
+    DESCR: Compute the measure gamma
 
      gamma^2 =  <cos psi>^2 + <sin psi>^2
 
@@ -83,7 +85,8 @@ def sync_gamma(psi):
 
 def phasediff(s0, s1, filt, n=1, m=1):
     """
-    Compute the n-m phase difference using the hilbert transform of s0
+    FUNC: phasediff
+    DESCR: Compute the n-m phase difference using the hilbert transform of s0
     and s1 after filtering with filt
 
     return value is a class with attributes
@@ -114,7 +117,8 @@ def phasediff(s0, s1, filt, n=1, m=1):
 
 def lowbutter(lpcf, lpsf, Fs, gpass=3, gstop=15):
     """
-    Return a low pass butterworth filter with
+    FUNC: lowbutter
+    DESCR: Return a low pass butterworth filter with
     lpcf  : lowpass corner freq
     lpsf  : lowpass stop freq
     gpass : corner freq attenuation
@@ -146,7 +150,8 @@ def donothing_callback(*args):
 
 def read_cohstat(fh):
     """
-    Read in a cohstat file and returns N, cxy, phases where cxy, pxy
+    FUNC: read_cohstat
+    DESCR: Read in a cohstat file and returns N, cxy, phases where cxy, pxy
     are dictionaries and N is the number of channels
 
     raises a RuntimeError on failure to parse
@@ -160,9 +165,12 @@ def read_cohstat(fh):
     phases = {}
     while 1:
         line = fh.readline().strip()
-
+        #print "read_cohstat(): read line" , line
+        
         vals = line.split()
-        if len(vals)!=6:
+        #print "len(", vals, ")=",len(vals)
+        if len(vals)!=7:
+            print "read_cohstat(): quitting coherences"
             break
 
         tup = vals[0].split('-')
@@ -184,7 +192,8 @@ def read_cohstat(fh):
         line = fh.readline().strip()
 
         vals = line.split()
-        if len(vals)!=6:
+        if len(vals)!=7:
+            print "read_cohstat(): quitting phases"
             break
 
         tup = vals[0].split('-')
@@ -198,12 +207,15 @@ def read_cohstat(fh):
         phases[(i,j)] = array(map(float, vals[1:]))
 
 
-
+    print "len(cxy)=" , len(cxy), "len(phases)=", len(phases)
     return cxy, phases
 
 
 def all_pairs_ij(N):
-    "Return a list of all uniq i,j tuples for cohstat"
+    """
+    FUNC: all_pairs_ij
+    DESCR: Return a list of all uniq i,j tuples for cohstat
+    """
     ij = []
     for i in range(N):
         for j in range(i+1, N):
@@ -211,13 +223,17 @@ def all_pairs_ij(N):
     return ij
 
 def all_pairs_eoi(eoi):
-    "Return a list of all uniq e1,e2 tuples for the eoi"
+    """
+    FUNC: all_pairs_eoi
+    DESCR:Return a list of all uniq e1,e2 tuples for the eoi
+    """
 
     return [ (eoi[i], eoi[j]) for i,j in all_pairs_ij(len(eoi))]
 
 def ij_across_eois(eoi1, eoi2, amp):
     """
-    gets ij pairs for across eois (useful for in and out of focus
+    FUNC: ij_across_eois
+    DESCR: gets ij pairs for across eois (useful for in and out of focus
     analysis).  takes three arguments eoi1, eoi2, and amp. as long as
     you keep track of which eoi is which when you enter them in,
     everything should be peachy
@@ -249,7 +265,8 @@ def ij_across_eois(eoi1, eoi2, amp):
 
 def electrode_pairs_across_eois(eoia, eoib, amp):
     """
-    gets (e1,e2) pairs for across eois (useful for in and out of focus
+    FUNC: electrode_pairs_across_eois
+    DESCR: gets (e1,e2) pairs for across eois (useful for in and out of focus
     analysis).  takes three arguments eoia, eoib, and amp.
     """
 
@@ -273,7 +290,8 @@ def electrode_pairs_across_eois(eoia, eoib, amp):
 
 def cohere_dict_to_array(m, keys):
     """
-    Convert a cohere dict 'm' (as returned by cohere_bands, or
+    FUNC: cohere_dict_to_array
+    DESCR: Convert a cohere dict 'm' (as returned by cohere_bands, or
     cohere_pairs) to an array for statistical processing
     """
     # get a representative band
@@ -293,7 +311,8 @@ def cohere_dict_to_array(m, keys):
 
 def cohere_array_to_dict(a, keys):
     """
-    Convert a cohere array (as created by cohere_dict_to_array) back
+    FUNC: cohere_array_to_dict
+    DESCR: Convert a cohere array (as created by cohere_dict_to_array) back
     to a dict
     """
     
@@ -310,9 +329,9 @@ def cohere_bands(cxy, phase, freqs, keys,
                  progressCallback=donothing_callback):
 
     """
-    
-    Summarize the output of cohere_pairs_eeg by bands.  cxy and phase
-    are a dictionary from electrode pair keys to Numeric arrays of
+    FUNC: cohere_bands
+    DESCR: Summarize the output of cohere_pairs_eeg by bands.  cxy and
+    phase are a dictionary from electrode pair keys to Numeric arrays of
     coherence and phases for that pair.  keys is a list of (e1,e2)
     tuples.
 
@@ -381,11 +400,10 @@ def power_bands(pxx, freqs,
                 progressCallback=donothing_callback):
 
     """
-    
-    Summarize the output of cohere_pairs_eeg with pxx returned by
+    FUNC: power_bands
+    DESCR: Summarize the output of cohere_pairs_eeg with pxx returned by
     bands.  pxx is a dictionary from electrodes to Numeric arrays of
-    power for that trode.  
-    tuples.
+    power for that trode. 
 
     The bands are
 
@@ -445,9 +463,10 @@ def power_bands(pxx, freqs,
 
 def export_cohstat_xyz(XYZ):
     """
-    XYZ is a 64 x 3 array of floats.  Return a string that can be
-    written to a file cohstat can read.  Note the data should be
-    rotated so that they are in the view plane
+    FUNC: export_cohstat_xyz
+    DESCR: XYZ is a 64 x 3 array of floats.  Return a string that can be
+    written to a file cohstat can read.  Note the data should be rotated
+    so that they are in the view plane
     """
     if len(XYZ) != 64:
         raise ValueError, 'Length of XYZ must be 64!'
@@ -459,7 +478,8 @@ def export_cohstat_xyz(XYZ):
     
 def export_to_cohstat(cxyBands, phaseBands, keys):
     """
-export_to_cohstat
+    FUNC: export_to_cohstat
+    DESCR: 
 
 This function takes the coherence between pairs of electrodes in a
 grid as determined by cohere_bands (which processes the output from
@@ -494,11 +514,7 @@ i-j:     pha[0]     pha[1]     pha[2]       pha[3]    pha[4]
 
 
 
-Authors: Scott Simon (ssimon1@uchicago.edu) and John Hunter, 
-
-
-Please refer questions to John Hunter.  Feel free to call home and
-call late.  Ask for "Kelly."
+Authors: Scott Simon (ssimon1@uchicago.edu) and John Hunter.
 
     """
 
@@ -543,9 +559,9 @@ Phase of average coherency within selected bands (degrees):\r
 
 def convert_ebersole(filein, fileout):
     """
-    convert_ebersole
-
-    This function converts a float ASCI eeg record into a binary eeg
+    FUNC: convert_ebersole
+    DESCR: 
+    This function converts a float ASCII eeg record into a binary eeg
     record.
 
     This function takes two file names as inputs.  The first, filein,
@@ -578,11 +594,10 @@ def convert_ebersole(filein, fileout):
 
 def eoi_for_matlab(eoi, grd, fileout):
     """
-    eoi_for_matlab
-
-    This function takes the xyz for the electrodes of interest,
-    assigned from the .grd file by eoi_to_xyz, and formats these
-    values in a way that matlab can read.
+    FUNC: eoi_for_matlab
+    DESCR: This function takes the xyz for the electrodes of interest,
+    assigned from the .grd file by eoi_to_xyz, and formats these values
+    in a way that matlab can read.
 
     The input is an .eoi and .grd file, and an output file name.  The
     output is a file in the format
@@ -604,7 +619,8 @@ def eoi_for_matlab(eoi, grd, fileout):
     
 def eeg_grand_mean(X):
     """
-    X is a numSamples by numChannels numeric array.  Return the grand
+    FUNC: eeg_grand_mean
+    DESCR: X is a numSamples by numChannels numeric array.  Return the grand
     mean of X (For each element of X, subtract the mean of the row
     for which it occurs)
     """
@@ -612,7 +628,8 @@ def eeg_grand_mean(X):
 
 def filter_grand_mean(X):
     """
-    X is a numSamples by numChannels numeric array.  Return X with
+    FUNC: filter_grand_mean
+    DESCR: X is a numSamples by numChannels numeric array.  Return X with
     the grand mean removed
     """
     X = array(X, 'd')
@@ -629,7 +646,10 @@ def filter_grand_mean(X):
 
 
 def remove_channel_means(X):
-    "remove the mean from each channel.  X is a numSamples x numChannels array"
+    """
+    FUNC: remove_channel_means
+    DESCR: remove the mean from each channel.  X is a numSamples x numChannels array
+    """
     mu = mean(X,0)
     mu.shape = 1,X.shape[1]
     return X - mu
@@ -641,7 +661,8 @@ def remove_channel_means(X):
 
 def get_exp_prediction(pars, x):
     """
-    pars is an a, alpha, k0 tuple of parameters for the exponential function
+    FUNC: get_exp_prediction
+    DESCR: pars is an a, alpha, k0 tuple of parameters for the exponential function
     y = a*exp(alpha*t) + k
 
     Evaluate this function at x and return y
@@ -658,7 +679,8 @@ def get_exp_prediction(pars, x):
 
 def get_best_exp_params(x, y, guess=(1.0, -.5, 0.0)): 
     """
-    Given a distance array x and an equal shaped array of coherences y
+    FUNC: get_best_exp_params
+    DESCR: Given a distance array x and an equal shaped array of coherences y
     and an initial guess for the parameters of get_exp_prediction,
     where pars is an a, alpha, k0 tuple, return the best fit
     parameters as an a, alpha, k0 tuple
@@ -666,7 +688,8 @@ def get_best_exp_params(x, y, guess=(1.0, -.5, 0.0)):
     Eg,
     best = get_best_exp_params(delta, coh, guess)
     """
-    
+
+    print "utils.get_best_exp_params(x=",x, "y=", y, "guess=", guess,"): !!!"
     def errfunc(pars): 
         return y - get_exp_prediction(pars, x)  #return the error 
 
@@ -700,9 +723,9 @@ def get_best_exp_params(x, y, guess=(1.0, -.5, 0.0)):
 
 def cohere_pairs_eeg( eeg, eoiPairs=None, indMin=0, indMax=None,
                       data=None, returnPxx=False, **kwargs):
-
     """
-    Cxy, Phase, freqs = cohere_pairs_eeg(  ...)
+    FUNC: cohere_pairs_eeg
+    DESCR: Cxy, Phase, freqs = cohere_pairs_eeg(  ...)
     
     Compute the coherence for all pairs in the eoi.  eeg is a
     EEG instance.
@@ -817,13 +840,19 @@ def cohere_pairs_eeg( eeg, eoiPairs=None, indMin=0, indMax=None,
         return Cxy, Phase, freqs
 
 def window_hanning(x):
-    "return x times the hanning window of len(x)"
+    """
+    FUNC: window_hanning
+    DESCR: return x times the hanning window of len(x)
+    """
     sigma = std(x)
     win =  hanning(len(x))*x
     return win*(sigma/std(win))
 
 def bandpass(lpsf, lpcf, hpcf, hpsf, Fs, gpass=3, gstop=20):
-    "return a butterworth bandpass filter"
+    """
+    FUNC: bandpass
+    DESCR: return a butterworth bandpass filter
+    """
     Nyq = Fs/2.
     wp = [lpcf/Nyq, hpcf/Nyq]
     ws = [lpsf/Nyq, hpsf/Nyq]
@@ -835,13 +864,17 @@ def bandpass(lpsf, lpcf, hpcf, hpsf, Fs, gpass=3, gstop=20):
     return func
 
 def gen_surrogate_data(eeg, tmin, tmax, eoi, filters, numSurrs) :
+    """
+    FUNC: gen_surrogate_data
+    DESCR: 
+    """
     surrData = {}
 
     # Get data
     t, data = eeg.get_data(tmin, tmax)
 
     # Extract random pairs from the data
-#    randInds = (nx.mlab.rand(numSurrs, 2) * len(eoi)).astype(nx.Int)
+    # randInds = (nx.mlab.rand(numSurrs, 2) * len(eoi)).astype(nx.Int)
     randInds = (rand(numSurrs, 2) * len(eoi)).astype(Int)
     e2i = eeg.get_amp().get_electrode_to_indices_dict()
     for i, pair in enumerate(randInds) :
@@ -853,11 +886,11 @@ def gen_surrogate_data(eeg, tmin, tmax, eoi, filters, numSurrs) :
         i2 = e2i[eoi[ie2]]
 
         # Generate surrogate data
-# XXX
+        # XXX
         surr1 = fftsurr(data[:,i1], window=window_hanning)
         surr2 = fftsurr(data[:,i2], window=window_hanning)
-#        surr1 = fftsurr(data[:,i1])
-#        surr2 = fftsurr(data[:,i2])
+        # surr1 = fftsurr(data[:,i1])
+        # surr2 = fftsurr(data[:,i2])
 
         # Generate filtered surrogate data
         for j, tup in enumerate(filters.items()) :

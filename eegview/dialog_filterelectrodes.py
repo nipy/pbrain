@@ -26,12 +26,12 @@ from events import Observer
 
 class Dialog_FilterElectrodes(gtk.Dialog):
     """
+    CLASS: Dialog_FilterElectrodes
 
-    Select a subset of trodes and call ok_callback(selectedTrodes).
+    DESCR: Select a subset of trodes and call ok_callback(selectedTrodes).
 
     trodes and selectedTrodes are a list of tuples; each tuple is
     (grdName, grdNum).
-    
     """
     def on_rectify_toggled(self, cell, path_str, model):
         print "Dialog_SelectElectrodes: cell=",cell, " path_str=", path_str, " model=", model

@@ -5,7 +5,6 @@ import gtk, gobject
 
 from events import Observer
 
-#from Numeric import fromstring, arange, Int16, Float, log10, zeros
 from scipy import fromstring, arange, log10, zeros
 from scipy import arange, sin, pi, zeros, ones, reshape,  \
      greater_equal, transpose, array, arange, resize,  \
@@ -27,6 +26,10 @@ from matplotlib.mlab import detrend_none, detrend_mean, detrend_linear,\
 
 
 class CoherenceWin(mpl_windows.MPLWin):
+    """
+    CLASS: CoherenceWin
+    DESCR: Window for displaying coherence between selected channel and all other EOIs
+    """
     _title = "Coherence for given channel"
 
     freq_min = 0
@@ -104,12 +107,8 @@ class CoherenceWin(mpl_windows.MPLWin):
         if tup is None: return
 
         # ok but we also want to get the data for all NON-selected
-        # electrodes, and then calculate coherence. ARGH. at the
-        # very least, do this for all electrodes in the EOI!
-        #
-        # we will probably have to roll a lot of this by hand as
-        # EEGPlot is not forthcoming about the content of non-selected channels.
-        # conveniently it does however provide a get_eeg() function
+        # electrodes, and then calculate coherence for all electrodes in
+        # the EOI.
 
         eois = self.eegplot.get_eoi()
         print "CoherenceWin.make_plot(): eois= ", eois
@@ -152,11 +151,11 @@ class CoherenceWin(mpl_windows.MPLWin):
                 axes.set_title('Coherence for %s' % str(eoi_pair[0]))
             
             axes.set_ylabel("%s" % str(eoi_pair[1]), rotation='horizontal', fontsize=8)
-            print "CoherenceWin.make_plot(): doing pair ", str(eoi_pair)
+            #print "CoherenceWin.make_plot(): doing pair ", str(eoi_pair)
             
-            print "CoherenceWin.make_plot(): dude coh_vec[0:20] is ", coh_vec[0:20], "freqs[0:20] = ", freqs[0:20]
+            #print "CoherenceWin.make_plot(): dude coh_vec[0:20] is ", coh_vec[0:20], "freqs[0:20] = ", freqs[0:20]
 
-            # mccXXX: all I want is a subrange of the freqs and the corresponding y values.
+            # mcc XXX: all I want is a subrange of the freqs and the corresponding y values.
             # there is obviously some one-line way to do this. ask jdh sometime
             final_freqs = []
             for f in freqs:
@@ -164,8 +163,8 @@ class CoherenceWin(mpl_windows.MPLWin):
                     final_freqs.append(f)
             final_freqs = array(final_freqs)
 
-            print "freqs[0:10] look like this of length " , freqs[0:10], len(freqs)
-            print "final_freqs[0:10] look like this of length " , final_freqs[0:10], len(final_freqs)
+            #print "freqs[0:10] look like this of length " , freqs[0:10], len(freqs)
+            #print "final_freqs[0:10] look like this of length " , final_freqs[0:10], len(final_freqs)
 
             if (eoi_pair[0] != eoi_pair[1]):
                 # get color used in main EEG viewer
@@ -192,16 +191,12 @@ class CoherenceWin(mpl_windows.MPLWin):
             
             i = i + 1
 
-        print "CoherenceWin.make_plot(): self.canvas.draw()!!!"
+        print "CoherenceWin.make_plot(): self.canvas.draw()."
         self.canvas.draw()
         return 
 
 
     def compute_coherence(self, eeg, t, data, eoi_pairs):
-        """
-        **********************************************************************
-        **********************************************************************
-        """
         def progress_callback(frac,  msg):
             print msg, frac
             # XXX: make a progress bar ??
@@ -230,7 +225,7 @@ class CoherenceWin(mpl_windows.MPLWin):
             NFFT = NFFT,
             detrend = detrend_none,
             window = window_none,
-            # MCCXXX: changing this arbitrarily to see what happens
+            # mcc XXX: changing this arbitrarily to see what happens
             noverlap = 477,
             #noverlap = 0,
             #preferSpeedOverMemory = 1,
@@ -238,7 +233,7 @@ class CoherenceWin(mpl_windows.MPLWin):
             progressCallback = progress_callback,
             returnPxx=True,
             )
-        print "CoherenceWin.compute_coherence(): uhhh did that just work ? Cxy, Phase, freqs, Pxx:" , len(Cxy), len(Phase), freqs.shape, len(Pxx)
+        #print "CoherenceWin.compute_coherence(): Cxy, Phase, freqs, Pxx:" , len(Cxy), len(Phase), freqs.shape, len(Pxx)
         # view3 does this stuff where we look at particular bands. we don't (yet)
         # 
         #

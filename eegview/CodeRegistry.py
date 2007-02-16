@@ -2,6 +2,10 @@ from Code import Code
 
 #emulate a static registry
 class CodeRegistry:
+    """
+    CLASS: CodeRegistry
+    DESCR:
+    """ 
     def __init__(self):
         """Init the registry"""
         self.codes = {}

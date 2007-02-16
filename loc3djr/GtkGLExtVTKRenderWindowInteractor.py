@@ -15,14 +15,16 @@ import gtk.gtkgl
 import vtk
 
 class GtkGLExtVTKRenderWindowInteractor(gtk.gtkgl.DrawingArea):
-
-    """ Embeds a vtkRenderWindow into a pyGTK widget and uses
+    """
+    CLASS: GtkGLExtVTKRenderWindowInteractor
+    DESCR: Embeds a vtkRenderWindow into a pyGTK widget and uses
     vtkGenericRenderWindowInteractor for the event handling.  This
     class embeds the RenderWindow correctly.  A __getattr__ hook is
     provided that makes the class behave like a
     vtkGenericRenderWindowInteractor."""
 
     def __init__(self, *args):
+        print "GtkGLExtVTKRenderWindowInteractor.__init__()"
         gtk.gtkgl.DrawingArea.__init__(self)
 
         self.set_double_buffered(False)
@@ -35,6 +37,8 @@ class GtkGLExtVTKRenderWindowInteractor(gtk.gtkgl.DrawingArea):
 
         self._Iren = vtk.vtkGenericRenderWindowInteractor()
         self._Iren.SetRenderWindow(self._RenderWindow)
+
+        # mcc XXX: hmm
         self._Iren.GetInteractorStyle().SetCurrentStyleToTrackballCamera()
         self._Iren.AddObserver('CreateTimerEvent', self.CreateTimer)
         self._Iren.AddObserver('DestroyTimerEvent', self.DestroyTimer)
@@ -137,6 +141,7 @@ class GtkGLExtVTKRenderWindowInteractor(gtk.gtkgl.DrawingArea):
         return ctrl, shift
 
     def OnButtonDown(self, wid, event):
+        print "GtkGLExtVTKRenderWindowInteractor.OnButtonDown()"
         """Mouse button pressed."""
         m = self.get_pointer()
         ctrl, shift = self._GetCtrlShift(event)
@@ -146,10 +151,10 @@ class GtkGLExtVTKRenderWindowInteractor(gtk.gtkgl.DrawingArea):
         if button == 3:
             self._Iren.RightButtonPressEvent()
             return True
-	elif button == 1:
+        elif button == 1:
             self._Iren.LeftButtonPressEvent()
             return True
-	elif button == 2:
+        elif button == 2:
             self._Iren.MiddleButtonPressEvent()
             return True
         else:
@@ -165,10 +170,10 @@ class GtkGLExtVTKRenderWindowInteractor(gtk.gtkgl.DrawingArea):
         if button == 3:
             self._Iren.RightButtonReleaseEvent()
             return True
-	elif button == 1:
+        elif button == 1:
             self._Iren.LeftButtonReleaseEvent()
             return True
-	elif button == 2:
+        elif button == 2:
             self._Iren.MiddleButtonReleaseEvent()
             return True
         

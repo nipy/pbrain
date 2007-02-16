@@ -153,7 +153,7 @@ class Dialog_FileSelection(gtk.FileSelection):
         """wrap some of the file selection boilerplate.  okCallback is
         a function that takes a Dialog_FileSelection instance as a
         single arg."""
-
+        print "Dialog_FileSelection.__init__"
         self.defaultDir = defaultDir
         self.okCallback = okCallback
         gtk.FileSelection.__init__(self, title=title)
@@ -248,7 +248,7 @@ def not_implemented(parent=None, *args):
     "Popup a message for a widget that doesn't have a callback implemented yet"
     
     simple_msg('Not implemented yet; sorry!',
-                  title='Slacking software designer alert',
+                  title='Error: Feature Unimplemented',
                   parent=parent)
 
 def yes_or_no(msg, title, responseCallback, parent=None):
@@ -394,7 +394,7 @@ def get_num_range(minLabel='Min', maxLabel='Max',
 
         if response==gtk.RESPONSE_OK:
             if (as_times):
-                # mccXXX what's the magic code word to unfurl an array into a tuple or untupled comma-separated variables?
+                # mcc XXX: what's the magic code word to unfurl an array into a tuple or untupled comma-separated variables?
                 x= map(int, (entryMin.get_text()).split(':'))
                 try:
                     minVal = datetime.time(x[0], x[1], x[2])

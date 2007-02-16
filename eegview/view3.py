@@ -77,11 +77,14 @@ from autoplay_view3d_dialog import AutoPlayView3Dialog
 from array_mapper import ArrayMapper
 from image_manager import ImageManager
 from grid_manager import GridManager
+from mesh_manager import MeshManager
 
 from mpl_windows import VoltageMapWin
 
 from amp_dialog import AmpDialog
+from data import Amp
 
+import pickle
 
 def dist(x,y):
     tmp = array(x)-array(y)
@@ -92,6 +95,10 @@ def dist(x,y):
     
 
 class View3(gtk.Window, Observer):
+    """
+    CLASS: View3
+    DESCR: Elaborate GUI window for visualizing structural MRI / CT / coherence data.
+    """
     banddict =  {'delta':0, 'theta':1, 'alpha':2,
                  'beta':3, 'gamma':4, 'high':5}
 
@@ -112,6 +119,7 @@ class View3(gtk.Window, Observer):
         - self.gridManager
 
         """
+        print "View3.__init__()"
         gtk.Window.__init__(self)
 
         self.ok = False  # do not show if false
@@ -120,7 +128,9 @@ class View3(gtk.Window, Observer):
         self.eeg = eegplot.get_eeg()
         self.amp = self.eeg.get_amp()
         self.cnumDict = self.amp.get_channel_num_dict()
+        # this gets a copy of the EEGPlot EOI to start with
         self.eoi = eegplot.get_eoi()
+        print "View3.__init__(): self.eoi is " , self.eoi
         self.eoiPairs = all_pairs_eoi(self.eoi)
         self.selected = None
         self.cohCache = None  # cache coherence results from other window
@@ -129,6 +139,13 @@ class View3(gtk.Window, Observer):
         
         self.filterGM = eegplot.filterGM
         self.gridManager = None
+
+        # XXX mcc self.meshManager this will handle the brain vtk mesh and orientation
+        # the same way gridManager manages the markers (hopefully they
+        # will not have to talk to each other too much or at all
+        self.meshManager = None
+        
+        
         seen = {}
         for key in self.eoi:
             if seen.has_key(key):
@@ -137,7 +154,6 @@ class View3(gtk.Window, Observer):
             seen[key] = 1
 
 
-            
         interactor = GtkGLExtVTKRenderWindowInteractor()
         interactor.AddObserver('LeftButtonPressEvent', self.press_left)
 
@@ -180,8 +196,11 @@ class View3(gtk.Window, Observer):
             ok = self.load_markers()
         if not ok:
             return
+        print "View3.__init__(): after load_markers(), self.eoi is " , self.eoi
 
-        self.set_title("View3: " + self.eeg.filename + " " + self.csv_fname)
+        print "self.eeg.filename=", self.eeg.filename, "self.csv_fname=", self.csv_fname
+        if (self.csv_fname):
+            self.set_title("View3: " + self.eeg.filename + " " + self.csv_fname)
 
         
         toolbar1 = self.make_toolbar1()
@@ -239,6 +258,7 @@ class View3(gtk.Window, Observer):
         except AttributeError: pass
         
     def press_left(self, *args):
+        print "View3.press_left()!"
         'If in selection mode and click over marker, select it and update plot'
         if not self.buttonSelected.get_active(): return
         if self.gridManager is None: return
@@ -304,122 +324,31 @@ class View3(gtk.Window, Observer):
             if self.gridManager is not None:
                 self.gridManager.show()
             
-        #iconw = gtk.Image() # icon widget
-        #iconw.set_from_stock(gtk.STOCK_PREFERENCES, iconSize)
-        #button = toolbar1.append_item(
-        #    'Grids',
-        #    'Grid propertes',
-        #    'Private',
-        #    iconw,
-        #    show_grid_manager)
-
+        self.add_toolbutton1(toolbar1, gtk.STOCK_FLOPPY, 'Load .vtk/.reg file', 'Private', self.mesh_from_file)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_SAVE_AS, 'Save .reg file', 'Private', self.registration_to_file)
         self.add_toolbutton1(toolbar1, gtk.STOCK_PREFERENCES, 'Grid properties', 'Private', show_grid_manager)
-
-        #iconw = gtk.Image() # icon widget
-        #iconw.set_from_stock(gtk.STOCK_OPEN, iconSize)
-        #button = toolbar1.append_item(
-        #    'Coherence from datafile',
-        #    'Coherence from datafile',
-        #    'Private',
-        #    iconw,
-        #    self.coherence_from_file)
-
         self.add_toolbutton1(toolbar1, gtk.STOCK_OPEN, 'Coherence from datafile', 'Private', self.coherence_from_file)
-        
-        #iconw = gtk.Image() # icon widget
-        #iconw.set_from_stock(gtk.STOCK_SELECT_COLOR, iconSize)
-        #button = toolbar1.append_item(
-        #    'Voltage map',
-        #    'Voltage map',
-        #    'Private',
-        #    iconw,
-        #    self.voltage_map)
-
         self.add_toolbutton1(toolbar1, gtk.STOCK_SELECT_COLOR, 'Voltage map', 'Private', self.voltage_map)
 
         def compute_and_plot(*args):
             self.compute_coherence()
             self.plot_band()
             
-        #iconw = gtk.Image() # icon widget
-        #iconw.set_from_stock(gtk.STOCK_EXECUTE, iconSize)
-        #button = toolbar1.append_item(
-        #    'Coherence',
-        #    'Compute coherence',
-        #    'Private', 
-        #    iconw,
-        #    compute_and_plot)
-
         self.add_toolbutton1(toolbar1, gtk.STOCK_EXECUTE, 'Compute coherence', 'Private', compute_and_plot)
-
-        #iconw = gtk.Image() # icon widget
-        #iconw.set_from_stock(gtk.STOCK_PROPERTIES, iconSize)
-        #button = toolbar1.append_item(
-        #    'Normalization',
-        #    'Define coherence normalization window',
-        #    'Private', 
-        #    iconw,
-        #    self.compute_norm_over_range)
-
         self.add_toolbutton1(toolbar1, gtk.STOCK_PROPERTIES, 'Define coherence normalization window', 'Private', self.compute_norm_over_range)
-
-
         
-        #toolbar1.append_space()
         self.add_separator(toolbar1)
-        #iconw = gtk.Image() # icon widget
-        #iconw.set_from_stock(gtk.STOCK_CLEAR, iconSize)
-        #button = toolbar1.append_item(
-        #    'Plot',
-        #    'Plot band connections',
-        #    'Private', 
-        #    iconw,
-        #    self.plot_band,
-        #    'mouse1 color')
-
         self.add_toolbutton1(toolbar1, gtk.STOCK_CLEAR, 'Plot band connections', 'Private', self.plot_band, 'mouse1 color')
 
-
-        #toolbar1.append_space()
         self.add_separator(toolbar1)
-
-        
-        #iconw = gtk.Image() # icon widget
-        #iconw.set_from_stock(gtk.STOCK_SAVE_AS, iconSize)
-        #button = toolbar1.append_item(
-        #    'Screenshot',
-        #    'Save screenshot to file',
-        #    'Private',
-        #    iconw,
-        #     self.save_image)
-
         self.add_toolbutton1(toolbar1, gtk.STOCK_SAVE_AS, 'Save screenshot to file', 'Private', self.save_image)
-
-        #iconw = gtk.Image()
-        #iconw.set_from_stock(gtk.STOCK_JUMP_TO, iconSize)
-        #bAuto = toolbar1.append_item(
-        #    'Autoplay',
-        #    'Automatically page the EEG',
-        #    'Private',
-        #    iconw,
-        #    self.auto_play)
-
         self.add_toolbutton1(toolbar1, gtk.STOCK_JUMP_TO, 'Automatically page the EEG', 'Private', self.auto_play)
 
         def close(*args):
+            print "View3.close(): calling self.destroy()"
             self.destroy()
 
-        #iconw = gtk.Image() 
-        #iconw.set_from_stock(gtk.STOCK_QUIT, iconSize)
-        #button = toolbar1.append_item(
-        #    'Close',
-        #    'Close view 3D',
-        #    'Private',
-        #    iconw,
-        #    close)
-
         self.add_toolbutton1(toolbar1, gtk.STOCK_QUIT, 'Close view 3D', 'Private', close)
-
         return toolbar1
 
     def add_toolitem2(self, toolbar, widget, tip_text):
@@ -532,15 +461,6 @@ class View3(gtk.Window, Observer):
         #toolbar2.append_widget(self.entryMaxDist, 'Maximum distace', '')
         self.add_toolitem2(toolbar2, self.entryMaxDist, 'Maximum distance')
 
-        #iconw = gtk.Image() # icon widget
-        #iconw.set_from_stock(gtk.STOCK_EXECUTE, iconSize)
-        #button = toolbar2.append_item(
-        #    'Replot',
-        #    'Replot',
-        #    'Private', 
-        #    iconw,
-        #    self.plot_band)
-
         self.add_toolbutton1(toolbar2, gtk.STOCK_EXECUTE, 'Replot', 'Private', self.plot_band)
 
         self.add_separator(toolbar2)
@@ -549,8 +469,6 @@ class View3(gtk.Window, Observer):
         self.buttonFollowEvents = gtk.CheckButton('Auto')
         self.buttonFollowEvents.show()
         self.buttonFollowEvents.set_active(False)
-        #toolbar2.append_widget(self.buttonFollowEvents, 'Automatically update figure in response to changes in EEG window', '')
-
         self.add_toolitem2(toolbar2, self.buttonFollowEvents, 'Automatically update figure in response to changes in EEG window')
 
         def toggled(button):
@@ -570,38 +488,36 @@ class View3(gtk.Window, Observer):
         self.buttonSelected = gtk.CheckButton('Selected')
         self.buttonSelected.show()
         self.buttonSelected.set_active(False)
-        #toolbar2.append_widget(self.buttonSelected, 'Only plot coherences with selected electrode', '')
         self.add_toolitem2(toolbar2, self.buttonSelected, 'Only plot coherences with selected electrode')
 
         self.buttonSelected.connect('toggled', toggled)
 
 
 
+        self.buttonPhase = gtk.CheckButton('Phase Threshold')
+        self.buttonPhase.show()
+        self.buttonPhase.set_active(True)
+        print "dude buttonPhase"
+        self.add_toolitem2(toolbar2, self.buttonPhase, 'Draw white pipes when abs(phase) is <0.1')
+
+        def phase_toggled(button):
+            if not self.cohereResults:
+                return
+            freqs, cxyBands, phaseBands = self.cohereResults
+            self.draw_connections(cxyBands, phaseBands)
+            if not button.get_active():
+                self.draw_connections(cxyBands, phaseBands, phasethreshold=False)
+            else:
+                self.draw_connections(cxyBands, phaseBands, phasethreshold=True)
+
+        self.buttonPhase.connect('toggled', phase_toggled)
+        
+
 
         def show_image_prefs(widget, *args):
             self.imageManager.show_prefs()
             
-            
-        #iconw = gtk.Image() # icon widget
-        #iconw.set_from_stock(gtk.STOCK_NEW, iconSize)
-        #buttonNew = toolbar2.append_item(
-        #    'Image data',
-        #    'Image data preferences',
-        #    'Private',
-        #    iconw,
-        #    show_image_prefs)
-
         self.add_toolbutton1(toolbar2, gtk.STOCK_NEW, 'Image data preferences', 'Private', show_image_prefs)
-        
-        #iconw = gtk.Image() # icon widget
-        #iconw.set_from_stock(gtk.STOCK_COPY, iconSize)
-        #buttonCSV = toolbar2.append_item(
-        #    'Dump CSV',
-        #    'Dump coherences to CSV',
-        #    'Private',
-        #    iconw,
-        #    self.dump_csv)
-
         self.add_toolbutton1(toolbar2, gtk.STOCK_COPY, 'Dump coherences to CSV', 'Private', self.dump_csv)
 
         return toolbar2
@@ -693,9 +609,97 @@ class View3(gtk.Window, Observer):
         win = VoltageMapWin(self)
         win.show()
 
+    
+    def save_registration_as(self, fname):
+        print "view3.save_registration_as(", fname,")"
+        fh = file(fname, 'w')
+
+        # XXX mcc: somehow get the transform for the VTK actor. aiieeee
+        #xform = self.vtkactor.GetUserTransform()
+        loc = self.meshManager.contours.GetOrigin()
+        pos = self.meshManager.contours.GetPosition()
+        scale = self.meshManager.contours.GetScale()
+        mat = self.meshManager.contours.GetMatrix()
+        orient = self.meshManager.contours.GetOrientation()
+        
+        print "View3.save_registration_as(): meshManager.contours has origin, pos, scale, mat, orient=", loc, pos, scale, mat, orient, "!!"
+
+
+        def vtkmatrix4x4_to_array(vtkmat):
+            scipy_array = zeros((4,4), 'd')
+
+            for i in range(0,4):
+                for j in range(0,4):
+                    scipy_array[i][j] = mat.GetElement(i,j)
+
+            return scipy_array
+
+        scipy_mat = vtkmatrix4x4_to_array(mat)
+
+        pickle.dump(scipy_mat, fh)
+        fh.close()
+
+    def registration_to_file(self, *args):
+        print "View3.registration_to_file()"
+
+            
+
+        def ok_clicked(w):
+            fname = dialog.get_filename()
+            try: self.save_registration_as(fname)
+            except IOError:
+                error_msg('Could not save data to %s' % fname,
+                          )
+            else:
+                self.fileName = fname
+                dialog.destroy()
+            
+        dialog = gtk.FileSelection('Choose filename for registration .reg data file')
+        dialog.ok_button.connect("clicked", ok_clicked)
+        dialog.cancel_button.connect("clicked", lambda w: dialog.destroy())
+        dialog.show()
+        
+
+    def mesh_from_file(self, *args):
+        print "View3.mesh_from_file()"
+
+        filename = fmanager.get_filename(title="Select .vtk mesh file")
+        if filename is None: return
+        if not os.path.exists(filename):
+            error_msg('File %s does not exist' % filename, parent=dlg)
+            return
+
+        try: fh = file(filename)
+        except IOError, msg:
+            msg = exception_to_str('Could not open %s' % filename)
+            error_msg(msg)
+            return
+        fh.close() #?
+
+        # now also load the .reg file
+
+        reg_filename = fmanager.get_filename(title="Select .reg registration file")
+        if reg_filename is None: return
+        if not os.path.exists(reg_filename):
+            error_msg('File %s does not exist' % reg_filename, parent=dlg)
+            return
+
+        try: fh = file(reg_filename)
+        except IOError, msg:
+            msg = exception_to_str('Could not open %s' % reg_filename)
+            error_msg(msg)
+            return
+        fh.close() #?
+
+        self.load_mesh(filename, reg_filename)
+
+        
+        
+        
+
     def coherence_from_file(self, *args):
 
-        filename = fmanager.get_filename()
+        filename = fmanager.get_filename(title="Select .dat file")
         if filename is None: return
         if not os.path.exists(filename):
             error_msg('File %s does not exist' % filename, parent=dlg)
@@ -712,6 +716,7 @@ class View3(gtk.Window, Observer):
             msg = exception_to_str('Error parsing %s' % filename)
             error_msg(msg)
             return
+        print "View3.coherence_from_file(): called read_cohstat(): cxy.keys=", cxy.keys()
 
         seen = {}
         for i,j in cxy.keys():
@@ -720,16 +725,74 @@ class View3(gtk.Window, Observer):
         channels = seen.keys()
         channels.sort()
 
-        print "coherence_from_file(): channels is ", channels, "starting AmpDialog"
-        ampDlg = AmpDialog(channels)
-        ampDlg.show()
-        amp = ampDlg.get_amp()
+        print "View3.coherence_from_file(): channels is ", channels, "NOT starting AmpDialog"
+
+        amp_filename = fmanager.get_filename(title="Select .amp file")
+        if amp_filename is None: return
+        if not os.path.exists(amp_filename):
+            error_msg('File %s does not exist' % amp_filename, parent=dlg)
+            return
+
+        try: fh = file(amp_filename)
+        except IOError, msg:
+            msg = exception_to_str('Could not open %s' % amp_filename)
+            error_msg(msg)
+            return
+
+        def parse_amp_file(fh):
+            amp_list = []
+            while 1:
+                line = fh.readline().strip()
+                #print "line='%s'" % line
+                if (line == None):
+                    break
+                if (line == ''):
+                    break
+                if (line[0] == '#'):
+                    continue
+                # every line should be like
+                # [int] [letters] [int]
+                # e.g. 1 FG 4
+                vals = line.split()
+                #print vals
+                if (len(vals) == 1):
+                    # empty channel.. ignore
+                    print "parse_amp_file(): ignoring empty line ", vals
+                    continue
+                if (len(vals) != 3):
+                    raise RuntimeError, 'Bad .amp file on line %s' % line
+                # ok now make sure this channel is in self.eoi, otherwise
+                # we don't want to try to plot that Cxy value later
+
+                electrode = (vals[1], int(vals[2]))
+                if electrode not in self.eoi:
+                    print "View3.parse_amp_file(): skipping electrode ", electrode, ": not in self.eoi"
+                    continue
+                amp_list.append((int(vals[0]),vals[1], int(vals[2])))
+            fh.close()
+            return amp_list
+        
+        amplist_from_file = parse_amp_file(fh)
+        amp = Amp()
+        amp.set_channels(amplist_from_file)
+        
+        
+        #ampDlg = AmpDialog(channels, self)
+        #ampDlg.show()
+        print "not running ampDlg"
+        #amp = ampDlg.run()
+
+        print "view3: ampdialog returned: amp is " , amp
+
+        #amp = ampDlg.get_amp()
         if amp is None: return
         self.amp = amp
         # Convert the cyx, pxy to electrode dicts and filter out
         # channels not in the eoi
 
         d = amp.get_channelnum_dict()
+
+        print "amp channelnum dict is like this=", d
 
         # make sure the keys agree
         Cxy = {}; Pxy = {}
@@ -741,9 +804,11 @@ class View3(gtk.Window, Observer):
         for i,j in keys:
             if not d.has_key(i):
                 skipd[i] = 1
+                #print "skipping this cause key i=", i, " and .amp does not have that"
                 continue
             if not d.has_key(j):
                 skipd[j] = 1
+                #print "skipping this cause key j=", j, " and .amp does not have that"
                 continue
             key = d[i], d[j]
 
@@ -756,6 +821,8 @@ class View3(gtk.Window, Observer):
         if len(skipped):
             print >>sys.stderr, 'Skipping these electrodes not in eoi\n\t%s eoi'%skipped
 
+        # ok but now we ALSO want to skip Cxy entries for channels that we don't have
+        # csv points for
         
         self.cohereResults = None, Cxy, Pxy
         self.plot_band()
@@ -786,6 +853,9 @@ class View3(gtk.Window, Observer):
             self.norm[bandind] = pars, cutoff
         
         self.plot_band()
+
+    def load_mesh(self, mesh_filename, reg_filename):
+        self.meshManager = MeshManager(self.interactor, self.renderer, mesh_filename, reg_filename)
         
     def load_markers(self, *args, **kwargs):
 
@@ -797,15 +867,26 @@ class View3(gtk.Window, Observer):
             try: infile = file(self.csv_fname, 'r')
             except IOError, msg:
                 err = '\n'.join(map(str, msg))
-                error_msg('Could not open %s for reading\n%s' % (self.self.csv_fname,err),
+                error_msg('Could not open %s for reading\n%s' % (self.csv_fname,err),
                           parent=self)
                 self.gridManager.markers = None
                 return
 
+        print "View3.load_markers(): initializing GridManager(): self.eoi is uh ",self.eoi, "of length" , len(self.eoi)
         self.gridManager = GridManager(self.interactor, self.renderer, infile)
         if not self.gridManager.ok:
             return
-        
+
+        # here, we bring up a message if we have tried to load markers not in EOI.
+
+        # "EOI" does not refer to which ones are specified in the
+        # EEGPlot window, but instead just which electrodes are in the
+        # BNI/EEG file. uhhhh
+
+        # XXX: we may want to also make csv markers which are not in the
+        # BNI/EEG file to look all small and greyed out. however
+        # GridManager may have no access to the appropriate info.
+
         # validate the marker dict with eoi
         bad = []
         for key in self.eoi:
@@ -813,12 +894,15 @@ class View3(gtk.Window, Observer):
                 bad.append(key)
 
         if len(bad):
+            print "View3.load_markers(): self.eegplot.get_eoi() is now " , self.eegplot.get_eoi()
             s = ', '.join(['%s %d'%key for key in bad])
             simple_msg('Ignoring these electrodes not in marker\n\t%s'%s)
             for key in bad:
+                print "View3.load_markers(): removing key ", key ,"from self.eoi"
                 self.eoi.remove(key)
             self.eoiPairs = all_pairs_eoi(self.eoi)
-
+            print "View3.load_markers(): self.eegplot.get_eoi() is now " , self.eegplot.get_eoi()
+            
 
         self.markersEOI = [self.gridManager.markerd[key] for key in self.eoi]
 
@@ -911,8 +995,7 @@ class View3(gtk.Window, Observer):
         if self.filterGM:            
             data = filter_grand_mean(data)
 
-        #print "View3.compute_coherence(): self.eoiPairs = ", self.eoiPairs
-            
+        print "View3.compute_coherence(): self.eoiPairs = ", self.eoiPairs
         Cxy, Phase, freqs, Pxx = cohere_pairs_eeg(
             eeg,
             self.eoiPairs,
@@ -956,6 +1039,7 @@ class View3(gtk.Window, Observer):
         except AttributeError:  self.compute_coherence()
 
         freqs, cxyBands, phaseBands = self.cohereResults
+        print "plot_band(): len(cxyBands)= ", len(cxyBands)
         self.draw_connections(cxyBands, phaseBands)
 
         
@@ -975,21 +1059,32 @@ class View3(gtk.Window, Observer):
         compute the best exponential fit.  If the optimizer doesn't
         converge, it will raise an error and return None.
         """
+
+
+        # Cxy is all pairs and their coherence values..
+        print "View3.norm_by_distance(Cxy=", len(Cxy), " arrays, bandind=", bandind, "pars=", pars
         if bandind is None:
             bandind = self.get_band_ind()
+            print "View3.norm_by_distance(): bandind calculated as ", bandind
 
         cvec = array([Cxy[key][bandind] for key in self.eoiPairs])
+        print "View3.norm_by_distance(): cvec=", cvec.shape, "elements"
         dvec = array([dist(self.xyzd[e1], self.xyzd[e2])
                       for e1,e2 in self.eoiPairs])
+        print "View3.norm_by_distance(): dvec=", dvec.shape, "elements"
 
         threshType, threshVal = self.thresholdParams
         if threshType=='abs.':
             predicted = ones(cvec.shape, 'd')
             return dvec, cvec, predicted, None
         
-
+        print "View3.norm_by_distance(): pars=", pars
         if pars is None:
+            f = file("getbestexp.pickle", "w")
             pars = get_best_exp_params(dvec, cvec)
+            pickle.dump((dvec, cvec), f)
+            f.close()
+            print "View3.norm_by_distance(): pars calculated to be=", pars
         if pars is None:
             error_msg('Best fit exponential did not converge',
                       parent=self)
@@ -1012,6 +1107,10 @@ class View3(gtk.Window, Observer):
         win = gtk.Window()
         win.set_name("Coherence by distance")
         win.set_border_width(5)
+        win.resize(800,400)
+        tmin, tmax = self.eegplot.get_time_lim()
+        win.set_title("View3: " + self.eeg.filename + " " + self.csv_fname + "\t" + self._activeBand + "\t" + str(tmin) +":" + str(tmax))
+                
 
         vbox = gtk.VBox(spacing=3)
         win.add(vbox)
@@ -1121,11 +1220,13 @@ class View3(gtk.Window, Observer):
         if stored is None:
             # compute local norm
             dvec, cvec, predicted, pars = self.norm_by_distance(Cxy)
+            print "View3.get_cxy_pxy_cutoff(). stored: cvec=", cvec, "predicted=", predicted
             normedvec = divide(cvec, predicted)
             cutoff = self.get_cutoff(normedvec)
         else:
             pars, cutoff = stored
             dvec, cvec, predicted, tmp = self.norm_by_distance(Cxy, pars=pars)
+            print "View3.get_cxy_pxy_cutoff(). stored: cvec=", cvec, "predicted=", predicted
             normedvec = divide(cvec, predicted)
 
         #print 'get_cxy_pxy_cutoff 2', '%1.2f'%min(cvec), '%1.2f'%max(cvec)
@@ -1177,7 +1278,7 @@ class View3(gtk.Window, Observer):
         
         return returnKeys
         
-    def draw_connections(self, Cxy, Pxy):
+    def draw_connections(self, Cxy, Pxy, phasethreshold=True):
         N = len(self.eoi)
 
         ret = self.get_cxy_pxy_cutoff(Cxy, Pxy)
@@ -1208,10 +1309,14 @@ class View3(gtk.Window, Observer):
         for key in supra_threshold_keys:
             (e1, e2) = key
             phase = pxy[key]
-            if abs(phase)<0.1: phasemap = None
-            elif phase>0: phasemap = posphase  # 1 leads 2
-            else: phasemap = negphase          # 2 leads 1
-            
+            # XXX mcc I think this is where the 'white pipes' come from..?
+            if (phasethreshold==True):
+                if abs(phase)<0.1: phasemap = None
+                elif phase>0: phasemap = posphase  # 1 leads 2
+                else: phasemap = negphase          # 2 leads 1
+            else:
+                if phase>0: phasemap = posphase  # 1 leads 2
+                else: phasemap = negphase
             ok = self.gridManager.connect_markers(e1, e2, scalarfunc=phasemap)
             if not ok:
                 error_msg('Giving up', parent=self)

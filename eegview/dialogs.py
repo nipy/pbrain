@@ -39,14 +39,10 @@ import pylab
 # between calls.
 storeParamsOnOK = {}
 
-######################################################################
-# CLASS: Dialog_SelectElectrodes
-#
-######################################################################
 class Dialog_SelectElectrodes(gtk.Dialog):
     """
-
-    Select a subset of trodes and call ok_callback(selectedTrodes).
+    CLASS: Dialog_SelectElectrodes
+    DESCR: Select a subset of trodes and call ok_callback(selectedTrodes).
 
     trodes and selectedTrodes are a list of tuples; each tuple is
     (grdName, grdNum).
@@ -228,13 +224,11 @@ class Dialog_SelectElectrodes(gtk.Dialog):
         self.statbarMID = self.statbar.push(self.statbarCID, msg)
         return True
 
-
-
-######################################################################
-# CLASS: Dialog_CohstatExport
-#
-######################################################################
 class Dialog_CohstatExport(PrefixWrapper):
+    """
+    CLASS: Dialog_CohstatExport
+    DESCR: Exporting coherence statistics
+    """
     prefix='dlgCE_'
     widgetName = 'dialogCohstatExport'
 
@@ -576,13 +570,10 @@ This is illegal.
 
         storeParamsOnOK[self.widgetName] = self.get_params()
 
-######################################################################
-# CLASS: Dialog_CoherenceParams
-#
-######################################################################
 class Dialog_CoherenceParams(PrefixWrapper):
     """
-    Get the coherence params.  On OK, will call okCallback(m), where
+    CLASS: Dialog_CoherenceParams
+    DESCR: Get the coherence params.  On OK, will call okCallback(m), where
     m is a dictionary
 
       m = {'NFFT' : integer power of 2,
@@ -664,12 +655,112 @@ class Dialog_CoherenceParams(PrefixWrapper):
         
         self['comboNFFT'].entry.set_text(str(m['NFFT']))
 
+class Dialog_EventRelatedSpec(PrefixWrapper):
+    """
+    CLASS: 
+    DESCR: Get the event related spectrogram params.  On OK, will call
+    okCallback(m), where m is a dictionary
 
-######################################################################
-# CLASS: Dialog_Preferences
-#
-######################################################################
+      m = {'event_length': integer power of 2,
+           'NFFT' : integer power of 2,
+           'overlap' : integer FFT segment overlap,
+           'window' : windowing function, callable,
+           'detrend' : detrending function, callable}
+
+    """
+
+    prefix = 'dlgERSpec_'
+    widgetName = 'dialogEventRelatedSpec'
+    def __init__(self, okCallback=donothing_callback):
+        PrefixWrapper.__init__(self)
+        self.okCallback = okCallback
+
+        self['combo_event_length'].set_popdown_strings(
+            [str(2**i) for i in range(4,17)])
+
+        self['comboNFFT'].set_popdown_strings(
+            [str(2**i) for i in range(4,17)])
+
+        if storeParamsOnOK.has_key(self.widgetName):
+            self.set_params(storeParamsOnOK[self.widgetName])
+        else:
+            self['radiobuttonWindowHanning'].set_active(1)
+            self['radiobuttonDetrendNone'].set_active(0)
+            self['combo_event_length'].entry.set_text('512')
+            self['comboNFFT'].entry.set_text('512')
+
+
+        
+    def on_buttonOK_clicked(self, event):
+        print "Dialog_EventRelatedSpec.on_buttonOK_clicked()! get_params is ", self.get_params()
+        storeParamsOnOK[self.widgetName] = self.get_params()
+        self.okCallback(self.get_params())
+        self.hide_widget()
+
+    def on_buttonCancel_clicked(self, event):
+        self.hide_widget()
+        pass
+
+
+    def get_params(self):
+        """
+        Return a dictionary of coherence params
+        """
+
+        try: overlap = int(self['entryOverlap'].get_text())
+        except ValueError:
+            label = self['labelOverlap'].get_label()
+            simple_msg('%s entry box must be an integer' % label,
+                        parent=self.widget)
+            return
+            
+        if self['radiobuttonWindowNone'].get_active():
+            window = window_none
+        else:
+            window = window_hanning
+            
+        if self['radiobuttonDetrendNone'].get_active():
+            detrend = detrend_none
+        elif self['radiobuttonDetrendMean'].get_active():
+            detrend = detrend_mean
+        else:
+            detrend = detrend_linear
+
+        m = {'event length' : int(self['combo_event_length'].entry.get_text()),
+             'NFFT' : int(self['comboNFFT'].entry.get_text()),
+             'overlap' : overlap,
+             'window' : window,
+             'detrend' : detrend}
+
+        return m
+
+
+    def set_params(self, m):
+
+        self['entryOverlap'].set_text(str(m['overlap']))
+    
+        self['radiobuttonWindowNone'].set_active(
+            m['window']==window_none)
+            
+        if m['detrend']==detrend_none:
+            self['radiobuttonDetrendNone'].set_active(1)
+            
+        elif m['detrend']==detrend_mean:
+            self['radiobuttonDetrendMean'].set_active(1)                     
+        else:
+            self['radiobuttonDetrendLinear'].set_active(1)
+
+        
+        self['comboNFFT'].entry.set_text(str(m['NFFT']))
+
+
+
+
 class Dialog_Preferences(PrefixWrapper):
+    """
+    CLASS: Dialog_Preferences
+    DESCR: 
+    """
     prefix = 'dlgPref_'
     widgetName = 'dialogPreferences'
     def __init__(self, mysqlCallBack, dataManagerCallBack):
@@ -747,11 +838,11 @@ class Dialog_Preferences(PrefixWrapper):
 
         return 1
 
-######################################################################
-# CLASS: Dialog_SaveEOI
-#
-######################################################################
 class Dialog_SaveEOI(PrefixWrapper):
+    """
+    CLASS: Dialog_SaveEOI
+    DESCR:
+    """
     prefix = 'dlgSaveEOI_'
     widgetName = 'dialogSaveEOI'
 
@@ -777,11 +868,11 @@ class Dialog_SaveEOI(PrefixWrapper):
     def get_params(self):
         return {'filename': self['comboExisting'].entry.get_text()}
 
-######################################################################
-# CLASS: Dialog_Annotate
-#
-######################################################################
 class Dialog_Annotate(PrefixWrapper) :
+    """
+    CLASS: Dialog_Annotate
+    DESCR:
+    """
     prefix = 'dlgAnnotate_'
     widgetName = 'dialogAnnotate'
 
@@ -995,11 +1086,12 @@ class Dialog_Annotate(PrefixWrapper) :
         self.set_params(self.initParams)
         self.hide_widget()
 
-######################################################################
-# CLASS: Dialog_AnnBrowser
-#
-######################################################################
+
 class Dialog_AnnBrowser(PrefixWrapper) :
+    """
+    CLASS: Dialog_AnnBrowser
+    DESCR:
+    """
     prefix = 'dlgAnnBrowser_'
     widgetName = 'dialogAnnBrowser'
 
@@ -1344,11 +1436,12 @@ class Dialog_AnnBrowser(PrefixWrapper) :
     def on_buttonClose_clicked(self, event) :
         self.ok_callback()
 
-######################################################################
-# CLASS: Dialog_PhaseSynchrony
-#
-######################################################################
+
 class Dialog_PhaseSynchrony(PrefixWrapper) :
+    """
+    CLASS: Dialog_PhaseSynchrony
+    DESCR:
+    """
     prefix = 'dlgPhaseSynchrony_'
     widgetName = 'dialogPhaseSynchrony'
 
@@ -1870,12 +1963,10 @@ class Dialog_PhaseSynchrony(PrefixWrapper) :
             if response == gtk.RESPONSE_NO :
                 return
 
-##########
-
         dlgStatusBox = Dialog_StatusBox(title='Phase Synchrony Status')
         dlgStatusBox.widget.show_now()
         dlgStatusBox.autoconnect()
-#        dlgStatusBox.show_widget()
+        # dlgStatusBox.show_widget()
 
         # Create filters
         filters = {}
@@ -2077,11 +2168,12 @@ class Dialog_PhaseSynchrony(PrefixWrapper) :
             print >> fh, '%s,%s, %1.3f' % (e1, e2, frac)
         os.system('gedit ' + tmpfile)
 
-######################################################################
-# CLASS: Dialog_PhaseSynchronyPlot
-#
-######################################################################
+
 class Dialog_PhaseSynchronyPlot(PrefixWrapper) :
+    """
+    CLASS: Dialog_PhaseSynchronyPlot
+    DESCR:
+    """
     prefix = 'dlgPhaseSynchronyPlot_'
     widgetName = 'dialogPhaseSynchronyPlot'
 
@@ -2091,6 +2183,7 @@ class Dialog_PhaseSynchronyPlot(PrefixWrapper) :
 
         self.eegplot = eegplot
 
+        print "uhhh self['vbox'] is ", self['vbox']
         # Add figure canvas
         vbox = self['vbox']
         self.fig = Figure()
@@ -2101,6 +2194,7 @@ class Dialog_PhaseSynchronyPlot(PrefixWrapper) :
         self.axesSync = self.fig.add_subplot(313)
         self.axesSync.grid(True)
         self.canvas = FigureCanvas(self.fig)
+        print "Dialog_PhaseSynchronyPlot(): self.fig=", self.fig, "self.canvas=", self.canvas
         self.canvas.set_size_request(0, 0)
         self.canvas.show()
         vbox.pack_start(self.canvas, True, True)
@@ -3163,7 +3257,12 @@ class Dialog_PhaseSynchronyPlot(PrefixWrapper) :
             pylab.title('%s band: Focal Versus Nonfocal Synchronous Events' % band)
             pylab.show()
 
+
 class Dialog_StatusBox(PrefixWrapper) :
+    """
+    CLASS: Dialog_StatusBox
+    DESCR:
+    """
     prefix = 'dlgStatusBox_'
     widgetName = 'dialogStatusBox'
 
@@ -3206,11 +3305,11 @@ class Dialog_StatusBox(PrefixWrapper) :
           self.scrolling = True
 
 
-######################################################################
-# CLASS: Dialog_FilterProps
-#
-######################################################################
 class Dialog_FilterProps(PrefixWrapper) :
+    """
+    CLASS: Dialog_FilterProps
+    DESCR:
+    """
     prefix = 'dlgFilterProps_'
     widgetName = 'dialogFilterProps'
 
@@ -3249,11 +3348,12 @@ class Dialog_FilterProps(PrefixWrapper) :
         props = [self['entryName'].get_text(), winLen, params]
         self.ok_callback(props)
 
-######################################################################
-# CLASS: Dialog_SurrogateData
-#
-######################################################################
+
 class Dialog_SurrogateData(PrefixWrapper) :
+    """
+    CLASS: Dialog_SurrogateData
+    DESCR:
+    """
     prefix = 'dlgSurrogateData_'
     widgetName = 'dialogSurrogateData'
 
@@ -3470,11 +3570,12 @@ class Dialog_SurrogateData(PrefixWrapper) :
 
         self.ok_callback(surrogateProps)
 
-######################################################################
-# CLASS: Dialog_EEGParams
-#
-######################################################################
+
 class Dialog_EEGParams(PrefixWrapper):
+    """
+    CLASS: Dialog_EEGParams
+    DESCR:
+    """
     prefix = 'dlgEEG_'
     widgetName = 'dialogEEG'
     def __init__(self, fullpath, callback):
@@ -3551,11 +3652,11 @@ class Dialog_EEGParams(PrefixWrapper):
 
 
 
-######################################################################
-# CLASS: AutoPlayDialog
-#
-######################################################################
 class AutoPlayDialog(gtk.Dialog, Observer):
+    """
+    CLASS: AutoPlayDialog
+    DESCR:
+    """
     idleID = None
     ind = 0
     direction = 1
@@ -3755,13 +3856,19 @@ class AutoPlayDialog(gtk.Dialog, Observer):
 
         return True
 
-######################################################################
-# CLASS: SpecProps
-#
-######################################################################
+
 class SpecProps(gtk.Dialog):
+    """
+    CLASS: SpecProps
+    DESCR:
+    """
     def __init__(self):
         gtk.Dialog.__init__(self, 'Specwin properties')
+
+        self.freqMin = None
+        self.freqMax = None
+        self.colorMin = None
+        self.colorMax = None
 
         boxWid = 12
 
@@ -3775,7 +3882,10 @@ class SpecProps(gtk.Dialog):
         l = gtk.Label('Freq. min')
         l.show()
         e = gtk.Entry()
-        e.set_text('0.0')
+        if (self.freqMin == None):
+            e.set_text('0.0')
+        else:
+            e.set_text(str(self.freqMin))
         e.set_width_chars(boxWid)
         e.show()
         self.entryFMin = e
@@ -3787,7 +3897,10 @@ class SpecProps(gtk.Dialog):
         l = gtk.Label('Freq. max')
         l.show()
         e = gtk.Entry()
-        e.set_text('100.0')
+        if (self.freqMax == None):
+            e.set_text('100.0')
+        else:
+            e.set_text(str(self.freqMax))
         e.set_width_chars(boxWid)
         e.show()
         self.entryFMax = e
@@ -3849,3 +3962,12 @@ class SpecProps(gtk.Dialog):
 
     def get_flim(self):
         return self.freqMin, self.freqMax
+
+    def set_clim(colorMin, colorMax):
+        self.colorMin = colorMin
+        self.colorMax = colorMax
+        
+    def set_flim(freqMin, freqMax):
+        self.freqMin = freqMin
+        self.freqMax = freqMax
+        

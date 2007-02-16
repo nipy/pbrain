@@ -4,7 +4,11 @@ from pbrainlib.gtkutils import FileManager
 import distutils.sysconfig
 
 class RC:
-    # provides attributes attrs
+    """
+    CLASS: RC
+    DESCR: handles .eegviewrc file in home directory. Currently only the 'lastdir'
+    line is really used.
+    """
     if os.environ.has_key('HOME'):
         path = os.environ['HOME']
     elif sys.platform=='win32':

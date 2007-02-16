@@ -1,8 +1,7 @@
 import os
 
 class Shared(object):
-    #lastSel = '/home/jdhunter/python/projects/loc3djr/data/ct/'
-    lastSel = '/home/jdhunter/seizure/data/ThompsonK/CT/raw/'
+    lastSel = ''
     #lastSel = os.getcwd() + os.sep
     def set_file_selection(self, name):
         """

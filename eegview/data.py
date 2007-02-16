@@ -5,10 +5,6 @@ from cStringIO import StringIO
 from sets import Set
 from matplotlib.cbook import mkdirs, listFiles
 
-#from matplotlib.numerix import array, Int16, Float, Float16, \
-#     arange, fromstring, take, sqrt, sum, zeros, resize,\
-#    transpose
-#from matplotlib.numerix import median
 from scipy import array,  \
      arange, fromstring, take, sqrt, sum, zeros, resize,\
      transpose
@@ -41,6 +37,10 @@ e1020 = Set([
 
  
 class Electrode:
+    """
+    CLASS: Electrode
+    DESCR:
+    """
     def __init__(self, name, num, xyz=None):
         self.name = name
         self.num = num
@@ -65,6 +65,10 @@ class Electrode:
         return '%s%d' % (self.get_name(), self.get_num())
 
 class Grid(dict):
+    """
+    CLASS: Grid
+    DESCR:
+    """
     def __init__(self, name, dim, rgb=None, spacing=1.0):
         self.name = name
         self.dim = dim    # (dim1, dim2) as integers
@@ -99,6 +103,10 @@ class Grid(dict):
         return len(self.keys())
     
 class AssociatedFile:
+    """
+    CLASS: AssociatedFile
+    DESCR:
+    """
     def __init__(self, dbaseFields=None, useFile=None):
         self.eeg = None
         self.filename = None
@@ -277,6 +285,10 @@ class AssociatedFile:
                        (self.pid, eegFilename, self.filename, 'eeg'))
 
 class Loc3dJr(AssociatedFile):        
+    """
+    CLASS: Loc3dJr
+    DESCR:
+    """
     extension = 'csv'
     filetype = 8
     def __init__(self, dbaseFields=None, useFile=None):
@@ -286,6 +298,10 @@ class Loc3dJr(AssociatedFile):
         self.fh = StringIO(fh.read())
 
 class Info(AssociatedFile):        
+    """
+    CLASS: Info
+    DESCR:
+    """
     extension = 'info'
     filetype = 12
     def __init__(self, dbaseFields=None, useFile=None):
@@ -295,6 +311,10 @@ class Info(AssociatedFile):
         self.fh = StringIO(fh.read())
         
 class EOI(list, AssociatedFile):
+    """
+    CLASS: EOI
+    DESCR:
+    """
     extension = 'eoi'
     filetype = 5
 
@@ -385,6 +405,10 @@ class EOI(list, AssociatedFile):
 
 class Amp(list, AssociatedFile):
     """
+    CLASS: Amp
+    DESCR:
+    """
+    """
     An amplifier config file.  iterable as a list of (ampNum, grdName,
     grdNum) tuples
     """
@@ -416,6 +440,7 @@ class Amp(list, AssociatedFile):
         seengrid = {}
         count = 0
         for line in fh.readlines():
+            #print "Amp._load_data(): line='%s'" % line
             count += 1
             vals = line.split()
             if len(vals)!=3: break
@@ -471,7 +496,7 @@ class Amp(list, AssociatedFile):
         """
         Return a dict mapping channel num gname, gnum tuples
 
-        mccXXX: what did I write the below comments for?
+        mcc XXX: what did I write the below comments for?
         
         amp = eeg.get_amp()
         cnumd = amp.get_channelnum_dict()
@@ -494,6 +519,10 @@ class Amp(list, AssociatedFile):
         return dict([ ( ind, (name,num) ) for ind, name, num in self])        
 
 class Grids(AssociatedFile, dict):
+    """
+    CLASS: Grids
+    DESCR:
+    """
     extension = 'grd'
     filetype = 4
     
@@ -626,6 +655,10 @@ class Grids(AssociatedFile, dict):
         return eoi
 
 class Ann(dict, AssociatedFile) :
+    """
+    CLASS: Ann
+    DESCR:
+    """
     extension = 'ann.csv'
     filetype  = 13
     currVersion = 1.0
@@ -730,6 +763,10 @@ EDF, BMSI, NSASCII, NSCNT, FLOATARRAY, W18, AXONASCII, NEUROSCANASCII, ALPHAOMEG
 EPOCH = 14
 
 class EEGBase:               
+    """
+    CLASS: EEGBase
+    DESCR:
+    """
     def __init__(self, amp):
         #print "EEGBase(amp=", amp, ")"
         
@@ -765,7 +802,7 @@ class EEGBase:
         return self.get_associated_files(5, mapped=1)
 
     def set_rectified(self, rectifiedChannels):
-        print "mccXXX: EEGBase.set_rectified( ", rectifiedChannels, ")"
+        #print "mcc XXX: EEGBase.set_rectified( ", rectifiedChannels, ")"
 
         for i,j in rectifiedChannels.iteritems():
             self.rectifiedChannels[i] = j
@@ -776,7 +813,7 @@ class EEGBase:
         self.lastDataQuery = None
 
     def set_hilberted(self, hilbertedChannels):
-        print "mccXXX: EEGBase.set_hilberted( ", hilbertedChannels, ")"
+        #print "mcc XXX: EEGBase.set_hilberted( ", hilbertedChannels, ")"
 
         for i,j in hilbertedChannels.iteritems():
             self.hilbertedChannels[i] = j
@@ -787,11 +824,11 @@ class EEGBase:
         self.lastDataQuery = None
 
     def get_rectified(self):
-        print "mccXXX: EEGBase.get_rectified()"
+        #print "mcc XXX: EEGBase.get_rectified()"
         return self.rectifiedChannels
 
     def get_hilberted(self):
-        print "mccXXX: EEGBase.get_hilberted()"
+        #print "mcc XXX: EEGBase.get_hilberted()"
         return self.hilbertedChannels
 
     def get_eoi(self, fname):
@@ -941,7 +978,7 @@ class EEGBase:
             return self.baseline
 
     def get_data(self, tmin, tmax):
-        # mccXXX: removed this (probably speed-improving)
+        # mcc XXX: removed this (probably speed-improving)
         # lastDataQuery optimisation as we may be requerying with new
         # prefiltering. maybe bring this back somehow.
         
@@ -1061,8 +1098,8 @@ class EEGBase:
     def _read_neuroscanascii(self, tmin, tmax):
         print "_read_neuroscanascii(", tmin, ",", tmax,")"
         raw_data = self.get_raw_data()
-        print "_read_neuroscanascii(): yo raw data has shape ", raw_data.shape
-        print "_read_neuroscanascii(): yo raw data[0,0:10]=", raw_data[0,0:10]
+        print "_read_neuroscanascii(): raw data has shape ", raw_data.shape
+        print "_read_neuroscanascii(): raw data[0,0:10]=", raw_data[0,0:10]
         (raw_data_rows, raw_data_cols) = raw_data.shape
         freq = self.get_freq()
         print "_read_neuroscanascii(): freq=" ,freq
@@ -1083,7 +1120,12 @@ class EEGBase:
             print "pad data with zeros here"
             data = raw_data[:, raw_x1:raw_data_cols]
             print "raw_data_cols/freq is ", raw_data_cols/freq
-            t = arange(tmin, (raw_data_cols-raw_x1)/freq , 1.0/freq)
+            print "tmin =", tmin
+            print "(raw_data_cols-raw_x1)/freq = ",  (raw_data_cols-raw_x1)/freq
+            print "1.0/freq=", 1.0/freq
+            t = arange(tmin, tmin+(raw_data_cols-raw_x1)/freq , 1.0/freq)
+            print "len(t) is ", len(t)
+            print "len(data) is ", len(data)
             print "type(data) is ", type(data)
         else:
             data = raw_data[:, raw_x1:raw_x2]
@@ -1096,15 +1138,12 @@ class EEGBase:
     def _read_axonascii(self, tmin, tmax):
         """
         This is marginally horrendous, but so is the file format it is parsing.
-        
-        mccXXX: questions:
-        - what is the ASCII equivalent of 'seek to line n'?
         """
         #print "_read_axonascii: tmin=", tmin, "tmax=", tmax
         #print "_read_axonascii: date_start = ", self.get_date() + datetime.timedelta(0,tmin) , "date_end = " , self.get_date() + datetime.timedelta(0,tmax)
 
         raw_data = self.get_raw_data()
-        #print "_read_axonascii(): yo raw data has shape ", raw_data.shape
+        #print "_read_axonascii(): raw data has shape ", raw_data.shape
         (raw_data_rows, raw_data_cols) = raw_data.shape
         n_channels = self.get_channels()
         freq = self.get_freq()
@@ -1178,6 +1217,10 @@ class EEGBase:
         raise NotImplementedError('Derived must override')
 
 class EEGWeb(EEGBase):
+    """
+    CLASS: EEGWeb
+    DESCR: Not currently used
+    """
     def __init__(self, fields):
         EEGBase.__init__(self)
         self.__dict__.update(fields)
@@ -1276,6 +1319,10 @@ def read_eeg_params(fh):
     return d
 
 class EEGFileSystem(EEGBase):
+    """
+    CLASS: EEGFileSystem
+    DESCR:
+    """
     def __init__(self, fullpath, amp, params=None, get_params=None):
         #print "EEGFileSystem(fullpath=", fullpath, ", amp=", amp, ")"
         """
@@ -1377,7 +1424,8 @@ class EEGFileSystem(EEGBase):
 
 def submit_form(host, path, fields, headers=None, fileInfo=None):
     """
-    host is the base host, eg www.yahoo.com or someserver.com:8080
+    FUNC: submit_form
+    DESCR: host is the base host, eg www.yahoo.com or someserver.com:8080
 
     path is the absolute path to the form, eg /someDir/someForm
     

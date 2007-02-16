@@ -4,16 +4,9 @@ from __future__ import division
 import sys, os, copy, traceback
 import distutils.sysconfig
 
-#import pygtk
-#pygtk.require('2.0')
-
 import gtk
 from gtk import gdk
 
-##from Numeric import fromstring, arange, Int16, Float, log10
-##from matplotlib.numerix import fromstring, arange, Int16, Float, log10
-##from matplotlib.numerix import minimum 
-##from matplotlib.numerix import maximum
 from scipy import arange, sin, pi, zeros, ones, reshape, \
      greater_equal, transpose, array, arange, resize, \
      absolute, nonzero
@@ -33,7 +26,7 @@ from dialogs import Dialog_Preferences, Dialog_SelectElectrodes,\
      Dialog_CohstatExport, Dialog_SaveEOI, Dialog_EEGParams, \
      Dialog_Annotate, Dialog_AnnBrowser, \
      Dialog_PhaseSynchrony, Dialog_PhaseSynchronyPlot, \
-     AutoPlayDialog, SpecProps
+     AutoPlayDialog, SpecProps, Dialog_EventRelatedSpec
 
 from dialog_filterelectrodes import Dialog_FilterElectrodes
 
@@ -60,7 +53,7 @@ from scipy import arange, sin, pi, zeros, ones, reshape, \
 
 from scipy.signal import buttord, butter, lfilter
 
-from mpl_windows import ChannelWin, AcorrWin, HistogramWin, SpecWin
+from mpl_windows import ChannelWin, AcorrWin, HistogramWin, SpecWin, EventRelatedSpecWin
 
 import datetime
 
@@ -149,7 +142,11 @@ def load_alphaomegaascii(path):
     return alphaomegascii.eeg
 
 def load_neuroscanascii(path):
-    neuroscanascii = FileFormat_NeuroscanAscii(path)
+    try:
+        neuroscanascii = FileFormat_NeuroscanAscii(path)
+    except IOError, msg:
+        error_msg(msg, title='Error', parent=parent)
+                    
     return neuroscanascii.eeg
 
 extmap = { '.w18' : load_w18,
@@ -164,6 +161,7 @@ extmap = { '.w18' : load_w18,
 class EEGNavBar(gtk.Toolbar, Observer):
     """
     CLASS: EEGNavBar
+    DESCR: toolbar for MainWindow
     """
 
     def add_toolbutton(self, icon_name, tip_text, tip_private, clicked_function, clicked_param1=None):
@@ -366,7 +364,6 @@ class EEGNavBar(gtk.Toolbar, Observer):
         self.eegplot.change_volt_gain(direction)
         self.eegplot.draw()
         return False
-
 
 class AnnotationManager:
     """
@@ -741,6 +738,7 @@ class AnnotationManager:
 class EEGPlot(Observer):
     """
     CLASS: EEGPlot
+    DESCR: controls MainWindow's canvas
     """
     timeSets = ((1.,.1), (2.,.2), (5.,.5), (10.,1.), (20.,2.),
                 (50.,5.), (100., 10.), (200., 20.))
@@ -786,7 +784,7 @@ class EEGPlot(Observer):
         self.maxLabels = 36
 
         self.filterGM = Shared.windowMain.toolbar.buttonGM.get_active()
-        # mccXXX: turning off cache
+        # mcc XXX: turning off cache
         #self._selectedCache = None, None
 
         # Lock the selected electrode.
@@ -803,7 +801,7 @@ class EEGPlot(Observer):
         else :
             self.cursor.vertOn = False
 
-        # mccXXX: map for whether or not to rectify/DC offset/lowpass filter a given (e.g. EMG) channel
+        # mcc XXX: map for whether or not to rectify/DC offset/lowpass filter a given (e.g. EMG) channel
         #self.rectifyChannels = Set()
 
     def get_color(self, trode):
@@ -863,7 +861,7 @@ class EEGPlot(Observer):
         #if keycache==key: return retcache
         
         t, data = self.eeg.get_data(tmin, tmax)
-        # mccXXX : why does this line occur?!
+        # mccXXX : why does this line exist?
         data = -data
 
         if filtergm:
@@ -890,7 +888,7 @@ class EEGPlot(Observer):
 
         print "get_selected_window(tmin=",tmin,"tmax=",tmax,")"
         t, data = self.eeg.get_data(tmin, tmax)
-        # mccXXX : why does this line occur?!
+        # mcc XXX : why does this line exist?
         #data = -data
 
         if filtergm:
@@ -905,12 +903,13 @@ class EEGPlot(Observer):
         
         
     def get_eoi(self):
-        return self.eoi
-
-    def get_eoi(self):
+        # XXX mcc: we want to return a copy here, because otherwise view3 can
+        # remove our EOIs!!
+        #return list(self.eoi)
         return self.eoi
 
     def set_eoi(self, eoi):
+        print "eegview.set_eoi(",eoi,")"
         try:
             #print self.eeg.get_amp()
             self.indices = eoi.to_data_indices(self.eeg.get_amp())
@@ -936,7 +935,6 @@ class EEGPlot(Observer):
     def get_eeg(self):
         return self.eeg
     
-    #def filter(self, tmin, tmax, lpcf=40, lpsf=55, hpcf=None, hpsf=None):
     def filter(self, tmin, tmax, lpcf=40, lpsf=55, hpcf=None, hpsf=None):
         """
         lpcf: low pass corner freq=40 (Hz)
@@ -959,7 +957,7 @@ class EEGPlot(Observer):
         if self.filterGM:
             data = filter_grand_mean(data)
 
-        # mccXXX : this used to be enabled. for what?
+        # mcc XXX : this used to be enabled. for what?
         #baseline =  self.eeg.get_baseline()
         #data +=  baseline
 
@@ -978,14 +976,14 @@ class EEGPlot(Observer):
         #print "EEGPlot.filter(): [b,a] = butter(n=" , n , " , Wn=", Wn, ") = [", b, ",", a, "]" 
         #print "EEGPlot.filter(): doing transpose(lfilter(b,a,transpose(data)))"
 
-        # mccXXX: do not run filter
+        # mcc XXX: do not run filter
         #data = transpose( lfilter(b,a,transpose(data)))
 
         decimateFactor = int(Nyq/lpcf)
         decfreq = self.eeg.freq/decimateFactor
         self.decfreq = decfreq
 
-        # mccXXX: do not decimate (for now)
+        # mcc XXX: do not decimate (for now)
         decimateFactor= 1
 
         #print "EEGPlot.filter(): decimateFactor  = int(Nyq=%f/lpcf=%d) = " % (Nyq, lpcf), decimateFactor, "self.decfreq=(eeg.freq=%f)/(%d) = " % (self.eeg.freq, decimateFactor), self.decfreq
@@ -1066,7 +1064,7 @@ class EEGPlot(Observer):
                 labels.append('%s%d' % trode)
                 locs.append(offset)
             count += 1
-#	print 'locs', labels[0], locs[0], self.offsets[0]
+        #	print 'locs', labels[0], locs[0], self.offsets[0]
 
         self.set_time_lim(0, updateData=False)
 
@@ -1175,10 +1173,11 @@ class EEGPlot(Observer):
     def set_time_lim(self, xmin=None, xmax=None,
                      updateData=True, broadcast=True):
         #make sure xmin keeps some eeg on the screen
-        #print "EEGPlot.set_time_lim(xmin=", xmin, "xmax=", xmax, ")"
+        print "EEGPlot.set_time_lim(xmin=", xmin, "xmax=", xmax, ")"
         
         
         origmin, origmax = self.get_time_lim()
+        print "EEGPlot.set_time_lim(): origmin, origmax = ", origmin, origmax
         if xmin is None: xmin = origmin
         
         if xmax is None:
@@ -1188,9 +1187,10 @@ class EEGPlot(Observer):
             wid = xmax-xmin
             step = wid/10.0
 
-        
+        print "EEGPlot.set_time_lim(): axes.set_xlim(", [xmin, xmax], ")"
         self.axes.set_xlim([xmin, xmax])
         ticks = arange(xmin, xmax+0.001, step)
+        print "EEGPlot.set_time_lim(): axes.set_xticks(", ticks, ")"
         self.axes.set_xticks(ticks)
         def fmt(val):
             if val==int(val): return '%d' % val
@@ -1238,7 +1238,9 @@ class EEGPlot(Observer):
 
         ind = matches[0]
         labeld = self.eeg.amp.get_dataind_dict()
-        trode = labeld[self.indices[ind]]
+        # XXX: had to change this for some reason with latest scipy/numpy -- mcc
+        trode = labeld[self.indices[ind[0]]]
+        #trode = labeld[self.indices[ind]]
         gname, gnum = trode
         if select :
             ok = self.set_selected((gname, gnum))
@@ -1267,6 +1269,7 @@ class EEGPlot(Observer):
 class SpecPlot(Observer):
     """
     CLASS: SpecPlot
+    DESCR: spectrogram
     """
     propdlg = SpecProps()
     flim = 0, 40    # the defauly yaxis
@@ -1382,6 +1385,7 @@ class SpecPlot(Observer):
 class MainWindow(PrefixWrapper):
     """
     CLASS: MainWindow
+    DESCR: represents XML'd widget tree and other dynamic GUI elements
     """
     prefix = ''
     widgetName = 'windowMain'
@@ -1554,7 +1558,7 @@ class MainWindow(PrefixWrapper):
             self.eegplot.set_time_lim(tmin, tmax)
             self.eegplot.draw()
         else:
-            #todo: popup edit window for eoi
+            #TODO: popup edit window for eoi
             pass
         
     def new_eoi(self, menuitem):
@@ -1719,7 +1723,7 @@ class MainWindow(PrefixWrapper):
                           parent=self.widget)
             return
 
-        #todo: handle same filename vs different filename; add a save as?
+        #TODO: handle same filename vs different filename; add a save as?
         def ok_callback(m):
             pid=self.eegplot.get_eeg().get_pid()
             newName = m['filename']
@@ -1788,8 +1792,8 @@ class MainWindow(PrefixWrapper):
                               created=now.ctime())
 
         annman.dlgAnnotate.set_params(params)
-        # xxx doesn't update when i set the hscale value in the constructor...
-#        dlgAnnotate['hscaleAlpha'].set_value(.5)
+        # XXX doesn't update when i set the hscale value in the constructor...
+        # dlgAnnotate['hscaleAlpha'].set_value(.5)
         annman.dlgAnnotate.get_widget().set_transient_for(self.widget)
         annman.dlgAnnotate.show_widget()
 
@@ -1825,15 +1829,15 @@ class MainWindow(PrefixWrapper):
             eegviewrc.vertcursor = False
 
         return False
-
-    def on_buttonSaveExcursion_clicked(self, event):
-        self.eegplot.save_excursion()
-        return False
     
-    def on_buttonRestoreExcursion_clicked(self, event):
-        self.eegplot.restore_excursion()
-        self.eegplot.draw()
-        return False
+    #def on_buttonSaveExcursion_clicked(self, event):
+    #    self.eegplot.save_excursion()
+    #    return False
+    #
+    #def on_buttonRestoreExcursion_clicked(self, event):
+    #    self.eegplot.restore_excursion()
+    #    self.eegplot.draw()
+    #    return False
     
     #def on_buttonJumpToTime_clicked(self, event):
     #    val = str2num_or_err(self['entryJumpToTime'].get_text(),
@@ -2060,8 +2064,8 @@ class MainWindow(PrefixWrapper):
     def on_menuFileQuit_activate(self, event):
         update_rc_and_die()
 
-    def on_menuFileNew_activate(self, event):
-        not_implemented(self.widget)
+    #def on_menuFileNew_activate(self, event):
+    #    not_implemented(self.widget)
 
     def get_eeg_params(self, fullpath):
         def callback(pars): pass
@@ -2128,18 +2132,20 @@ class MainWindow(PrefixWrapper):
                     return
                 else:
                     if eeg is None: return 
-                    
 
-            if len(eeg.amps)>0:
-                names = [os.path.split(fullname)[-1] for fullname in eeg.amps]
-                name = select_name(names, 'Pick the AMP file')
-                if name is None: return
+            print "on_menuFileOpen_activate: eeg ext is ", ext
+            if (eeg.get_file_type() != 1): # hack -- .bnis do not need .amp files
+                if len(eeg.amps)>0:
+                    names = [os.path.split(fullname)[-1] for fullname in eeg.amps]
+                    name = select_name(names, 'Pick the AMP file')
+                    if name is None: return
+                    else:
+                        amp = eeg.get_amp(name)
+
                 else:
-                    amp = eeg.get_amp(name)
-
+                    amp = eeg.get_amp()
             else:
                 amp = eeg.get_amp()
-
             if amp.message is not None:
                 simple_msg(amp.message, title='Warning',
                            parent=Shared.windowMain.widget)
@@ -2181,7 +2187,7 @@ class MainWindow(PrefixWrapper):
         eois = eeg.get_associated_files(atype=5, mapped=1)
         self.eoiMenu = self.make_context_menu(eois)
 
-        # uhh change the window title
+        # change the window title
         win = self['windowMain']
         win.set_title(eeg.filename)
         
@@ -2197,12 +2203,17 @@ class MainWindow(PrefixWrapper):
         amp = eeg.get_amp()
         did = amp.get_dataind_dict()
         freq = eeg.get_freq()
+        eoi = self.eegplot.get_eoi()
+
+        print "did=", did
+        print "eoi=", eoi
         
         for index, chan in did.iteritems():
+            if (chan not in eoi):
+                continue
             (cname, cnum) = chan
-            #print "on_menuFileExport_activate(): ", index, cname
-            filename = str(index) + "_" + cname + str(tmin) + "-" + str(tmax) + ".wav"
-            #print "filename = ", filename
+            filename = str("%03d" % index) + "_" + cname + "_" + str(cnum) + "_" +  str(tmin) + "-" + str(tmax) + ".wav"
+            print "on_menuFileExport_activate(): saving ", filename
             w = wave.open(filename, 'w')
             w.setnchannels(1)
             w.setsampwidth(2)
@@ -2213,32 +2224,30 @@ class MainWindow(PrefixWrapper):
             wav_array = data[:,int(index)]
             #print "wav_array length is ", len(wav_array), " with max of ", max(wav_array), "min of ", min(wav_array)
 
-            # not sure how one chooses to "short-ize" this data! arbitrarily make max SHRT_MAX and min SHRT_MIN or something
+            # not sure how one chooses to "short-ize" this data!
+            # arbitrarily make max SHRT_MAX and min SHRT_MIN or
+            # something
             
             shrt_max = 32767
             shrt_min = -32768
             wav_max = max(wav_array)
             wav_min = min(wav_array)
 
-            # mccXXX: This conversion needs fixing... rectified signals wind up with 0 = SHRT_MIN. NO GOOD.
+            # mcc XXX: This conversion needs fixing... rectified signals
+            # wind up with 0 = SHRT_MIN.
 
             shrt_array = zeros(len(wav_array), 'h')
 
             wav_max_max = max(wav_max, abs(wav_min))
             
             for i in range(0,len(wav_array)):
-                #wav_i_0to1 = (wav_max - wav_array[i]) / (wav_max - wav_min)
                 wav_i_0to1 = (wav_max_max - wav_array[i]) / (2 * wav_max_max)
-                #print "wav_i_0to1 is " , wav_i_0to1
-                #print "round(wav_i_0to1 * (shrt_max - shrt_min)) is ", round(wav_i_0to1 * (shrt_max - shrt_min))
                 shrt_array[i] = int(shrt_max - round(wav_i_0to1 * (shrt_max - shrt_min)))
-            #print "hi len(shrt_array) is", len(shrt_array), " type of len(shrt_array) is ", type(len(shrt_array))
-            w.writeframes(struct.pack('2500h', *shrt_array))
+            #print "len(shrt_array) is", len(shrt_array), " type of len(shrt_array) is ", type(len(shrt_array))
+            w.writeframes(struct.pack('%dh' % len(shrt_array), *shrt_array))
             w.close()
             
         
-        pass
-
     def on_menuItemAnnBrowser_activate(self, event) :
         try : self.eegplot
         except : pass
@@ -2340,18 +2349,6 @@ class MainWindow(PrefixWrapper):
         print dlgPhaseSynchronyPlot
         dlgPhaseSynchronyPlot.show_widget()
 
-    def on_menuPhaseSynchronyProbability_activate(self, event) :
-        try : self.eegplot
-        except AttributeError :
-            simple_msg(
-                'You must first select an EEG',
-                title='Error',
-                parent=self.widget)
-            return
-
-        dlgPhaseSynchrony = Dialog_PhaseSynchrony(self.eegplot)
-        dlgPhaseSynchrony.show_widget()
-
     def on_menuSpecWindow_activate(self, event):
         try: self.eegplot
         except AttributeError:
@@ -2363,6 +2360,27 @@ class MainWindow(PrefixWrapper):
 
         specWin = SpecWin(eegplot=self.eegplot)
         specWin.show()                
+        
+    def on_menuEventRelatedSpecWindow_activate(self, event):
+
+        def ok_callback(erspec_params):
+            print "on_menuEventRelatedSpecWindow_activate().ok_callback(): foo=", erspec_params
+            win = EventRelatedSpecWin(erspec_params, eegplot=self.eegplot)
+            win.show()
+        
+        try: self.eegplot
+        except AttributeError:
+            simple_msg(
+                'You must first select an EEG',
+                title='Error',
+                parent=self.widget)
+            return
+
+        specWin = Dialog_EventRelatedSpec(ok_callback)
+        specWin.show_widget()
+        #specWin.show()
+
+        return False
         
     def on_menuComputeExportToCohstat_activate(self, event):
         try: self.eegplot
@@ -2413,7 +2431,9 @@ if __name__=='__main__':
     if options.filename is not None:
         Shared.windowMain.autoload(options)
     else:
-        Shared.windowMain.on_menuFilePreferences_activate(None)
+        #No longer load the sql/zope dialog.
+        #Shared.windowMain.on_menuFilePreferences_activate(None)
+        pass
     Shared.windowMain.widget.connect('destroy', update_rc_and_die)
     Shared.windowMain.widget.connect('delete_event', update_rc_and_die)
     #Shared.windowMain['menubarMain'].hide()

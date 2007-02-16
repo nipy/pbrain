@@ -9,7 +9,6 @@ import vtk
 
 from loc3djr.GtkGLExtVTKRenderWindowInteractor import GtkGLExtVTKRenderWindowInteractor
 
-#from matplotlib.numerix import array, take, cross_correlate, fromstring, arange, Int16, Float, log10
 from scipy import array, take, cross_correlate, fromstring, arange, log10
 
 from pbrainlib.gtkutils import error_msg, simple_msg, make_option_menu,\
@@ -21,7 +20,10 @@ from dialogs import SpecProps
 
 
 class EmbedWin(gtk.Window, Observer):
-
+    """
+    CLASS: EmbedWin
+    DESCR:
+    """
     def __init__(self, eegplot):
         gtk.Window.__init__(self)
         Observer.__init__(self)

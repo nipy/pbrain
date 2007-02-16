@@ -11,14 +11,11 @@ import gtk
 from scipy.signal import buttord, butter, lfilter
 
 import matplotlib.cm as cm
-#from matplotlib.mlab import meshgrid
 from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanvas
 from matplotlib.backends.backend_gtk import NavigationToolbar, NavigationToolbar2GTK
 
 from matplotlib.figure import Figure
 from matplotlib.mlab import detrend_none, detrend_mean, detrend_linear
-#from matplotlib.numerix import array, take, cross_correlate, fromstring, arange, Int16, Float, log10, searchsorted, minimum, maximum
-#from scipy import array, take, cross_correlate, fromstring, arange, log10, searchsorted, minimum, maximum
 from scipy import array, take, correlate, fromstring, arange, log10, searchsorted, minimum, maximum
 
 from pbrainlib.gtkutils import error_msg, simple_msg, make_option_menu,\
@@ -31,13 +28,26 @@ from dialogs import SpecProps
 
 from matplotlib.ticker import ScalarFormatter
 
+import matplotlib.mlab 
+
+import math
+
+from numpy import flipud, zeros
+
 class FilterBase:
-    """Do nothing filter"""
+    """
+    CLASS: FilterBase
+    DESCR: abstract base class
+    """
     def __call__(self, t, data):
         return data
 
     
 class Filter(FilterBase):
+    """
+    CLASS: Filter
+    DESCR:
+    """
     rp = 2
     rs = 20
     cf = 40
@@ -139,11 +149,9 @@ class Filter(FilterBase):
         
         
 class MPLWin(gtk.Window, Observer):
-
-        
-    
     """
-    Graph a single channel
+    CLASS: MPLWin
+    DESCR: Superclass for graphing a single channel
     """
     _title = 'Figure window'
     _size = 600,400
@@ -334,7 +342,7 @@ class MPLWin(gtk.Window, Observer):
         toolitem.add(self.buttonFollowEvents)
         toolbar.insert(toolitem, next); next +=1
 
-        # XXX: argh. only available in gtk 2.6
+        # XXX: only available in gtk 2.6
         menu = gtk.MenuToolButton(gtk.STOCK_EDIT)
         menu.show()
         context = self.make_context_menu()
@@ -393,6 +401,10 @@ class MPLWin(gtk.Window, Observer):
         
         
 class ChannelWin(MPLWin):
+    """
+    CLASS: ChannelWin
+    DESCR: Plot scalar values of channel
+    """
     _title = "Single Channel"
 
     def __init__(self, eegplot):
@@ -425,6 +437,10 @@ class ChannelWin(MPLWin):
 
 
 class VoltageMapWin(MPLWin):
+    """
+    CLASS: VoltageMapWin
+    DESCR: 
+    """
     _title = "Voltage mapper"
     
     def __init__(self, view3):
@@ -534,6 +550,10 @@ class VoltageMapWin(MPLWin):
 
             
 class AcorrWin(MPLWin):
+    """
+    CLASS: AcorrWin
+    DESCR: 
+    """
     _title = "Autocorrelation"
 
     def __init__(self, eegplot):
@@ -579,6 +599,10 @@ class AcorrWin(MPLWin):
                          
 
 class HistogramWin(MPLWin):
+    """
+    CLASS: HistogramWin
+    DESCR: 
+    """ 
     _title = 'Histogram'
     
     def get_msg(self, x,y):
@@ -600,10 +624,12 @@ class HistogramWin(MPLWin):
 
 
 class SpecWin(MPLWin):
-    propdlg = SpecProps()
+    """
+    CLASS: SpecWin
+    DESCR: Spectrogram plot
+    """
 
     def __init__(self, eegplot):
- 
         # min and max power
         self.cmap = cm.jet 
         self.flim = 0, 100   # the defauly yaxis
@@ -624,7 +650,7 @@ class SpecWin(MPLWin):
         self.add_toolbutton(gtk.STOCK_PREFERENCES, 'Set the color map properties', 'Private', self.set_properties)
 
     def set_properties(self, *args):
-        dlg = self.propdlg
+        dlg = SpecProps()
 
         if not len(dlg.entryCMin.get_text()) and hasattr(self, 'pmin'):
             dlg.entryCMin.set_text('%1.2f'%self.pmin)
@@ -644,7 +670,9 @@ class SpecWin(MPLWin):
                     dlg.destroy()
                     break
             else:
+                print "SpecWin.set_properties(): destroying dlg"
                 dlg.destroy()
+
                 break
 
 
@@ -704,3 +732,136 @@ class SpecWin(MPLWin):
             
             
     
+class EventRelatedSpecWin(SpecWin):
+    """
+    CLASS: EventRelatedSpecWin
+    DESCR: 
+    """
+    
+    def __init__(self, erspec_params, eegplot):
+        self.detrend_func = erspec_params['detrend']
+        self.window_func = erspec_params['window']
+        self.event_length = erspec_params['event length']
+        self.overlap = erspec_params['overlap']
+        self.NFFT = erspec_params['NFFT']
+        SpecWin.__init__(self, eegplot)
+        print "EventRelatedSpecWin.__init__(): erspec_params are " , erspec_params
+
+    def make_plot(self, *args):
+ 
+        # mcc XXX: trying to bring up a dialog a la specgram in eegview mainwindow
+        #self.specMenu = self.make_spec_menu()
+        #self.canvas.mpl_connect('button_press_event', self.button_press_event)
+
+        self.axes.cla()
+
+        tup = self.get_data()
+        if tup is None: return 
+        torig, data, dt, label = tup
+
+        # use this instead of self.eegplot.eeg.freq in case filter decimates
+        Fs = 1.0/dt  
+        #NFFT, Noverlap = 512, 477
+        NFFT, Noverlap = self.NFFT, self.overlap
+
+        print "EventRelatedSpecWin.make_plot(): we have ", len(data), " much data points, and we want to divide them into segments of size ", self.event_length, "! len(data)/(self.event_length) is " , len(data)/(self.event_length)
+
+        n_specgrams = math.floor(len(data)/(self.event_length))
+        print "n_specgrams = ", n_specgrams
+
+        cumulative_specgram = None
+        curr_data_index = 0
+        data_len = None
+        for i in range(0, n_specgrams):
+            print "len(data[%d:%d] is " %  (curr_data_index, curr_data_index+self.event_length), len(data[curr_data_index:curr_data_index+self.event_length])
+            print "calling specgram(data[%d:%d], NFFT=%d, Fs=%f, window=self.window_func, noverlap=self.overlap)" % (curr_data_index, curr_data_index+self.event_length, self.NFFT, Fs)
+            data_len= len(data[curr_data_index:curr_data_index+self.event_length])
+            (Pxx, freqs, t) = matplotlib.mlab.specgram(data[curr_data_index:curr_data_index+self.event_length], NFFT=self.NFFT, Fs=Fs, window=self.window_func, noverlap=self.overlap)
+            #(Pxx, freqs, t) = matplotlib.mlab.specgram(data, NFFT=self.NFFT, Fs=Fs, window=self.window_func, noverlap=self.overlap, cmap=self.cmap, xextent =(curr_data_index, curr_data_index+self.event_length))
+            print "uhhh did specgram from data[%d:%d]" % (curr_data_index, curr_data_index+self.event_length), "type(Pxx) = " , type(Pxx)
+            print "Pxx.shape is " , Pxx.shape
+
+            Z = 10*log10(Pxx)
+            Z =  flipud(Z)
+            
+            if (cumulative_specgram == None):
+                cumulative_specgram = zeros(Z.shape)
+            curr_data_index += self.event_length
+            cumulative_specgram = cumulative_specgram + Z
+
+        cumulative_specgram /= n_specgrams
+
+        self.pmin = minimum.reduce(minimum.reduce(cumulative_specgram))
+        self.pmax = maximum.reduce(maximum.reduce(cumulative_specgram))
+
+        self.axes.clear()
+        xmin, xmax = self.eegplot.axes.get_xlim()
+        #Pxx, freqs, t, im = self.axes.specgram(
+        #    data, NFFT=NFFT, Fs=Fs, noverlap=Noverlap,
+        #    cmap=self.cmap, xextent=(xmin, xmax))
+
+        #if self.clim is not None:
+        #    im.set_clim(self.clim[0], self.clim[1])
+
+        #t = t + min(torig)
+
+        #Z = 10*log10(Pxx)
+        #self.pmin = minimum.reduce(minimum.reduce(Z))
+        #self.pmax = maximum.reduce(maximum.reduce(Z))
+
+        #extent = (0 , (data_len / Fs) * 1000, 0, Fs/2)
+        im = self.axes.imshow(cumulative_specgram, self.cmap)
+        #self.axes.pcolor(cumulative_specgram, extent=extent)
+        self.axes.axis('auto')
+        if self.clim is not None:
+            im.set_clim(self.clim[0], self.clim[1])
+
+
+
+        
+        #self.axes.set_xlim( [0, data_len * Fs] )
+        #self.axes.set_xticks( self.eegplot.axes.get_xticks()  )
+        self.axes.set_title('Spectrogram for electrode %s' % label)
+        self.axes.set_xlabel('COLUMNS')
+        self.axes.set_ylabel('FREQUENCY (Hz)')
+        self.axes.set_ylim(self.flim)
+        self.axes.set_yticks(arange(self.flim[0], self.flim[1]+1, 10))        
+        #print 'calling draw'
+        self.canvas.draw()
+
+    def get_data(self):
+        'return t, data, dt, label, with t filtered according to selections'
+        print "EventRelatedSpecWin.get_data(): self._filterGM =", self._filterGM
+        selected = self.eegplot.get_selected(self._filterGM)
+        if selected is None:
+            error_msg('You must first select an EEG channel by clicking on it',
+                      parent=self)
+            return
+        t, data, trode = selected
+
+        print "EventRelatedSpecWin.get_data(): data[0:10] is " , data[0:10]
+        print "EventRelatedSpecWin.get_data(): self._detrend=", self._detrend
+        print "EventRelatedSpecWin.get_data(): self.detrend_func =",  self.detrend_func
+        
+        
+        #detrend = self._detrendd[self._detrend]    
+        detrend = self.detrend_func
+
+        data = detrend(self._filter(t, data))
+        gname, gnum = trode
+        label = '%s %d' % (gname, gnum)
+
+        dt = t[1]-t[0]
+        return t, data, dt, label
+
+"""
+    def make_spec_menu(self):
+        contextMenu = gtk.Menu()
+
+        label = "Set limits"
+        menuItemSave = gtk.MenuItem(label)
+        contextMenu.append(menuItemSave)
+        menuItemSave.connect("activate", self.set_properties, 0)
+        menuItemSave.show()
+        return contextMenu
+"""

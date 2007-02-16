@@ -10,8 +10,8 @@ storeref = {}
 
 class PrefixWrapper:
     """
-
-    Base class for wrapping glade widgets where all functions and
+    CLASS: PrefixWrapper
+    DESCR: Base class for wrapping glade widgets where all functions and
     entries have a namespace prefix.  Provides __getitem__ and handler
     dict so handler class doesn't have to use the prefix internally.
     All public callable methods in the derived class beginning with
@@ -108,7 +108,7 @@ class PrefixWrapper:
             if thisWidget is None:
                 try: thisWidget = getattr(self, wName)
                 except AttributeError:
-                    print 'Could not find widget %s/%s for %s' % \
+                    print 'Could not find widget %s.%s for %s' % \
                           (self.prefix,wName, self.widgetName)
                     continue
                 
@@ -125,7 +125,9 @@ class PrefixWrapper:
             self.connectionIds.append( (thisWidget, id) )
 
     def disconnect(self):
+        #print "PrefixWrapper.disconnect():" , self
         for w, id in self.connectionIds:
+            #print "disconnecting " , w, id
             w.disconnect(id)
 
 
@@ -164,6 +166,7 @@ class PrefixWrapper:
         Shared.widgets.get_widget('prefixsomeWidget')
 
         """
+        #print self, "__getitem__(", key, ")", Shared.widgets
         return Shared.widgets.get_widget(self.prefix + key)
 
 

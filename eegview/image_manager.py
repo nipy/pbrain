@@ -10,10 +10,8 @@ from plane_widgets import PlaneWidgetsXYZ
 
 class ImageManager:
     """
-    **********************************************************************
     CLASS: ImageManager
     DESCR: used by View3 to maintain vtkImagePlaneWidgets
-    **********************************************************************
     """
     SCROLLBARSIZE = 150,20
     def __init__(self, interactor, renderer):

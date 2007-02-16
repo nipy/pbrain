@@ -16,9 +16,12 @@ from gtk import gdk
 import vtk
 
         
-
 class GtkGLExtVTKRenderWindowBase(gtk.gtkgl.DrawingArea):
-
+    """
+    CLASS: GtkGLExtVTKRenderWindowBase
+    DESCR: This is used by the image_reader Preview window and nowhere else.
+    The GtkGLExtVTKRenderWindowInteractor is used in the MarkerWindowInteractor and SurfRenderWindow
+    """
     def __init__(self, *args):
         gtk.gtkgl.DrawingArea.__init__(self)
         self.set_double_buffered(False)

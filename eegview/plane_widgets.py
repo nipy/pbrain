@@ -12,7 +12,6 @@ import loc3djr
 from gtk import gdk
 from loc3djr.GtkGLExtVTKRenderWindowInteractor import GtkGLExtVTKRenderWindowInteractor
 from loc3djr.GtkGLExtVTKRenderWindow import GtkGLExtVTKRenderWindow
-#from Numeric import array
 from scipy import array
 from loc3djr.image_reader import widgets, GladeHandlers
 from pbrainlib.gtkutils import error_msg, simple_msg
@@ -21,6 +20,12 @@ from loc3djr.markers import Marker, RingActor
 from loc3djr.events import EventHandler, UndoRegistry, Viewer
 from loc3djr.shared import shared
 
+
+"""
+XXX: this is an older version of ../loc3djr/plane_widgets.py that should
+be removed (once eegview's view3 code has been tested with the loc3djr
+version)
+"""
         
 def move_pw_to_point(pw, xyz):
 

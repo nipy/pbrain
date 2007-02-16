@@ -1,5 +1,0 @@
-include MANIFEST setup.py postinstall.py
-include eegview/*.py
-include loc3djr/*.py
-include pbrainlib/*.py
-include gui/*
