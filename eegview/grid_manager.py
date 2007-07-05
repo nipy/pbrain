@@ -79,7 +79,11 @@ class GridManager:
         self.scalarBar.VisibilityOff()
         # XXX mcc: turn off for Leo (try to make this smaller!!) XXX
         #self.renderer.AddActor(self.scalarBar)
-        
+ 
+        self.do_scale_pipes = False 
+        self.do_scale_pipes_with_coherence = False 
+        self.pipes_scaling_factor = 0.2
+      
     def markers_as_collection(self):
         markers = vtk.vtkActorCollection()
         for marker in self.markers:
@@ -96,7 +100,7 @@ class GridManager:
         **********************************************************************
         """
         #return # XXX: mcc
-        #print "GridManager.set_scalar_data(", datad, ")"
+        print "GridManager.set_scalar_data(", datad, ")"
 
         self.scalarVals.extend([val for key, val in datad.items()])
         if self.dimensiond is None:
@@ -317,7 +321,18 @@ class GridManager:
         #    #filter.SetVaryRadiusToVaryRadiusByScalar()
         #else:
         #    filter.SetRadius(0.75*radiusFactor*lineWid*m1.get_size())
-        filter.SetRadius(0.75*radiusFactor*lineWid*m1.get_size())
+
+        radius_factor = 10
+        if (self.do_scale_pipes_with_coherence == True):
+            radius_factor = radiusFactor
+
+        if (self.do_scale_pipes == True):
+            filter.SetRadius(0.75*radius_factor*lineWid*m1.get_size())
+            print "m1.get_size() is ", m1.get_size()
+            #print "do_scale_pipes == True, setting radius to %f" % (0.75*radiusFactor*lineWid*m1.get_size())
+        else:
+            #print "do_scale_pipes == False, setting radius to %f" % (0.75*radiusFactor*lineWid)
+            filter.SetRadius(0.75*radius_factor*lineWid*self.pipes_scaling_factor)
 
         mapper = vtk.vtkPolyDataMapper()
         mapper.SetInput(filter.GetOutput())
@@ -732,6 +747,16 @@ class GridManager:
                 error_msg('No ascii data loaded', parent=dlg)
                 return
 
+            start_time_str = entry_start_time.get_text()
+            end_time_str = entry_end_time.get_text()
+            start_time = None
+            end_time=None
+            print "specified start time is ", start_time_str
+            print "specified end time is ", end_time_str
+            if ((start_time_str != '') & (end_time_str != '')):
+                start_time = float(start_time_str)
+                end_time = float(end_time_str)
+
             # mcc: look at self.ampAscii and make sure that the named grids correspond
             # to actual grids in the gridmanager
             
@@ -745,7 +770,7 @@ class GridManager:
                     error_msg('key %s not in list of grid names: %s' % (curr_grid_name, grid_names))
                     return
             
-            am = ArrayMapper(self, self.X, channels, self.ampAscii)
+            am = ArrayMapper(self, self.X, channels, self.ampAscii, start_time=start_time, end_time=end_time)
             am.show()
 
         def radio_changed(button):
@@ -819,6 +844,32 @@ class GridManager:
         hbox.pack_start(entry, True, True)
         entryAsciiFile = entry
         
+
+
+        hbox = gtk.HBox()
+        hbox.show()
+        hbox.set_spacing(3)
+        frameVBox.pack_start(hbox, True, True)
+
+        label = gtk.Label('Start time and end time in seconds (optional)')
+        label.show()
+        labelHeader = label
+        hbox.pack_start(label, False, False)
+
+        entry = gtk.Entry()
+        entry.show()
+        entry.set_text('')
+        entry.set_width_chars(5)
+        hbox.pack_start(entry, False, False)
+        entry_start_time = entry
+        entry = gtk.Entry()
+        entry.show()
+        entry.set_text('')
+        entry.set_width_chars(5)
+        hbox.pack_start(entry, False, False)
+        entry_end_time = entry
+
+        
         button = gtk.Button(stock=gtk.STOCK_EXECUTE)
         button.show()
         frameVBox.pack_start(button, True, True)
@@ -841,7 +892,7 @@ class GridManager:
         frame.add(frameVBox)
 
 
-        table = gtk.Table(1,2)
+        table = gtk.Table(1,3)
         table.set_homogeneous(False)
         table.show()
         frameVBox.pack_start(table, False, False)
@@ -852,7 +903,7 @@ class GridManager:
 
 
         row = 0
-        label = gtk.Label('Size')
+        label = gtk.Label('Markers size')
         label.show()
 
 
@@ -874,6 +925,54 @@ class GridManager:
                      xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
         table.attach(scrollbar, 1, 2, row, row+1,
                      xoptions=gtk.FILL, yoptions=gtk.EXPAND)
+
+        row = row +1
+
+        label2 = gtk.Label('Pipes width')
+        label2.show()
+
+        scrollbar2 = gtk.HScrollbar()
+        scrollbar2.show()
+        scrollbar2.set_range(0, 1)
+        scrollbar2.set_increments(0.01,0.1)
+        scrollbar2.set_value(0.2)
+
+        def set_pipes_size(bar):
+            print "set_pipes_size(", bar.get_value, ")"
+            val = bar.get_value()
+            self.pipes_scaling_factor = val
+            #self.interactor.Render()
+            # do something
+            
+        scrollbar2.connect('value_changed', set_pipes_size)
+        scrollbar2.set_size_request(*self.SCROLLBARSIZE)
+        table.attach(label2, 0, 1, row, row+1,
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
+        table.attach(scrollbar2, 1, 2, row, row+1,
+                     xoptions=gtk.FILL, yoptions=gtk.EXPAND)
+
+
+        button = gtk.CheckButton('Pipes scale with marker size')
+        button.show()
+        button.set_active(False)
+        frameVBox.pack_start(button, False, False)
+        def scale_pipes(button):
+            if not button.get_active():
+                self.do_scale_pipes = False
+            else:
+                self.do_scale_pipes = True
+        button.connect('clicked', scale_pipes)
+
+        button = gtk.CheckButton('Pipes scale with coherence values')
+        button.show()
+        button.set_active(False)
+        frameVBox.pack_start(button, False, False)
+        def scale_pipes_with_coherence(button):
+            if not button.get_active():
+                self.do_scale_pipes_with_coherence = False
+            else:
+                self.do_scale_pipes_with_coherence = True
+        button.connect('clicked', scale_pipes_with_coherence)
 
 
 

@@ -145,6 +145,7 @@ def load_neuroscanascii(path):
     try:
         neuroscanascii = FileFormat_NeuroscanAscii(path)
     except IOError, msg:
+        print "load_neuroscanascii(): msg=", msg
         error_msg(msg, title='Error', parent=parent)
                     
     return neuroscanascii.eeg
@@ -853,6 +854,7 @@ class EEGPlot(Observer):
 
     def get_selected(self, filtergm=False):
         'return t, data[ind], trode'
+        print "EEGPlot.get_selected()"
         tmin, tmax = self.get_time_lim()
 
         key = (tmin, tmax, self._selected, filtergm)
@@ -869,7 +871,7 @@ class EEGPlot(Observer):
 
         ind = self.eoiIndDict[self._selected]
 
-        #print "EEGPlot.get_selected(): data.shape is ", data.shape, " and we are about to index it like data[:,%d]" % self.indices[ind]
+        print "EEGPlot.get_selected(): data.shape is ", data.shape, " and we are about to index it like data[:,%d]" % self.indices[ind]
         ret = t, data[:,self.indices[ind]], self._selected
         #self._selectedCache = key, ret
         return ret

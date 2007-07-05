@@ -258,7 +258,7 @@ class View3(gtk.Window, Observer):
         except AttributeError: pass
         
     def press_left(self, *args):
-        print "View3.press_left()!"
+        #print "View3.press_left()!"
         'If in selection mode and click over marker, select it and update plot'
         if not self.buttonSelected.get_active(): return
         if self.gridManager is None: return
@@ -1286,7 +1286,8 @@ class View3(gtk.Window, Observer):
             print >>sys.stderr, 'return is None'
             return None
         dvec, cvec, cxy, pxy, predicted, pars, normedvec, cutoff = ret
-        
+
+        print "View3.draw_connections(): cxy = ", cxy
         cvals = cxy.values()
 
         def posphase(frac):
@@ -1317,7 +1318,12 @@ class View3(gtk.Window, Observer):
             else:
                 if phase>0: phasemap = posphase  # 1 leads 2
                 else: phasemap = negphase
-            ok = self.gridManager.connect_markers(e1, e2, scalarfunc=phasemap)
+            coh_val = cxy[(e1,e2)]
+            if (coh_val == None):
+                print "Error: no coherence value for pair ", (e1,e2)
+                break
+            #print "View3.draw_connections(): coherence value for ", (e1,e2) , "is ", coh_val
+            ok = self.gridManager.connect_markers(e1, e2, scalarfunc=phasemap, radiusFactor=(coh_val*50))
             if not ok:
                 error_msg('Giving up', parent=self)
                 break

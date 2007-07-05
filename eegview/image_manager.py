@@ -104,6 +104,11 @@ class ImageManager:
         pw.SetPlaneOrientation(orientation)
         pw.SetSliceIndex(int(index))
         pw.SetInteractor(self.interactor)
+
+        # XXX mcc
+        pw.GetColorMap().SetOutputFormatToRGB()
+        pw.GetColorMap().PassAlphaToOutputOff()
+        
         pw.On()
         pw.UpdatePlacement()
 
@@ -123,7 +128,8 @@ class ImageManager:
         if self.buttonInteract.get_active():
             self.pwX.InteractionOn()
             self.pwY.InteractionOn()
-            self.pwZ.InteractionOn()
+            self.pwZ.InteractionOn()        
+
         else:
             self.pwX.InteractionOff()
             self.pwY.InteractionOff()

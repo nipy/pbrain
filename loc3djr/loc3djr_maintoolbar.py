@@ -307,13 +307,16 @@ class MainToolbar(MyToolbar):
 
 
         print "reader=", reader
-        imageData = reader.GetOutput()
-        print "pars=", pars
-        print "loc3djr_maintoolbar.load_image(): reader.GetOutput() is " , imageData
-        print "load_image(): imageData.SetSpacing(", reader.GetDataSpacing(), " )"
-        imageData.SetSpacing(reader.GetDataSpacing())
-        print "calling EventHandler().notify('set image data', imageData)"
-        EventHandler().notify('set image data', imageData)
+        if not reader:
+            print "hit cancel, see if we can survive"
+        else:
+            imageData = reader.GetOutput()
+            print "pars=", pars
+            print "loc3djr_maintoolbar.load_image(): reader.GetOutput() is " , imageData
+            print "load_image(): imageData.SetSpacing(", reader.GetDataSpacing(), " )"
+            imageData.SetSpacing(reader.GetDataSpacing())
+            print "calling EventHandler().notify('set image data', imageData)"
+            EventHandler().notify('set image data', imageData)
             
 
     def save_as(self, button):

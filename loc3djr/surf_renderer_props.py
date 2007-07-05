@@ -90,6 +90,7 @@ class SurfRendererProps(gtk.Window, Viewer):
             error_msg('You must select the pick segment in the Picker tab')
             return
         if key.lower()=='i':
+            print "Inserting Marker"
             x,y = interactor.GetEventPosition()
             picker = vtk.vtkCellPicker()
             picker.PickFromListOn()

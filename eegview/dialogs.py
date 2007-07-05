@@ -688,7 +688,7 @@ class Dialog_EventRelatedSpec(PrefixWrapper):
             self['radiobuttonDetrendNone'].set_active(0)
             self['combo_event_length'].entry.set_text('512')
             self['comboNFFT'].entry.set_text('512')
-
+            self['entryOverlap'].set_text('477')
 
         
     def on_buttonOK_clicked(self, event):

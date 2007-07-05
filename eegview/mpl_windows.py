@@ -34,6 +34,8 @@ import math
 
 from numpy import flipud, zeros
 
+import pymedia
+
 class FilterBase:
     """
     CLASS: FilterBase
@@ -648,6 +650,36 @@ class SpecWin(MPLWin):
  
         self.tooltips = gtk.Tooltips()
         self.add_toolbutton(gtk.STOCK_PREFERENCES, 'Set the color map properties', 'Private', self.set_properties)
+        self.add_toolbutton(gtk.STOCK_MEDIA_PLAY, 'Play the signal', 'Private', self.play_signal)
+
+    def play_signal(self, *args):
+        print "XXX YAH"
+        snd = None
+        tup = self.get_data()
+        torig, data, dt, label = tup
+        print "len(data)=", len(data)
+        xmin, xmax = self.eegplot.axes.get_xlim()
+
+        try:
+ 
+            Fs = 1.0/dt
+            print "play_signal(): Fs=", Fs
+            format = pymedia.audio.sound.AFMT_S16_LE
+            channels = 1
+            snd= pymedia.audio.sound.Output( int(Fs), channels, format )
+        except pymedia.audio.sound.SoundError:
+            print "uhh play_signal() exception " 
+            return
+        
+        print "ok trying to play data from ", xmin, ", to", xmax
+
+        try:
+            snd.play(data)
+        except pymedia.audio.sound.SoundError:
+            print "error playing"
+        snd.stop()
+            
+        pass
 
     def set_properties(self, *args):
         dlg = SpecProps()
@@ -691,9 +723,14 @@ class SpecWin(MPLWin):
 
         self.axes.clear()
         xmin, xmax = self.eegplot.axes.get_xlim()
+        print "SpecWin: doing specgram(", data.shape , "NFFT=", NFFT, "Fs=", Fs, "noverlap=", Noverlap, "xextent=", (xmin, xmax)
+
         Pxx, freqs, t, im = self.axes.specgram(
             data, NFFT=NFFT, Fs=Fs, noverlap=Noverlap,
             cmap=self.cmap, xextent=(xmin, xmax))
+
+        print "Pxx.shape is", Pxx.shape
+        print "freqs=", freqs
 
         if self.clim is not None:
             im.set_clim(self.clim[0], self.clim[1])
@@ -774,7 +811,7 @@ class EventRelatedSpecWin(SpecWin):
         data_len = None
         for i in range(0, n_specgrams):
             print "len(data[%d:%d] is " %  (curr_data_index, curr_data_index+self.event_length), len(data[curr_data_index:curr_data_index+self.event_length])
-            print "calling specgram(data[%d:%d], NFFT=%d, Fs=%f, window=self.window_func, noverlap=self.overlap)" % (curr_data_index, curr_data_index+self.event_length, self.NFFT, Fs)
+            print "calling specgram(data[%d:%d], NFFT=%d, Fs=%f, window=%s, noverlap=%f)" % (curr_data_index, curr_data_index+self.event_length, self.NFFT, Fs, self.window_func, self.overlap)
             data_len= len(data[curr_data_index:curr_data_index+self.event_length])
             (Pxx, freqs, t) = matplotlib.mlab.specgram(data[curr_data_index:curr_data_index+self.event_length], NFFT=self.NFFT, Fs=Fs, window=self.window_func, noverlap=self.overlap)
             #(Pxx, freqs, t) = matplotlib.mlab.specgram(data, NFFT=self.NFFT, Fs=Fs, window=self.window_func, noverlap=self.overlap, cmap=self.cmap, xextent =(curr_data_index, curr_data_index+self.event_length))
@@ -785,11 +822,14 @@ class EventRelatedSpecWin(SpecWin):
             Z =  flipud(Z)
             
             if (cumulative_specgram == None):
-                cumulative_specgram = zeros(Z.shape)
+                cumulative_specgram = zeros(Z.shape, 'd')
             curr_data_index += self.event_length
+            print "cumulative_specgram[0:10,0]=", cumulative_specgram[0:10,0]
+            print "adding..."
             cumulative_specgram = cumulative_specgram + Z
+            print "now cumulative_specgram[0:10,0]=", cumulative_specgram[0:10,0]
 
-        cumulative_specgram /= n_specgrams
+        cumulative_specgram /= float(n_specgrams)
 
         self.pmin = minimum.reduce(minimum.reduce(cumulative_specgram))
         self.pmax = maximum.reduce(maximum.reduce(cumulative_specgram))

@@ -985,14 +985,17 @@ class EEGBase:
 #        if (self.lastDataQuery is not None and
 #            self.lastDataQuery[0] == (tmin, tmax) ):
 #            return self.lastDataQuery[1]
+        print "EEGBase.get_data(", tmin, tmax,")"
         assert(tmax>tmin)
 
         #print 'filetype', type(self.file_type), self.file_type
 
         #print self.file_type, self.readmap[self.file_type]
         try: t, data = self.readmap[self.file_type](tmin, tmax)
+        
         except KeyError:
             raise KeyError('Do not know how to handle file type %s'%self.file_type)
+        print "EEGBase.get_data(): data.shape is", data.shape
 #        self.lastDataQuery = ( (tmin, tmax), (t, data) )
 
         # OK, now possibly modify the data as specified in the
@@ -1011,7 +1014,7 @@ class EEGBase:
                 #print "len/type of x is ", len(x), type(x), x.typecode(), "len/type of hilberted data is " , len(hilberted_data), type(hilberted_data), hilberted_data.typecode()
                 data[:,index] = abs(hilberted_data)
                 
-        #print "EEGBase.get_data(): t.shape=", t.shape, ", data.shape=", data.shape
+        print "EEGBase.get_data(): t.shape=", t.shape, ", data.shape=", data.shape
         return t, data
 
     def _read_epoch(self, tmin, tmax):

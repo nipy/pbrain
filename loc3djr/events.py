@@ -163,6 +163,7 @@ class EventHandler:
 
     def notify(self, event, *args):
         for observer in self.observers.keys():
+            print "EventHandler.notify(", event, "): calling update_viewer for ", observer
             observer.update_viewer(event, *args)
 
     def get_labels_on(self):

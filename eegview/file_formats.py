@@ -240,7 +240,8 @@ class FileFormat_NeuroscanAscii:
     def __init__(self, path):
         ascfile = file(path)
         beginning_position = ascfile.tell()
-        if(self.istext(ascfile) == 0): 
+        if(self.istext(ascfile) == 0):
+            print "FileFormat_NeuroscanAscii(): not an ASCII file"
             raise IOError('%s not an ASCII file' %path)
            
 
