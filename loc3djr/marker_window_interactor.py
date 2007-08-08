@@ -42,6 +42,7 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
         
     def Render(self):
         if self.renderOn:
+            print "render on: MarkerWindowInteractor.Render()!! uhh classname is?" , str(self.__class__)
             GtkGLExtVTKRenderWindowInteractor.Render(self)
 
 

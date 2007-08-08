@@ -189,7 +189,7 @@ class PlaneWidgetsXYZ(MarkerWindowInteractor):
             actor.GetProperty().SetColor( marker.get_color() )
             actor.GetProperty().SetRepresentationToWireframe()
             actor.GetProperty().SetLineWidth(2.0)
-            print "PlaneWidgetsXYZ.update_viewer(): self.renderer.AddActor(", actor, ")"
+            print "PlaneWidgetsXYZ.update_viewer(): self.renderer.AddActor(actor)"
             self.renderer.AddActor(actor)
             self.boxes[marker] = actor
         elif event=='unselect marker':
@@ -202,7 +202,7 @@ class PlaneWidgetsXYZ(MarkerWindowInteractor):
         
         
     def add_marker(self, marker):
-        print "PlaneWidgetsXYZ.add_marker(): self.renderer.AddActor(", marker, ")"
+        print "PlaneWidgetsXYZ.add_marker(): self.renderer.AddActor(marker)"
         self.renderer.AddActor(marker)
 
         text = vtk.vtkVectorText()
@@ -225,7 +225,7 @@ class PlaneWidgetsXYZ(MarkerWindowInteractor):
 
 
         self.textActors[marker] = textActor
-        print "PlaneWidgetsXYZ.add_marker(): self.renderer.AddActor(", textActor, ")"
+        print "PlaneWidgetsXYZ.add_marker(): self.renderer.AddActor(textActor)"
         self.renderer.AddActor(textActor)
 
     def remove_marker(self, marker):

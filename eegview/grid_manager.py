@@ -361,7 +361,10 @@ class GridManager:
 
         print "GridManager.load_markers(): loaded self.markers of length " , len(self.markers)
         
+        
         self.markerd = dict([ (m.get_name_num(), m) for m in self.markers])
+
+        print "GridManager.load_markers(): self.markerd=", self.markerd
 
         self._add_markers(self.markers)
             
@@ -1646,7 +1649,7 @@ class GridManager:
            ind    : an index into the point set of the grid
 
         """
-
+        print "make_strip_ribbon(", name,")"
         
         markerd = self.markerd
         numrows, numcols = self.dimensiond[name]
@@ -1804,6 +1807,7 @@ class GridManager:
         # todo: fix me so normals rotate too!  will need some
         # transform goop
         for i, marker in enumerate(markers):
+            print "set_normals_grid1: calling GetComponent on normVecs=", normVecs
             thisNorm = array([normVecs.GetComponent(i,0), normVecs.GetComponent(i,1), normVecs.GetComponent(i,2)], 'd')
 
             marker.normal = thisNorm

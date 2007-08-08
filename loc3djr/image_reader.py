@@ -183,6 +183,8 @@ class WidgetsWrapper:
         return self.widgets.get_widget(key)
 
     def get_params(self):
+        print "WidgetsWrapper.get_params()!"
+        
         if widgets['radiobuttonDim256'].get_active(): dim = 256, 256
         elif widgets['radiobuttonDim512'].get_active(): dim = 512, 512
         elif widgets['radiobuttonDimOther'].get_active():
@@ -257,6 +259,8 @@ class WidgetsWrapper:
        return 1
 
     def set_params(self, o):
+
+       print "WidgetsWrapper.set_params()!"
        
        if o.readerClass=='vtkDICOMImageReader':
             bytes2=2
