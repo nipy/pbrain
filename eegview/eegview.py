@@ -15,7 +15,7 @@ from scipy import minimum, maximum
 
 from matplotlib.cbook import enumerate, exception_to_str, popd
 from pbrainlib.gtkutils import str2num_or_err, simple_msg, error_msg, \
-     not_implemented, yes_or_no, FileManager, select_name, get_num_range
+     not_implemented, yes_or_no, FileManager, select_name, get_num_range, Dialog_FileSelection, Dialog_FileChooser
 
 from matplotlib.widgets import Cursor, SpanSelector
 
@@ -1392,6 +1392,7 @@ class MainWindow(PrefixWrapper):
     prefix = ''
     widgetName = 'windowMain'
     gladeFile = 'main.glade'
+    win = None
 
     def __init__(self):
         if os.path.exists(self.gladeFile):
@@ -1448,8 +1449,8 @@ class MainWindow(PrefixWrapper):
         self.axesSpec.set_xticklabels([])
         self.axesSpec.set_yticklabels([])
         
-        win = self['windowMain']
-        win.move(0,0)
+        self.win = self['windowMain']
+        self.win.move(0,0)
 
         self['vboxMain'].pack_start(self.canvas, True, True)
         self['vboxMain'].show()
@@ -2096,16 +2097,18 @@ class MainWindow(PrefixWrapper):
         return False
 
     def on_menuFileOpen_activate(self, event):
-        dlg = gtk.FileSelection('Select EEG param file')
-        dlg.set_transient_for(self.widget)
-        dlg.set_filename(fmanager.get_lastdir() + os.sep)
+        #dlg = gtk.FileSelection('Select EEG param file')
+        #dlg.set_transient_for(self.widget)
+        #dlg.set_filename(fmanager.get_lastdir() + os.sep)
 
-        dlg.cancel_button.connect("clicked", lambda w: dlg.destroy())
-        dlg.show()
+        #dlg.cancel_button.connect("clicked", lambda w: dlg.destroy())
+        #dlg.show()
 
-        response = dlg.run()
+        #response = dlg.run()
 
-        if response == gtk.RESPONSE_OK:
+        def ok_callback(dlg):
+            fname = dlg.get_filename()
+                    
             fullpath =  dlg.get_filename()
             fmanager.set_lastdir(fullpath)
             dlg.destroy()
@@ -2156,6 +2159,18 @@ class MainWindow(PrefixWrapper):
 
             return False
 
+#        dlg = Dialog_FileSelection(defaultDir=fmanager.get_lastdir(),
+        dlg = Dialog_FileChooser(defaultDir=fmanager.get_lastdir(),
+                                 okCallback=ok_callback,
+                                 title='Select EEG param file',
+                                 parent=self.win,
+                                 previous_dirnames=fmanager.get_lastdirs())
+
+        dlg.run()
+        dlg.destroy()
+
+
+
     def load_eeg(self, eeg):
         dlg = gtk.Dialog('Please stand by')
         dlg.show()
@@ -2190,8 +2205,8 @@ class MainWindow(PrefixWrapper):
         self.eoiMenu = self.make_context_menu(eois)
 
         # change the window title
-        win = self['windowMain']
-        win.set_title(eeg.filename)
+        self.win = self['windowMain']
+        self.win.set_title(eeg.filename)
         
         
     def on_menuFileSave_activate(self, event):
@@ -2403,7 +2418,16 @@ class MainWindow(PrefixWrapper):
         return False
 
 def update_rc_and_die(*args):
-    eegviewrc.lastdir = fmanager.get_lastdir()
+    [eegviewrc.lastdir, 
+     eegviewrc.lastdir1,    
+     eegviewrc.lastdir2,    
+     eegviewrc.lastdir3,    
+     eegviewrc.lastdir4,    
+     eegviewrc.lastdir5,    
+     eegviewrc.lastdir6,    
+     eegviewrc.lastdir7,    
+     eegviewrc.lastdir8,    
+     eegviewrc.lastdir9] = fmanager.get_lastdirs()
     #eegviewrc.figsize = Shared.windowMain.fig.get_size_inches()
     eegviewrc.save()
     gtk.main_quit()

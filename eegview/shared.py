@@ -28,6 +28,15 @@ class RC:
     convertFromFile = {'figsize':split_ints,'sqlport':int}
     attrs = (
         'lastdir',
+        'lastdir1',
+        'lastdir2',
+        'lastdir3',
+        'lastdir4',
+        'lastdir5',
+        'lastdir6',
+        'lastdir7',
+        'lastdir8',
+        'lastdir9',
         'figsize',
         'httpuser',
         'httppasswd',
@@ -59,6 +68,17 @@ class RC:
             self.lastdir = 'C:\\'
         else: 
             self.lastdir = os.getcwd()
+
+        print "setting lastdirs.."
+        self.lastdir1 = ''
+        self.lastdir2 = ''
+        self.lastdir3 = ''
+        self.lastdir4 = ''
+        self.lastdir5 = ''
+        self.lastdir6 = ''
+        self.lastdir7 = ''
+        self.lastdir8 = ''
+        self.lastdir9 = ''
 
         self.figsize = 8, 6
 
@@ -104,4 +124,15 @@ eegviewrc = RC()
 
 fmanager = FileManager()
 fmanager.set_lastdir(eegviewrc.lastdir)
+fmanager.set_lastdirs([eegviewrc.lastdir,
+                       eegviewrc.lastdir1,
+                       eegviewrc.lastdir2,
+                       eegviewrc.lastdir3,
+                       eegviewrc.lastdir4,
+                       eegviewrc.lastdir5,
+                       eegviewrc.lastdir6,
+                       eegviewrc.lastdir7,
+                       eegviewrc.lastdir8,
+                       eegviewrc.lastdir9])
+
                 

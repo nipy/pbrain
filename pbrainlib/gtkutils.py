@@ -146,6 +146,39 @@ def str2negint_or_err(s, labelWidget, parent=None):
 
 
 
+class Dialog_FileChooser(gtk.FileChooserDialog):
+    def __init__(self, defaultDir, okCallback, title='Select file',
+                 parent=None, previous_dirnames=[]):
+        """wrap some of the file selection boilerplate.  okCallback is
+        a function that takes a Dialog_FileSelection instance as a
+        single arg."""
+        gtk.FileChooserDialog.__init__(self, action=gtk.FILE_CHOOSER_ACTION_OPEN,
+                                       buttons=(gtk.STOCK_CANCEL,
+                                                gtk.RESPONSE_CANCEL,
+                                                gtk.STOCK_OPEN,
+                                                gtk.RESPONSE_OK),title=title, parent=parent)
+
+        self.connect('file-activated', okCallback)
+
+        if (previous_dirnames[0]):
+            self.set_current_folder(previous_dirnames[0])
+
+        history_combobox = gtk.combo_box_new_text()
+        for d in previous_dirnames:
+            if (len(d) > 0):
+                history_combobox.append_text(d)
+
+        def history_combobox_changed(combobox):
+            self.set_current_folder(combobox.get_active_text())
+
+        history_combobox.connect('changed', history_combobox_changed)
+
+        self.set_extra_widget(history_combobox)
+        
+        self.set_default_size(1000, 600)
+        self.set_default_response(gtk.RESPONSE_OK)
+        self.show()
+    
 class Dialog_FileSelection(gtk.FileSelection):
     
     def __init__(self, defaultDir, okCallback, title='Select file',
@@ -153,7 +186,7 @@ class Dialog_FileSelection(gtk.FileSelection):
         """wrap some of the file selection boilerplate.  okCallback is
         a function that takes a Dialog_FileSelection instance as a
         single arg."""
-        print "Dialog_FileSelection.__init__"
+        gtk.FileSelection.__init__(self, title)
         self.defaultDir = defaultDir
         self.okCallback = okCallback
         gtk.FileSelection.__init__(self, title=title)
@@ -165,6 +198,8 @@ class Dialog_FileSelection(gtk.FileSelection):
                                    lambda *args: self.destroy())
         if parent is not None:
             self.set_transient_for(parent)
+
+        self.set_default_size(1000, 600)
         self.show()
 
     def get_default_dir(self):
@@ -301,10 +336,20 @@ class FileManager:
     def __init__(self, parent=None):
         self.parent = parent
         self.additionalWidget = None
-    
+
+        self.last_dirs = ['','','','','',
+                          '','','','',''] # queue of 10 directories...
+
+    def set_lastdirs(self, dirs):
+        self.last_dirs = dirs
         
     def get_lastdir(self):
-        return self.last
+        #return self.last
+        return self.last_dirs[0]
+
+    def get_lastdirs(self):
+        #return self.last
+        return self.last_dirs
 
     def set_lastdir(self, s):
         if os.path.isdir(s):
@@ -312,41 +357,26 @@ class FileManager:
         elif os.path.isfile(s):
             basedir, fname = os.path.split(s)
             self.last = basedir
-        else: pass
+
+        else: pass #? 
+
+        if (self.last not in self.last_dirs):
+            self.last_dirs.pop()
+            self.last_dirs.insert(0,self.last)
+        
 
     def get_filename(self, fname=None, title='Select file name', parent=None):
-        dlg = gtk.FileSelection(title)
-
-        if (self.additionalWidget):
-            self.additionalWidget.show_all()
-            dlg.action_area.add(self.additionalWidget)
-
-        if parent is not None:
-            dlg.set_transient_for(parent)
-        elif self.parent is not None:
-            dlg.set_transient_for(self.parent)
-
-        if fname is None:
-            dlg.set_filename(self.get_lastdir() + os.sep)
-        else:
-            dlg.set_filename(fname)
-
-        dlg.cancel_button.connect("clicked", lambda w: dlg.destroy())
-        dlg.show()
-
-        response = dlg.run()
-
-        if response == gtk.RESPONSE_OK:
-            fullpath =  dlg.get_filename()
-            self.set_lastdir(fullpath)
+        self.ok_fullpath = None
+        
+        def ok_callback(dlg):
+            self.ok_fullpath =  dlg.get_filename()
+            self.set_lastdir(self.ok_fullpath)
             dlg.destroy()
-            return fullpath
 
-        self.additionalWidget = None
-        return None
-
-    def add_widget(self, widget):
-        self.additionalWidget  = widget
+        dlg = Dialog_FileChooser(defaultDir=self.get_lastdir(), okCallback=ok_callback, title=title, parent=parent, previous_dirnames=self.get_lastdirs())
+        dlg.run()
+        dlg.destroy()
+        return self.ok_fullpath
 
 
 def get_num_range(minLabel='Min', maxLabel='Max',

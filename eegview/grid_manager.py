@@ -351,6 +351,7 @@ class GridManager:
         return True
             
     def load_markers(self, infile):
+        print "load_markers(", infile,")"
         self.flush()
         infile.seek(0)
         try: self.markers = [Marker.from_string(line) for line in infile]
@@ -700,6 +701,7 @@ class GridManager:
                     #    print "skipping electrode ", electrode, ": not in self.eoi"
                     #    continue
                     amp_list.append((int(vals[0]),vals[1], int(vals[2])))
+                    print "amp_list is ", amp_list
                 fh.close()
                 return amp_list
         
