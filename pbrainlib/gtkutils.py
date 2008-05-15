@@ -158,7 +158,9 @@ class Dialog_FileChooser(gtk.FileChooserDialog):
                                                 gtk.STOCK_OPEN,
                                                 gtk.RESPONSE_OK),title=title, parent=parent)
 
-        self.connect('file-activated', okCallback)
+        self.okCallback = okCallback
+
+        self.connect('file-activated', self.okCallback)
 
         if (previous_dirnames[0]):
             self.set_current_folder(previous_dirnames[0])
@@ -178,6 +180,10 @@ class Dialog_FileChooser(gtk.FileChooserDialog):
         self.set_default_size(1000, 600)
         self.set_default_response(gtk.RESPONSE_OK)
         self.show()
+
+    def run(self):
+        if (gtk.Dialog.run(self) == gtk.RESPONSE_OK):
+            self.okCallback(self)
     
 class Dialog_FileSelection(gtk.FileSelection):
     
