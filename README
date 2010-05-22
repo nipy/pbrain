@@ -4,6 +4,11 @@
 
 This is the development repository for pbrain.
 
+Pbrain is an analysis package for EEG, electrocorticography, and
+structural data.  The main developer was John Hunter, who was then at
+the university of Chicago.  More recently Micheal Castelle has been in
+charge of maintenance.
+
 See http://nipy.sourceforge.net/pbrain for the introductory docs.
 
 You may well want the example CT and EEG data at http://nipy.sourceforge.net/example_data 
