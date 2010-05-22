@@ -1,0 +1,15 @@
+===================
+ Pbrain repository
+===================
+
+This is the development repository for pbrain.
+
+See http://nipy.sourceforge.net/pbrain for the introductory docs.
+
+You may well want the example CT and EEG data at http://nipy.sourceforge.net/example_data 
+
+We (the nipy team) don't maintain pbrain - please feel free to dive in
+and take charge if you find it useful.
+
+Please say hello on the nipy mailing list - http://mail.scipy.org/mailman/listinfo/nipy-devel
+
