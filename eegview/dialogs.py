@@ -4,9 +4,9 @@ import gtk, gobject
 
 from matplotlib.numerix import arange
 
-from matplotlib.cbook import enumerate, exception_to_str
+from matplotlib.cbook import exception_to_str
 from matplotlib.mlab import detrend_none, detrend_mean, detrend_linear,\
-     window_none, fftsurr, window_hanning, prctile, mean
+     window_none, fftsurr, window_hanning, prctile #took out mean
 import matplotlib.numerix as nx
 from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanvas
 from matplotlib.backends.backend_gtk import NavigationToolbar2GTK

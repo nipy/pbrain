@@ -4,8 +4,8 @@ from __future__ import division
 import re
 import array
 import scipy
-from matplotlib.cbook import enumerate, iterable, Bunch
-from matplotlib.mlab import cohere_pairs, fftsurr, hanning
+from matplotlib.cbook import iterable, Bunch
+from matplotlib.mlab import cohere_pairs, fftsurr, window_hanning as hanning
 from math import floor, ceil
 
 from scipy import mean, zeros, ones, exp, array, pi
@@ -845,7 +845,7 @@ def window_hanning(x):
     DESCR: return x times the hanning window of len(x)
     """
     sigma = std(x)
-    win =  hanning(len(x))*x
+    win =  hanning(len(x))*x #USED THE MLAB window_hanning SINCE MATPLOTLIB DOESN'T HAVE IT ANYMORE -eli
     return win*(sigma/std(win))
 
 def bandpass(lpsf, lpcf, hpcf, hpsf, Fs, gpass=3, gstop=20):

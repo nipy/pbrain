@@ -2,7 +2,10 @@ from __future__ import division
 
 import os, sys, re, glob, urllib, httplib, warnings
 from cStringIO import StringIO
-from sets import Set
+try:
+	set
+except:
+	from sets import Set as set
 from matplotlib.cbook import mkdirs, listFiles
 
 from scipy import array,  \
@@ -25,7 +28,7 @@ import scipy.signal
 
 import pickle
 
-e1020 = Set([
+e1020 = set([
     'cz', 'c3', 'c4',
     't3', 't4', 't5', 't6',
     'o1', 'o2',
@@ -1371,7 +1374,7 @@ class EEGFileSystem(EEGBase):
 
         # Warn if old-style CSV files found.
         csvs = self._get_assocfiles('*.csv')
-        legit = Set(self.grds + self.anns)
+        legit = set(self.grds + self.anns)
         bad = []
         for csv in csvs:
             if csv not in legit:

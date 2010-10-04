@@ -5,7 +5,7 @@ import gtk, gobject
 #from matplotlib.numerix import arange
 from scipy import arange
 
-from matplotlib.cbook import enumerate, exception_to_str
+from matplotlib.cbook import exception_to_str
 from matplotlib.mlab import detrend_none, detrend_mean, detrend_linear,\
      window_none, window_hanning
 from pbrainlib.gtkutils import str2num_or_err, donothing_callback, \
