@@ -10,9 +10,14 @@ from pbrainlib.gtkutils import error_msg, simple_msg, make_option_menu,\
      get_num_value, get_num_range, get_two_nums, str2int_or_err,\
      OpenSaveSaveAsHBox, ButtonAltLabel
 
+from matplotlib.cbook import exception_to_str
+
 from shared import fmanager
 
-from sets import Set
+try:
+	set
+except:
+	from sets import Set as set
 
 #from Numeric import array, zeros, ones, sort, absolute, sqrt, divide,\
 #     argsort, take, arange
@@ -60,7 +65,7 @@ class GridManager:
         ok = self.load_markers(infile)
 
         # a set of gridnames where we have wanred if can't build grid
-        self.gridWarned = Set()  
+        self.gridWarned = set()  
         self.markerFilename = None
         self.ok = ok
 

@@ -44,7 +44,10 @@ import vtk
 
 import gtk, gobject
 
-from sets import Set
+try:
+	set
+except:
+	from sets import Set as set
 
 from scipy import array, zeros, ones, sort, absolute, sqrt, divide,\
      argsort, take, arange
