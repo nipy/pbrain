@@ -12,7 +12,7 @@ from scipy.signal import buttord, butter, lfilter
 
 import matplotlib.cm as cm
 from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanvas
-from matplotlib.backends.backend_gtk import NavigationToolbar, NavigationToolbar2GTK
+from matplotlib.backends.backend_gtkagg import NavigationToolbar2GTKAgg as NavigationToolbar
 
 from matplotlib.figure import Figure
 from matplotlib.mlab import detrend_none, detrend_mean, detrend_linear
@@ -321,7 +321,7 @@ class MPLWin(gtk.Window, Observer):
 
     def make_toolbar(self):
         
-        toolbar = NavigationToolbar2GTK(self.canvas, self)
+        toolbar = NavigationToolbar(self.canvas, self)
 
         next = 8
 
@@ -337,9 +337,12 @@ class MPLWin(gtk.Window, Observer):
 
         toolitem = gtk.ToolItem()
         toolitem.show()
-        toolitem.set_tooltip(
-            toolbar.tooltips,
-            'Automatically update in response to selections in EEG', 'Private')
+ 	
+	#Rewriting this for the new gtk tooltips available in pygtk 2.12 and up	
+	#toolitem.set_tooltip(
+        #   toolbar.tooltips,
+        #   'Automatically update in response to selections in EEG', 'Private')
+	toolitem.set_tooltip_text('Automatically update in response to selections in EEG')
 
         toolitem.add(self.buttonFollowEvents)
         toolbar.insert(toolitem, next); next +=1
@@ -350,9 +353,10 @@ class MPLWin(gtk.Window, Observer):
         context = self.make_context_menu()
         menu.set_menu(context)
 
-        menu.set_tooltip(
-            toolbar.tooltips,
-            'Set filter/detrend etc', 'Private')
+        #menu.set_tooltip(
+        #   toolbar.tooltips,
+        #   'Set filter/detrend etc', 'Private')
+	menu.set_tooltip_text('Set filter/detrend etc')
 
         toolbar.insert(menu, next); next+=1
 

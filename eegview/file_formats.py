@@ -1,7 +1,10 @@
 from __future__ import division
 
 import math, re, os, sys, string
-from sets import Set
+try:
+	set
+except:
+	from sets import Set as set
 from datetime import date, time
 import data
 from struct import unpack
@@ -396,7 +399,7 @@ class FileFormat_AxonAscii:
         axondate = self.get_axondate(datestamp, timestamp)
         #print "load_axonascii(): date is", axondate # we want to use the first date in the data stream, though, not this one
 
-        ampset = Set()
+        ampset = set()
         n_channels = 0
         channels = []
         n_lines = 0
@@ -717,7 +720,7 @@ class FileFormat_BNI:
     DESCR: Parses 'Nicolet' .BNI/.EEG file pair
     """
 
-    keys = Set(['FileFormat', 'Filename', 'Comment', 'PatientName',
+    keys = set(['FileFormat', 'Filename', 'Comment', 'PatientName',
                 'PatientId', 'PatientDob', 'Sex', 'Examiner', 'Date',
                 'Time', 'Rate', 'EpochsPerSecond', 'NchanFile',
                 'NchanCollected', 'UvPerBit', 'MontageGaped',

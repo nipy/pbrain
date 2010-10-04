@@ -32,6 +32,8 @@ from dialogs import Dialog_Preferences, Dialog_SelectElectrodes,\
 
 from dialog_filterelectrodes import Dialog_FilterElectrodes
 
+import datetime
+
 import servers
 from borgs import Shared
 from events import Observer
@@ -163,7 +165,9 @@ class EEGNavBar(gtk.Toolbar, Observer):
         toolitem = gtk.ToolButton()
         toolitem.set_icon_widget(iconw)
         toolitem.show_all()
-        toolitem.set_tooltip(self.tooltips, tip_text, tip_private)
+	#updated for new tooltip api
+	toolitem.set_tooltip_text(tip_text)
+	#toolitem.set_tooltip(self.tooltips, tip_text, tip_private)
         toolitem.connect("clicked", clicked_function, clicked_param1)
         toolitem.connect("scroll_event", clicked_function)
         self.insert(toolitem, -1)
@@ -197,7 +201,7 @@ class EEGNavBar(gtk.Toolbar, Observer):
         self.set_border_width(5)
         self.set_style(gtk.TOOLBAR_ICONS)
         
-        self.tooltips = gtk.Tooltips()
+        self.tooltips = gtk.Tooltip()
 
         self.add_toolbutton(gtk.STOCK_GOTO_FIRST, 'Move back one page', 'Private', self.panx, -10)
         self.add_toolbutton(gtk.STOCK_GO_BACK, 'Move back in time', 'Private', self.panx, -1)
@@ -517,7 +521,7 @@ class AnnotationManager:
         x,y are figure coordinates (i.e., event.x, event.y)
         """
         key, side = None, None
-        t, yt = self.axes.transData.inverse_xy_tup((x, y))
+        t, yt = self.axes.transData.inverted().transform((x, y)) #replaced inverse_xy_tup with inverted().transform()
         for key, info in self.ann.items() :
             s = info['startTime']
             e = info['endTime']
@@ -1242,7 +1246,7 @@ class EEGPlot(Observer):
         tmin, tmax = self.get_time_lim()
         dt = 1/self.decfreq
 
-        t, yt = self.axes.transData.inverse_xy_tup( (x,y) )
+        t, yt = self.axes.transData.inverted().transform( (x,y) ) #replaced inverse_xy_tup with inverted().transform()
 
         ind = int((t-tmin)/dt)
 
@@ -1254,7 +1258,7 @@ class EEGPlot(Observer):
         for i, line in enumerate(self.lines):
             thisy = line.get_ydata()[ind]
             trans = line.get_transform()
-            xt, yt = trans.xy_tup((thisx, thisy))
+            xt, yt = trans.transform((thisx, thisy)) #replaced xy_tup with transform
             ys[i] = yt
 
         ys = absolute(ys-y)
@@ -1964,7 +1968,7 @@ class MainWindow(PrefixWrapper):
 
         if not event.inaxes: return
 
-        xa, ya = self.axes.transAxes.inverse_xy_tup((event.x, event.y))
+        xa, ya = self.axes.transAxes.inverted().transform((event.x, event.y)) #replaced inverse_xy_tup with inverted().transform()
 #        print 'axes coords', xa, ya
         
         self.buttonDown = event.button
