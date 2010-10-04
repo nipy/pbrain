@@ -306,14 +306,14 @@ class View3(gtk.Window, Observer):
         toolitem = gtk.ToolButton()
         toolitem.set_icon_widget(iconw)
         toolitem.show_all()
-        toolitem.set_tooltip(self.tooltips1, tip_text, tip_private)
+        toolitem.set_tooltip_text(tip_text) #updated the tooltip method
         toolitem.connect("clicked", clicked_function, clicked_param1)
         toolitem.connect("scroll_event", clicked_function)
         toolbar.insert(toolitem, -1)
 
     def make_toolbar1(self):
 
-        self.tooltips1 = gtk.Tooltips()
+        #self.tooltips1 = gtk.Tooltips()
 
         toolbar1  = gtk.Toolbar()
         iconSize = gtk.ICON_SIZE_SMALL_TOOLBAR

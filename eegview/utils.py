@@ -7,8 +7,9 @@ import scipy
 from matplotlib.cbook import iterable, Bunch
 from matplotlib.mlab import cohere_pairs, fftsurr, window_hanning as hanning
 from math import floor, ceil
+from numpy import mean #changed from scipy mean. don't think it makes a difference. still have a problem on line 389 - invalid index to scalar var?
 
-from scipy import mean, zeros, ones, exp, array, pi
+from scipy import zeros, ones, exp, array, pi
 from scipy import array, arange, std, rand
 
 import scipy.signal
