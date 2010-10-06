@@ -861,7 +861,6 @@ class View3(gtk.Window, Observer):
         self.meshManager = MeshManager(self.interactor, self.renderer, mesh_filename, reg_filename)
         
     def load_markers(self, *args, **kwargs):
-
         infile = kwargs.get('infile', None)
         if infile is None:
             self.csv_fname = fmanager.get_filename(title='Enter marker filename: *.csv')
@@ -924,7 +923,6 @@ class View3(gtk.Window, Observer):
         return True
     
     def recieve(self, event, *args):
-
         if not self.buttonFollowEvents.get_active(): return
         if event in (Observer.SET_TIME_LIM,):
             self.compute_coherence()
@@ -1097,7 +1095,6 @@ class View3(gtk.Window, Observer):
         return dvec, cvec, predicted, pars
 
     def plot_normed_data(self):
-
         if self.gridManager.markers is None:
             self.load_markers()
 

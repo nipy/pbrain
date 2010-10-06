@@ -130,7 +130,7 @@ class GridManager:
         #self.scalarBar.SetLookupTable(self.scalarLookup)
         
         for name in self.get_grid1_names():
-            #print "set_scalar_data: grid1_names: doing %s" % name
+            print "set_scalar_data: grid1_names: doing %s" % name
             items = named.get(name, None)
             if items is None: continue
             items.sort()
@@ -146,9 +146,9 @@ class GridManager:
 
             scalars = vtk.vtkFloatArray()
             for num, val in items:
-                #print "looking up self.vtkIDs[(%s, %d)]" % (name, num)
+                print "looking up self.vtkIDs[(%s, %d)]" % (name, num)
                 vtkID = self.vtkIDs[(name, num)]
-                #print "scalars.InsertValue(%d, %f)" % (vtkID, val)
+                print "scalars.InsertValue(%d, %f)" % (vtkID, val)
                 scalars.InsertValue(vtkID, val)
             polydata.GetPointData().SetScalars(scalars)
 

@@ -349,7 +349,6 @@ def cohere_bands(cxy, phase, freqs, keys,
     """
     #convert the cxy and phase structs to a matrix for averaging
     
-
     df = freqs[1]-freqs[0]
     ind = []
 
@@ -385,7 +384,7 @@ def cohere_bands(cxy, phase, freqs, keys,
                 ac[count]=thisCxy[inds]
                 ap[count]=thisPhase[inds]
             else:
-                #print key, inds, inde, thisCxy.shape, ac.shape
+                print thisCxy, thisPhase, "erm", key, inds, inde, thisCxy.shape, ac.shape
                 ac[count] = mean(thisCxy[inds:inde])
                 ap[count] = mean(thisPhase[inds:inde])
             count += 1
@@ -829,7 +828,10 @@ def cohere_pairs_eeg( eeg, eoiPairs=None, indMin=0, indMax=None,
         e1, e2 = keyEOI
         seen[i] = e1
         seen[j] = e2
-
+    print "??????????????????????????????????????????????????????????????????????????????????"
+    print Cxy
+    for iii in Phase:
+	print iii
     if returnPxx:
         for i, ei in seen.items():
             Pxx[ei] = Pxx[i]

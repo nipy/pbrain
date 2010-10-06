@@ -6,11 +6,12 @@ import os
 
 
 import pygtk
-#pygtk.require('2.0')
+pygtk.require('2.0')
 import gtk
 from scipy.signal import buttord, butter, lfilter
 
 import matplotlib.cm as cm
+from matplotlib.cbook import CallbackRegistry
 from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanvas
 from matplotlib.backends.backend_gtkagg import NavigationToolbar2GTKAgg as NavigationToolbar
 
@@ -297,14 +298,14 @@ class MPLWin(gtk.Window, Observer):
 
     def on_move(self, widget, event):
         # get the x and y coords, flip y from top to bottom
-        height = self.canvas.figure.bbox.height()
+        height = self.canvas.figure.bbox.height #no longer necessary for height method to have parens ()
         x, y = event.x, height-event.y
         print "on_move ", x, y
 
         if self.axes.in_axes(x, y):
             # transData transforms data coords to display coords.  Use the
             # inverse method to transform back
-            x,y = self.axes.transData.inverse_xy_tup( (x,y) )
+            x,y = self.axes.transData.inverted().transform( (x,y) ) #replaced inverse_xy_tup with inverted().transform
             msg = self.get_msg(x,y)
             #self.update_status_bar(msg)
 
@@ -455,11 +456,13 @@ class VoltageMapWin(MPLWin):
         self.view3 = view3
         self.scrollbar = gtk.HScrollbar()
         self.scrollbar.show()
+	#signals = ('xlim_changed')
+	#self.callbacks = CallbackRegistry(signals)
 
         packend = [(self.scrollbar, False, False)]
         MPLWin.__init__(self, view3.eegplot, packend=packend)
         self.scrollbar.connect('value_changed', self.update_map)        
-        self.axes.connect('xlim_changed', self.update_scrolllim)
+        self.axes.callbacks.connect('xlim_changed', self.update_scrolllim) #added .callbacks to make this work 
 
 
     def update_map(self, bar):
@@ -495,9 +498,9 @@ class VoltageMapWin(MPLWin):
 
         def make_line(ax, canvas):
             if canvas.window is None: return            
-            thist, tmp = ax.transData.xy_tup((t, 0))
-            ymin, ymax = ax.bbox.intervaly().get_bounds()
-            height = canvas.figure.bbox.height()
+            thist, tmp = ax.transData.transform((t, 0)) #replaced xy_tup with transform()
+            ymin, ymax = ax.bbox.intervaly #().get_bounds() no longer necessary
+            height = canvas.figure.bbox.height #() no longer necessary for height method
             ymax = height-ymax
             ymin = height-ymin
 
