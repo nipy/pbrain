@@ -924,7 +924,6 @@ class View3(gtk.Window, Observer):
         return True
     
     def recieve(self, event, *args):
-	simple_msg("recieve")
         if not self.buttonFollowEvents.get_active(): return
         if event in (Observer.SET_TIME_LIM,):
             self.compute_coherence()
