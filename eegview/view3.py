@@ -41,7 +41,8 @@ Todo:
 from __future__ import division
 import sys, os, math
 import vtk
-
+import pygtk
+pygtk.require('2.0')
 import gtk, gobject
 
 try:
@@ -159,8 +160,9 @@ class View3(gtk.Window, Observer):
 
         interactor = GtkGLExtVTKRenderWindowInteractor()
         interactor.AddObserver('LeftButtonPressEvent', self.press_left)
-
+	
         self.picker = vtk.vtkCellPicker()
+	
         self.picker.SetTolerance(0.005)
         interactor.SetPicker(self.picker)
 
@@ -210,7 +212,7 @@ class View3(gtk.Window, Observer):
         toolbar1.show()
         toolbar2 = self.make_toolbar2()
         toolbar2.show()
-
+	
         # line connection attribute
         self.thresholdParams = 'pct.', 0.025
 
@@ -235,10 +237,10 @@ class View3(gtk.Window, Observer):
         self.norm = {}  
         # text label attributes
         self.textOn = True
-
+	
 
         self.interactor.Render()
-
+	
         # only register when you are built
         Observer.__init__(self)
 
@@ -502,7 +504,7 @@ class View3(gtk.Window, Observer):
         self.buttonPhase.set_active(True)
         print "dude buttonPhase"
         self.add_toolitem2(toolbar2, self.buttonPhase, 'Draw white pipes when abs(phase) is <0.1')
-
+	
         def phase_toggled(button):
             if not self.cohereResults:
                 return
@@ -516,7 +518,7 @@ class View3(gtk.Window, Observer):
         self.buttonPhase.connect('toggled', phase_toggled)
         
 
-
+	
         def show_image_prefs(widget, *args):
             self.imageManager.show_prefs()
             
@@ -861,7 +863,6 @@ class View3(gtk.Window, Observer):
         self.meshManager = MeshManager(self.interactor, self.renderer, mesh_filename, reg_filename)
         
     def load_markers(self, *args, **kwargs):
-
         infile = kwargs.get('infile', None)
         if infile is None:
             self.csv_fname = fmanager.get_filename(title='Enter marker filename: *.csv')
@@ -908,23 +909,22 @@ class View3(gtk.Window, Observer):
             
 
         self.markersEOI = [self.gridManager.markerd[key] for key in self.eoi]
-
+	
         named = {}
         self.xyzd = {}
         for m in self.markersEOI:
             name, num = m.get_name_num()
             self.xyzd[(name,num)] = m.get_center()
             named[name]=1
-
+	
         self.gridNames = named.keys()
 
         self.renderer.ResetCamera()
         self.interactor.Render()
-
         return True
     
     def recieve(self, event, *args):
-
+	simple_msg("recieve")
         if not self.buttonFollowEvents.get_active(): return
         if event in (Observer.SET_TIME_LIM,):
             self.compute_coherence()
@@ -1097,7 +1097,6 @@ class View3(gtk.Window, Observer):
         return dvec, cvec, predicted, pars
 
     def plot_normed_data(self):
-
         if self.gridManager.markers is None:
             self.load_markers()
 
@@ -1281,8 +1280,8 @@ class View3(gtk.Window, Observer):
         
         return returnKeys
         
-    def draw_connections(self, Cxy, Pxy, phasethreshold=True):
-        N = len(self.eoi)
+    def draw_connections(self, Cxy, Pxy, phasethreshold=True):     
+	N = len(self.eoi)
 
         ret = self.get_cxy_pxy_cutoff(Cxy, Pxy)
         if ret is None:

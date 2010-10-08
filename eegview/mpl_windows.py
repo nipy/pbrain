@@ -6,7 +6,7 @@ import os
 
 
 import pygtk
-#pygtk.require('2.0')
+pygtk.require('2.0')
 import gtk
 from scipy.signal import buttord, butter, lfilter
 
@@ -34,7 +34,7 @@ import math
 
 from numpy import flipud, zeros
 
-import pymedia
+#import pymedia
 
 class FilterBase:
     """
@@ -227,7 +227,7 @@ class MPLWin(gtk.Window, Observer):
         toolitem = gtk.ToolButton()
         toolitem.set_icon_widget(iconw)
         toolitem.show_all()
-        toolitem.set_tooltip(self.tooltips, tip_text, tip_private)
+        toolitem.set_tooltip_text(tip_text)
         toolitem.connect("clicked", clicked_function, clicked_param1)
         toolitem.connect("scroll_event", clicked_function)
         self.toolbar.insert(toolitem, -1)
@@ -304,7 +304,7 @@ class MPLWin(gtk.Window, Observer):
         if self.axes.in_axes(x, y):
             # transData transforms data coords to display coords.  Use the
             # inverse method to transform back
-            x,y = self.axes.transData.inverse_xy_tup( (x,y) )
+            x,y = self.axes.transData.inverted().transform( (x,y) ) #updated xy_tup
             msg = self.get_msg(x,y)
             #self.update_status_bar(msg)
 
@@ -652,10 +652,12 @@ class SpecWin(MPLWin):
         #    iconw,
         #    self.set_properties)
  
-        self.tooltips = gtk.Tooltips()
+        #self.tooltips = gtk.Tooltips()
         self.add_toolbutton(gtk.STOCK_PREFERENCES, 'Set the color map properties', 'Private', self.set_properties)
-        self.add_toolbutton(gtk.STOCK_MEDIA_PLAY, 'Play the signal', 'Private', self.play_signal)
-
+    
+    
+        self.add_toolbutton(gtk.STOCK_MEDIA_PLAY, 'Play the signal', 'Private', self.set_properties) #changed self.play_signal to self.set_properties temporarily to not use sound
+    """
     def play_signal(self, *args):
         print "XXX YAH"
         snd = None
@@ -684,7 +686,7 @@ class SpecWin(MPLWin):
         snd.stop()
             
         pass
-
+    """
     def set_properties(self, *args):
         dlg = SpecProps()
 

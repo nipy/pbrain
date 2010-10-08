@@ -47,8 +47,8 @@ from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanva
 import matplotlib.cm as cm
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
-from matplotlib.transforms import BboxTransform, Bbox, ScaledTranslation #in all, removed unit_bbox, Value, Point, and
-#replaced get_bbox_transform with BboxTransform, added ScaledTranslation
+from matplotlib.transforms import BboxTransform, Bbox, ScaledTranslation, blended_transform_factory #in all, removed unit_bbox, Value, Point, and
+#replaced get_bbox_transform with BboxTransform, added ScaledTranslation and blended_transform_factory
 
 from matplotlib.patches import Rectangle
 
@@ -403,7 +403,7 @@ class AnnotationManager:
             params = self.dlgAnnotate.get_params()
 
             # Set defaults / keep some old values
-            now = datetime.now()
+            now = datetime.datetime.now() #fixed datetime syntax
             if self.selectedkey is not None: # selected
                 params['created'] = self.ann[key]['created']
                 params['edited'] = now.ctime()
@@ -480,8 +480,8 @@ class AnnotationManager:
         self.canvas.draw()
 
     def _new_rect(self, xmin, xmax, ymin, ymax, **props):
-        trans = blend_xy_sep_transform( self.axes.transData,
-                                        self.axes.transAxes   )
+        trans = blended_transform_factory( self.axes.transData,
+                                        self.axes.transAxes   ) #xy_sep_transform deprecated
 
 	rect = Rectangle(xy=(xmin, ymin), width=xmax-xmin, height=ymax-ymin,
                          transform=trans, **props)
@@ -506,8 +506,10 @@ class AnnotationManager:
         for key, info in self.ann.items() :
            for rect in info['rects'] :
                if rect.get_window_extent().contains(x, y) :
-                   bounds = rect.get_window_extent().get_bounds()
-                   middle = .5 * (2 * bounds[0] + bounds[2])
+                   #bounds = rect.get_window_extent().get_bounds()
+                   ax1 = rect.get_axes()
+		   bounds = ax1.dataLim.bounds # is this what i want?? -eli         
+		   middle = .5 * (2 * bounds[0] + bounds[2])
                    d = abs(x - middle)
                    ret.append((d, key))
         ret.sort()
@@ -517,7 +519,7 @@ class AnnotationManager:
 
     def over_edge(self, x, y) :
         """
-        If you are over an annotation edge, return it's key.
+        If you are over an annotation edge, return its key.
         x,y are figure coordinates (i.e., event.x, event.y)
         """
         key, side = None, None
@@ -535,9 +537,12 @@ class AnnotationManager:
             key = None
 
         if key is not None :
-            for rect in info['rects'] :
-                l, b, w, h = rect.get_window_extent().get_bounds()
-                r = l + w
+            for rect in info['rects'] : #get_bounds() is deprecated, use properties intervalx and intervaly -eli
+                #l, b, w, h = rect.get_window_extent().get_bounds()
+		ax1 = rect.get_axes()
+		l, b, w, h = ax1.dataLim.bounds # is this what i want?? -eli         
+		print l, b, w, h
+		r = l + w
                 t = b + h
                 if y <= t and y >= b :
                     break
@@ -584,7 +589,7 @@ class AnnotationManager:
         the plot stff and redraw
         """
 
-        thisann = popd(self.eegplot.annman.ann, self.selectedkey, None)
+        thisann = self.eegplot.annman.ann.pop(self.selectedkey) #trying to make this work with python's list.pop()
         if thisann is None:
             return
 
@@ -770,7 +775,7 @@ class EEGPlot(Observer):
                 color = self.colorOrder[colorInd % len(self.colorOrder)]
                 self.colord[gname] = color
                 colorInd += 1
-            
+        
         self._selected = eoi[0]
         self.set_eoi(eoi)
 
@@ -989,7 +994,7 @@ class EEGPlot(Observer):
 
 
     def plot(self):
-        #print "EEGPlot.plot()
+        print "EEGPlot.plot()"
         
         self.axes.cla()
         t, data, freq = self.filter(0, 10) 
@@ -1060,39 +1065,37 @@ class EEGPlot(Observer):
         labeld = amp.get_dataind_dict()
 
         for ind, offset in pairs:
-
-            trode = labeld[ind]
-
+            trode = labeld[ind]	    
             color = self.get_color(trode)
             if self._selected==trode: color='r'
             trans = BboxTransform(boxin, boxout) #switched to BboxTransform
-            #print "EEGPlot.plot(): " , data.shape, ind, len(pairs), self.eeg.channels
-            thisLine = Line2D(t, data[:,ind],
+	    #print "EEGPlot.plot(): " , data.shape, ind, len(pairs), 			self.eeg.channels
+	    #set_offset is way deprecated. I'm going to use a tip from the 			newer transforms_tutorial on the matplotlib.sourceforge page.
+	    #the basic idea is to use ScaledTranslation, which creates an 			offset that can then be added to the original trans.
+	    
+	    #trans.set_offset((0, offset), transOffset)
+	    #so, these two lines below which I've written seem to work at 			offsetting the lines to where they need to go. -eli 
+	    #note: for some reason, in nipy pbrain the original 		trans.set_offset was written _after_ the call to Line2D
+	    newtrans = ScaledTranslation(0,offset,transOffset) 
+	    trans = trans + newtrans
+	    thisLine = Line2D(t, data[:,ind],
                               color=color,
                               linewidth=0.75,
                               linestyle='-',
-                              clip_on=False #added this kwarg
+                              clip_on=True #added this kwarg
                               )
             thisLine.set_transform(trans)
-            #thisLine.set_data_clipping(False)
-            #trans.set_offset((0, offset), transOffset)
-#set_offset is way deprecated. I'm going to use a tip from the newer transforms_tutorial on the matplotlib.sourceforge page.
-	    #the basic idea is to use ScaledTranslation, which creates an offset that can than be added to the original trans.
-	    newtrans = ScaledTranslation(0,offset,transOffset)
-	    trans = trans + newtrans
-	    #trans.set_offset((0, offset), transOffset)
-	    #note: I'm still not even clear how/if trans even gets used again            
-
-            #should the following be commented out?
-#thisLine.set_lod(on=1)
+            #thisLine.set_data_clipping(False) #deprecated
+               
+	    #should the following be commented out?
+	    #thisLine.set_lod(on=1)
             self.lines.append(thisLine)
             self.axes.add_line(thisLine)
-
-            if count % skip == 0:                
+	    if count % skip == 0:                
                 labels.append('%s%d' % trode)
                 locs.append(offset)
             count += 1
-        #	print 'locs', labels[0], locs[0], self.offsets[0]
+            #print 'locs', labels[0], locs[0], self.offsets[0]
 
         self.set_time_lim(0, updateData=False)
 
@@ -1329,7 +1332,6 @@ class SpecPlot(Observer):
             self.axes.set_xlim( [xmin, xmax] )
             self.axes.set_xticks( self.eegplot.axes.get_xticks()  )
             return
-
         flim = SpecPlot.flim
         clim = SpecPlot.clim
 
@@ -1812,7 +1814,7 @@ class MainWindow(PrefixWrapper):
             params = annman.ann[annman.selectedkey]
         else:
             # Create new annotation
-            now = datetime.now()
+            now = datetime.datetime.now() #datetime.now() was wrong, using datetime.datetime.now() -eli
             hlight = annman.get_highlight()
             if hlight is None :
                 params = dict(created=now.ctime())
@@ -2374,11 +2376,12 @@ class MainWindow(PrefixWrapper):
             return
         from view3 import View3
         viewWin = View3(eegplot=self.eegplot)
-
+	
         if viewWin.ok:
             viewWin.show()
         else:
             print >>sys.stderr, 'Got an error code from view3'
+
 
     def on_menuPhaseSynchronyPlot_activate(self, event) :
         try : self.eegplot
