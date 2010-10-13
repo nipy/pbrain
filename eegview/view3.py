@@ -865,9 +865,11 @@ class View3(gtk.Window, Observer):
     def load_markers(self, *args, **kwargs):
         infile = kwargs.get('infile', None)
         if infile is None:
-            self.csv_fname = fmanager.get_filename(title='Enter marker filename: *.csv')
-            if self.csv_fname is None: return
-
+	    if fmanager.csv == "" or fmanager.csv == " ": #if we haven't set a csv file in the home/.eegviewrc file
+                self.csv_fname = fmanager.get_filename(title='Enter marker filename: *.csv')
+                if self.csv_fname is None: return
+	    else:
+		self.csv_fname = fmanager.csv #if we have, use the fmanager in shared to load it from .eegviewrc
             try: infile = file(self.csv_fname, 'r')
             except IOError, msg:
                 err = '\n'.join(map(str, msg))

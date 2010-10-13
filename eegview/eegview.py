@@ -1042,7 +1042,8 @@ class EEGPlot(Observer):
 #updated by removing Point and Value methods and simply passing four points #to Bbox() this may be a bad idea... I tried passing them to Bbox.set_points#() but this method seems to be either not working or badly documented.
 #also, viewLim is deprecated from what I can tell, so I'll try to use axes.g#et_xlim
 	viewLimX=self.axes.get_xlim() #this returns a list of min and max x points, which is what we want to pass below
-        boxin = Bbox(
+	print "************", viewLimX        
+	boxin = Bbox(
             [[viewLimX[0], -vset], #replaced self.axes.viewLim.ll().x() with viewLimX
             [viewLimX[1], vset]])
 
@@ -2187,17 +2188,33 @@ class MainWindow(PrefixWrapper):
             self.load_eeg(eeg)
 
             return False
+        
 
-#        dlg = Dialog_FileSelection(defaultDir=fmanager.get_lastdir(),
-        dlg = Dialog_FileChooser(defaultDir=fmanager.get_lastdir(),
+	dlg = Dialog_FileChooser(defaultDir=fmanager.get_lastdir(),
                                  okCallback=ok_callback,
                                  title='Select EEG param file',
                                  parent=self.win,
                                  previous_dirnames=fmanager.get_lastdirs())
-
-        dlg.run()
+	dlg.set_filename(fmanager.bni) #use the shared filemanager and eegviewrc file to autoload files when set 
+	dlg.run()
         dlg.destroy()
 
+#simple usability hack: chain in the view3 loader here
+	try: self.eegplot
+        except AttributeError:
+            simple_msg(
+                'You must first select an EEG from the Patients menu',
+                title='Error',
+                parent=self.widget)
+            return
+        from view3 import View3
+        viewWin = View3(eegplot=self.eegplot)
+	
+        if viewWin.ok:
+            viewWin.show()
+        else:
+            print >>sys.stderr, 'Got an error code from view3'
+#/hack
 
 
     def load_eeg(self, eeg):

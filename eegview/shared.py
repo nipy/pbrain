@@ -48,7 +48,12 @@ class RC:
         'sqlport',
         'sqldatabase',
         'horizcursor',
-        'vertcursor'
+        'vertcursor',
+	'bni',
+	'csv',
+	'amp',
+	'dat',
+	'col'
         )
 
     def __init__(self):
@@ -99,6 +104,7 @@ class RC:
     def loadrc(self):
         
         for line in file(self.filename):
+	    print line
             key, val = line.split(':', 1)
             key = key.strip()
             val = val.strip()
@@ -123,6 +129,11 @@ class RC:
 eegviewrc = RC()        
 
 fmanager = FileManager()
+fmanager.bni = eegviewrc.bni
+fmanager.csv = eegviewrc.csv
+fmanager.amp = eegviewrc.amp
+fmanager.dat = eegviewrc.dat
+fmanager.col = eegviewrc.col
 fmanager.set_lastdir(eegviewrc.lastdir)
 fmanager.set_lastdirs([eegviewrc.lastdir,
                        eegviewrc.lastdir1,

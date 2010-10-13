@@ -88,7 +88,10 @@ class GridManager:
         self.do_scale_pipes = False 
         self.do_scale_pipes_with_coherence = False 
         self.pipes_scaling_factor = 0.2
-      
+	
+	#self.entryAsciiFile = None	
+	
+          
     def markers_as_collection(self):
         markers = vtk.vtkActorCollection()
         for marker in self.markers:
@@ -662,9 +665,11 @@ class GridManager:
             # code copied from view3 -- XXX
 
             print "Loading amp file.."
-            
-            amp_filename = fmanager.get_filename(title="Select .amp file")
-            if amp_filename is None: return
+            if fmanager.amp == "" or fmanager.amp == " ": #retooled for streamlining using .eegviewrc file
+		amp_filename = fmanager.get_filename(title="Select .amp file")
+            	if amp_filename is None: return
+	    else:
+		amp_filename = fmanager.amp
             if not os.path.exists(amp_filename):
                 error_msg('File %s does not exist' % amp_filename, parent=dlg)
                 return
@@ -723,10 +728,12 @@ class GridManager:
             self.ampAscii = amp
            
         def set_filename(button):
-
-            filename = fmanager.get_filename(title="Select .dat file")
-            if filename is None: return
-            if not os.path.exists(filename):
+	    if fmanager.dat == "" or fmanager.dat == " ": #retooled for streamlining
+		filename = fmanager.get_filename(title="Select .dat file")
+                if filename is None: return
+            else:
+		filename = fmanager.dat
+	    if not os.path.exists(filename):
                 error_msg('File %s does not exist' % filename, parent=dlg)
                 return
             entryAsciiFile.set_text(filename)
@@ -1087,7 +1094,10 @@ class GridManager:
                 self.interactor.Render() 
             elif (combo.get_active() == 2):
                 print "loading custom map a la Leo"
-                colormap_filename = fmanager.get_filename()
+		if fmanager.col == "" or fmanager.col == " ":
+                    colormap_filename = fmanager.get_filename()
+		else:
+		    colormap_filename = fmanager.col
                 print "colormap_filename is " , colormap_filename
                 if colormap_filename is None: return
                 
@@ -1207,8 +1217,10 @@ class GridManager:
 
         self._update_frames()
         notebook.set_current_page(2)        
-
-
+	#if not (fmanager.dat == "" or fmanager.dat == " "):
+	#    entryAsciiFile.set_text(fmanager.dat)
+	#    load_ascii_data(fmanager.dat)
+	
         return dlg
 
 
