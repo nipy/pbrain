@@ -10,7 +10,7 @@ from GtkGLExtVTKRenderWindow import GtkGLExtVTKRenderWindow
 from scipy import array
 
 from pbrainlib.gtkutils import error_msg, simple_msg, ProgressBarDialog,\
-     str2posint_or_err, str2posnum_or_err, str2int_or_err
+     str2posint_or_err, str2posnum_or_err, str2int_or_err, FileManager
 from shared import shared
 
 import distutils.sysconfig
@@ -25,7 +25,7 @@ class GladeHandlers:
     def on_buttonDir_clicked(button=None):
 
             
-        dialog = gtk.FileSelection('Choose image file directory')
+        dialog = gtk.FileChooserDialog('Choose image file directory')
         dialog.set_filename(shared.get_last_dir())
         dialog.set_transient_for(widgets['dlgReader'])
         dialog.set_filename(widgets['entryDir'].get_text())
@@ -43,22 +43,22 @@ class GladeHandlers:
            dialog.destroy()
 
     def on_buttonOpenInfo_clicked(button=None):
-	
-        dialog = gtk.FileSelection('Choose info file')
-        dialog.set_transient_for(widgets['dlgReader'])
-        dialog.set_filename(widgets['entryInfoFile'].get_text() or
-                            shared.get_last_dir())
-        response = dialog.run()
-        fname = dialog.get_filename()
-        dialog.destroy()
-        if response == gtk.RESPONSE_OK:
-            if widgets.load_params_from_file(fname):
-                GladeHandlers.__dict__['on_buttonPreview_clicked']()
-                shared.set_file_selection(fname)
-        
+	dialog = FileManager()
+        fname = dialog.get_filename('Choose info file') #using gtkutils to modernize file dlg -eli
+        #dialog.set_transient_for(widgets['dlgReader'])
+        #dialog.set_filename(widgets['entryInfoFile'].get_text() or
+                            #shared.get_last_dir())
+        #response = dialog.run()
+        #fname = dialog.get_filename()
+        #dialog.destroy()
+        #if response == gtk.RESPONSE_OK:
+        if widgets.load_params_from_file(fname):
+	    GladeHandlers.__dict__['on_buttonPreview_clicked']()
+	    shared.set_file_selection(fname)
+    
     def on_buttonSaveAsInfo_clicked(button=None):
-            
-        dialog = gtk.FileSelection('Choose info file to save parameters to')
+        
+        dialog = gtk.FileChooserDialog('Choose info file to save parameters to')
         dialog.set_transient_for(widgets['dlgReader'])
         dialog.set_filename(widgets['entryInfoFile'].get_text() or
                             shared.get_last_dir())

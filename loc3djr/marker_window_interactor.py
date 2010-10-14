@@ -120,7 +120,7 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
 
         self.vtk_interact_mode = False
 
-        # XXX why does this not work
+        # XXX why does this not work #good question -eli - gonna figure it out eventually
         self.set_interact_mode()
 
         try: del self.pressHooks[1]

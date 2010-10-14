@@ -64,7 +64,7 @@ class MainToolbar(MyToolbar):
 
 
     def show_correlation_props(self, button):
-        dialog = gtk.FileSelection('Choose filename for correlation data')
+        dialog = gtk.FileChooserDialog('Choose filename for correlation data')
         dialog.set_filename(shared.get_last_dir())
 
         dialog.show()

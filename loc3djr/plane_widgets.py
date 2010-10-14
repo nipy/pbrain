@@ -59,7 +59,7 @@ class PlaneWidgetsWithObservers(gtk.VBox):
         self.mainWindow = mainWindow
         border = 5
         print "PlaneWidgetsWithObservers.__init__(): PlaneWidgetsXYZ()"
-        self.pwxyz = PlaneWidgetsXYZ()
+        self.pwxyz = PlaneWidgetsXYZ() #at init, put main data display window behind loading dialog
         self.pwxyz.show()
 
 
@@ -68,7 +68,7 @@ class PlaneWidgetsWithObservers(gtk.VBox):
         self.surfRenWin.show()
         
         toolbar = MainToolbar(owner=self)
-        toolbar.show()
+        toolbar.show() #now show the main toolbar for loading data
         toolbar.set_orientation(gtk.ORIENTATION_HORIZONTAL)
 
         # add MainToolbar to window
