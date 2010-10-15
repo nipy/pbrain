@@ -3,7 +3,7 @@ import os
 from shared import shared
 from vtksurface import VTKSurface
 
-from pbrainlib.gtkutils import MyToolbar
+from pbrainlib.gtkutils import MyToolbar, FileManager
 from image_reader import widgets, GladeHandlers
 from events import EventHandler, UndoRegistry, Viewer
 
@@ -379,26 +379,26 @@ class MainToolbar(MyToolbar):
         else: EventHandler().save_markers_as(self.fileName)
 
     def load_from(self, button):
-
-        dialog = gtk.FileSelection('Choose filename for marker info')
-        dialog.set_filename(shared.get_last_dir())
-
-        dialog.show()        
-        response = dialog.run()
+	dialog = FileManager() #modernizing the dialog box
+	dialog.set_lastdir(shared.get_last_dir())	
+	fname = dialog.get_filename('Choose filename for marker info')
+        #dialog = gtk.FileSelection()
         
-        if response==gtk.RESPONSE_OK:
-            fname = dialog.get_filename()
-            dialog.destroy()
-            try: EventHandler().load_markers_from(fname)
-            except IOError:
-                error_msg(
-                    'Could not load markers from %s' % fname, 
-                    )
-            
-            else:
-                shared.set_file_selection(fname)
-                self.fileName = fname
-        else: dialog.destroy()
+        #dialog.show()        
+        #response = dialog.run()
+        
+        #if response==gtk.RESPONSE_OK:
+        #    fname = dialog.get_filename()
+        #    dialog.destroy()
+        try: EventHandler().load_markers_from(fname)
+        except IOError:
+            error_msg(
+                'Could not load markers from %s' % fname, 
+                )
+        else:
+            shared.set_file_selection(fname)
+            self.fileName = fname
+        #else: dialog.destroy()
         
 
     def choose_color(self, button):

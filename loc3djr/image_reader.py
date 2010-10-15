@@ -44,7 +44,9 @@ class GladeHandlers:
 
     def on_buttonOpenInfo_clicked(button=None):
 	dialog = FileManager()
-        fname = dialog.get_filename('Choose info file') #using gtkutils to modernize file dlg -eli
+	print shared.get_last_dir()
+	dialog.set_lastdir(shared.get_last_dir())        
+	fname = dialog.get_filename('Choose info file') #using gtkutils to modernize file dlg -eli
         #dialog.set_transient_for(widgets['dlgReader'])
         #dialog.set_filename(widgets['entryInfoFile'].get_text() or
                             #shared.get_last_dir())
