@@ -7,7 +7,8 @@ class RC:
     """
     CLASS: RC
     DESCR: handles .eegviewrc file in home directory. Currently only the 'lastdir'
-    line is really used.
+    line is really used - as well as the streamlining data in the last 5 columns. eegview.rc gets saved after 
+    every program execution.
     """
     if os.environ.has_key('HOME'):
         path = os.environ['HOME']
@@ -100,6 +101,11 @@ class RC:
 
         self.horizcursor = True
         self.vertcursor = True
+	self.bni = ""
+	self.csv = ""
+	self.amp = ""
+	self.dat = ""
+	self.col = ""
 
     def loadrc(self):
         
