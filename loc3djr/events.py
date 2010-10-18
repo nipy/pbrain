@@ -145,11 +145,11 @@ class EventHandler:
         
         
     def load_markers_from(self, fname):
-
+	#this runs when you load markers from file. it loads a csv file line by line and adds each marker
         self.notify('render off')
         for line in file(fname, 'r'):
             marker = Marker.from_string(line)
-            self.add_marker(marker)
+            self.add_marker(marker) #adds the marker to a vtk actor collection
         self.notify('render on')
         UndoRegistry().flush()
 
@@ -161,10 +161,10 @@ class EventHandler:
             del self.observers[observer]
         except KeyError: pass
 
-    def notify(self, event, *args):
+    def notify(self, event, *args): #this function maps events to function calls
         for observer in self.observers.keys():
             print "EventHandler.notify(", event, "): calling update_viewer for ", observer
-            observer.update_viewer(event, *args)
+            observer.update_viewer(event, *args) 
 
     def get_labels_on(self):
         return self.labelsOn

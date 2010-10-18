@@ -18,7 +18,7 @@ from shared import shared
 class SurfRenderWindow(GtkGLExtVTKRenderWindowInteractor, Viewer):
     """
     CLASS: SurfRenderWindow
-    DESCR: Upper right frame in loc3djr window
+    DESCR: Upper right frame in loc3djr window - for the markers and later the surface renderings
     """
 
     def __init__(self, imageData=None):

@@ -22,7 +22,7 @@ class MainToolbar(MyToolbar):
         #('MRI Info', 'Load new 3d MRI', gtk.STOCK_NEW, 'load_mri'),
         ('Load VTK File', 'Load new VTK mesh', gtk.STOCK_NEW, 'load_vtk'),
         ('Load Registration file', 'Load .reg file', gtk.STOCK_NEW, 'load_registration'),
-        ('Markers', 'Load markers from file', gtk.STOCK_OPEN, 'load_from'),
+        ('Electrodes', 'Load markers from file', gtk.STOCK_OPEN, 'load_from'),
         ('Save', 'Save markers', gtk.STOCK_SAVE, 'save'),
         ('Save as ', 'Save markers as new filename', gtk.STOCK_SAVE_AS, 'save_as'),
         ('Save registration as', 'Save registration as new filename', gtk.STOCK_SAVE_AS, 'save_registration_as'),

@@ -33,7 +33,7 @@ class PlaneWidgetsXYZ(MarkerWindowInteractor):
     """
         
     def __init__(self, imageData=None):
-        MarkerWindowInteractor.__init__(self)
+        MarkerWindowInteractor.__init__(self) #does this really just control the markers or is it for the other vtk grid mesh too?
 
         print "PlaneWidgetsXYZ.__init__()"
 
@@ -43,7 +43,7 @@ class PlaneWidgetsXYZ(MarkerWindowInteractor):
         self.sharedPicker = vtk.vtkCellPicker()
         #self.sharedPicker.SetTolerance(0.005)
         self.SetPicker(self.sharedPicker)
-        
+        #initialize all three axes slice objects on the bottom of the window
         self.pwX = vtk.vtkImagePlaneWidget()
         self.pwY = vtk.vtkImagePlaneWidget()
         self.pwZ = vtk.vtkImagePlaneWidget()

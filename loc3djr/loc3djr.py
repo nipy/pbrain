@@ -8,6 +8,7 @@ window.connect("destroy", gtk.main_quit)
 window.connect("delete_event", gtk.main_quit)
 window.set_border_width(10)
 window.set_size_request(640, 480)  #w,h
+window.maximize() #added this line recently - eli - vtk tends to play a little better now for some reason
 window.show()
 
 pwo = PlaneWidgetsWithObservers(window)

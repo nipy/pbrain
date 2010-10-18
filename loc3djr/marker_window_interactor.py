@@ -14,19 +14,20 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
     """
     def __init__(self):
         GtkGLExtVTKRenderWindowInteractor.__init__(self)
-        EventHandler().attach(self)
+        EventHandler().attach(self) #this class works very closely with the event handler. 
+	#the attach function makes the markerwindowinteractor an observer in the event_handler class's observer dictionary, s.t. when an object-related 		event calls notify in the event_handler, the event handler can use the observer to call the correct update_viewer function for the object.
         self.interactButtons = (1,2,3)
         self.renderOn = 1
         self.Initialize()
         self.Start()
 
         self.renderer = vtk.vtkRenderer()
-        self.renWin = self.GetRenderWindow()
-        self.renWin.AddRenderer(self.renderer)
+        self.renWin = self.GetRenderWindow() #from GtkGLExtVTKRenderWindowInteractor.py, returns a vtk.vtkrenderwindow
+        self.renWin.AddRenderer(self.renderer) #attach the vtk.vtkRenderer to the vtk.vtkrenderwindow
         self.interactor = self.renWin.GetInteractor()
         #self.camera = self.renderer.GetActiveCamera()
 
-        
+        #where _Iren is the vtk render window interactor defined and used in gtkglextvtkrenderwindowinteractor
         self.pressFuncs = {1 : self._Iren.LeftButtonPressEvent,
                            2 : self._Iren.MiddleButtonPressEvent,
                            3 : self._Iren.RightButtonPressEvent}
@@ -120,7 +121,7 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
 
         self.vtk_interact_mode = False
 
-        # XXX why does this not work #good question -eli - gonna figure it out eventually
+        # XXX why does this not work #good question -eli - gonna figure it out eventually. i think it works on some vtk installs and not others
         self.set_interact_mode()
 
         try: del self.pressHooks[1]
@@ -144,13 +145,13 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
         self.set_vtkinteract_mode()
 
         def button_down(*args):
-            #print "button down on brain interact."
+            print "button down on brain interact."
             x, y = self.GetEventPosition()
             picker = vtk.vtkPropPicker()
             picker.PickProp(x, y, self.renderer)
             actor = picker.GetActor()
             # now do something with the actor !!!
-            #print "actor is ", actor
+            print "actor is ", actor #right now when this prints the actor is "none"
 
             
             

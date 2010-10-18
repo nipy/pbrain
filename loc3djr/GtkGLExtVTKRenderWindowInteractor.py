@@ -29,13 +29,13 @@ class GtkGLExtVTKRenderWindowInteractor(gtk.gtkgl.DrawingArea):
 
         self.set_double_buffered(False)
         
-        self._RenderWindow = vtk.vtkRenderWindow()
+        self._RenderWindow = vtk.vtkRenderWindow() #initialize the vtk render window
 
         # private attributes
         self.__Created = 0
         self._ActiveButton = 0
 
-        self._Iren = vtk.vtkGenericRenderWindowInteractor()
+        self._Iren = vtk.vtkGenericRenderWindowInteractor() 
         self._Iren.SetRenderWindow(self._RenderWindow)
 
         # mcc XXX: hmm
