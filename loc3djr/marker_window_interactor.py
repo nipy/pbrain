@@ -43,7 +43,7 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
         
     def Render(self):
         if self.renderOn:
-            print "render on: MarkerWindowInteractor.Render()!! uhh classname is?" , str(self.__class__)
+            #print "render on: MarkerWindowInteractor.Render()!! uhh classname is?" , str(self.__class__)
             GtkGLExtVTKRenderWindowInteractor.Render(self)
 
 
@@ -121,7 +121,7 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
 
         self.vtk_interact_mode = False
 
-        # XXX why does this not work #good question -eli - gonna figure it out eventually. i think it works on some vtk installs and not others
+        # XXX why does this not work #good question -eli - gonna figure it out eventually. i think it works on some vtk installs and not others. refreshing the window helps for all sorts of vtk problems.
         self.set_interact_mode()
 
         try: del self.pressHooks[1]
@@ -273,7 +273,11 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
             self.window.set_cursor (cursor)
         
     def set_mouse1_to_color(self):
-
+	#moved this up -eli
+	cursor = gtk.gdk.Cursor (COLOR_CURSOR)
+        if self.window is not None:
+            self.window.set_cursor (cursor)
+	#/move
         def button_up(*args):
             pass
 
@@ -285,14 +289,12 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
             UndoRegistry().push_command(
                 EventHandler().notify, 'color marker', marker, oldColor)
             EventHandler().notify('color marker', marker, color)
-
+	    #print "*&*&*&*&*& calling notify with oldcolor: ", oldColor, "color: ", color
         self.pressHooks[1] = button_down
         self.releaseHooks[1] = button_up
         self.set_select_mode()
 
-        cursor = gtk.gdk.Cursor (COLOR_CURSOR)
-        if self.window is not None:
-            self.window.set_cursor (cursor)
+        
 
 
     def OnButtonDown(self, wid, event):

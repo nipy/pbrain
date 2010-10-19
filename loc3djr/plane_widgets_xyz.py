@@ -33,7 +33,7 @@ class PlaneWidgetsXYZ(MarkerWindowInteractor):
     """
         
     def __init__(self, imageData=None):
-        MarkerWindowInteractor.__init__(self) #does this really just control the markers or is it for the other vtk grid mesh too?
+        MarkerWindowInteractor.__init__(self) #does this really just control the markers or is it for the other frames too?
 
         print "PlaneWidgetsXYZ.__init__()"
 
@@ -139,6 +139,7 @@ class PlaneWidgetsXYZ(MarkerWindowInteractor):
             self.remove_marker(marker)
         elif event=='color marker':
             marker, color = args
+	    #print "****update viewer in plane_widgets_xyz", color
             marker.set_color(color)
         elif event=='label marker':
             marker, label = args
@@ -310,7 +311,7 @@ class PlaneWidgetsXYZ(MarkerWindowInteractor):
     def OnButtonUp(self, wid, event):
         """Mouse button released."""
         
-        print "PlaneWidgetsXYZ.OnButtonUp(): event=", event
+        #print "PlaneWidgetsXYZ.OnButtonUp(): event=", event
 
         if not hasattr(self, 'lastPntsXYZ'): return
         MarkerWindowInteractor.OnButtonUp(self, wid, event)

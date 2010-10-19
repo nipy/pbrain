@@ -163,7 +163,7 @@ class EventHandler:
 
     def notify(self, event, *args): #this function maps events to function calls
         for observer in self.observers.keys():
-            print "EventHandler.notify(", event, "): calling update_viewer for ", observer
+            #print "EventHandler.notify(", event, "): calling update_viewer for ", observer, "with args: ", args #DEBUG MODE ONLY
             observer.update_viewer(event, *args) 
 
     def get_labels_on(self):

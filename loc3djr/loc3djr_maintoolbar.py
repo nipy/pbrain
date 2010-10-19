@@ -416,12 +416,13 @@ class MainToolbar(MyToolbar):
         if response == gtk.RESPONSE_OK:
             color = colorsel.get_current_color()
             self.lastColor = color
-            EventHandler().set_default_color(self.get_normed_rgb(color))
-            
+            EventHandler().set_default_color(self.get_normed_rgb(color)) #DEBUG
         dialog.destroy()
+	print "******************", EventHandler().get_default_color()
 
     def get_normed_rgb(self, c):
-        return map(lambda x: x/65535, (c.red, c.green, c.blue))
-
+        color = map(lambda x: x/65536.0, (float(c.red), float(c.green), float(c.blue))) #fixed color bug by switching to floats -eli
+	#print "this should be a decimal between 0 and 1", color
+	return color
 
 
