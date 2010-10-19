@@ -672,6 +672,8 @@ class GridManager:
 		amp_filename = fmanager.amp
             if not os.path.exists(amp_filename):
                 error_msg('File %s does not exist' % amp_filename, parent=dlg)
+		fmanager.amp = ""
+		amp_filename = fmanager.amp
                 return
 
             try: fh = file(amp_filename)
@@ -735,6 +737,8 @@ class GridManager:
 		filename = fmanager.dat
 	    if not os.path.exists(filename):
                 error_msg('File %s does not exist' % filename, parent=dlg)
+		fmanager.dat = ""
+		filename = fmanager.dat
                 return
             entryAsciiFile.set_text(filename)
             load_ascii_data(filename)

@@ -2195,7 +2195,12 @@ class MainWindow(PrefixWrapper):
                                  title='Select EEG param file',
                                  parent=self.win,
                                  previous_dirnames=fmanager.get_lastdirs())
-	dlg.set_filename(fmanager.bni) #use the shared filemanager and eegviewrc file to autoload files when set 
+	print fmanager.bni
+	try: 
+	    dlg.set_filename(fmanager.bni) #use the shared filemanager and eegviewrc file to autoload files when set 	
+	except:
+	    dlg.set_filename("")
+	    	
 	dlg.run()
         dlg.destroy()
 

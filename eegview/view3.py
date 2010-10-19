@@ -872,9 +872,11 @@ class View3(gtk.Window, Observer):
 		self.csv_fname = fmanager.csv #if we have, use the fmanager in shared to load it from .eegviewrc
             try: infile = file(self.csv_fname, 'r')
             except IOError, msg:
+		fmanager.csv = ""
                 err = '\n'.join(map(str, msg))
                 error_msg('Could not open %s for reading\n%s' % (self.csv_fname,err),
                           parent=self)
+		self.csv_fname = fmanager.csv
                 self.gridManager.markers = None
                 return
 
