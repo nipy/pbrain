@@ -280,6 +280,7 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
         if self.window is not None:
             self.window.set_cursor (cursor)
 	#/move
+	self.renWin.Render() #added this line to refresh the renderwindow in order to fix the "why isn't anything happening?!?" issue -eli
         def button_up(*args):
             pass
 
