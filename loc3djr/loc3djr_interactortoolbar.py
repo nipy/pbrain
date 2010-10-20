@@ -33,7 +33,7 @@ class InteractorToolbar(gtk.Toolbar):
         
         #self.set_orientation(gtk.ORIENTATION_VERTICAL)
         self.add_toolbutton1(gtk.STOCK_REFRESH, 'Enable interact', 'Enable mouse rotate pan/zoom', 'Private', self.notify, 'mouse1 interact')
-        self.add_toolbutton1(gtk.STOCK_REFRESH, 'VTK interact', 'Enable VTK rotate pan/zoom', 'Private', self.notify, 'vtk interact')
+        self.add_toolbutton1(gtk.STOCK_REFRESH, 'Reset Camera', 'If this button used to do something else, right now it resets the camera', 'Private', self.notify, 'vtk interact')
         self.add_toolbutton1(gtk.STOCK_BOLD, 'Label markers', 'Label clicked markers', 'Private', self.notify, 'mouse1 label')
         self.add_toolbutton1(gtk.STOCK_APPLY, 'Select markers', 'Select clicked markers', 'Private', self.notify, 'mouse1 select')
         self.add_toolbutton1(gtk.STOCK_CLEAR, 'Set color', 'Set marker color', 'Private', self.notify, 'mouse1 color')

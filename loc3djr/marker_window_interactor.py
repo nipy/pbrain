@@ -139,7 +139,7 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
         self.Render()
 
     def set_mouse1_to_vtkinteract(self):
-
+	"""
         print "MarkerWindowInteractor.set_mouse1_to_vtkinteract()"
 
         self.set_vtkinteract_mode()
@@ -167,6 +167,8 @@ class MarkerWindowInteractor(GtkGLExtVTKRenderWindowInteractor, Viewer):
         cursor = gtk.gdk.Cursor (INTERACT_CURSOR)
         if self.window is not None:
             self.window.set_cursor (cursor)
+	"""	
+	self.renderer.ResetCamera() #I don't see what vtk interact is supposed to do, so I'll have it reset the camera while it's at it. -eli
 
     def set_mouse1_to_move(self):
 
