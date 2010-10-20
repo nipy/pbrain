@@ -4,9 +4,10 @@ import vtk
 
 import gtk, gobject
 
-from pbrainlib.gtkutils import ButtonAltLabel
+from pbrainlib.gtkutils import ButtonAltLabel, simple_msg
 
 from dialogs import AutoPlayDialog
+from events import Observer
 
 
 class AutoPlayView3Dialog(AutoPlayDialog):
@@ -147,11 +148,11 @@ class AutoPlayView3Dialog(AutoPlayDialog):
         numOutPnts = len(self.steps)*self.entryPerTime.get_value_as_int()
 
         if numInPnts<2:
-            error_msg('Found only %d input frames' % len(self.frames) ,
+            simple_msg('Found only %d input frames' % len(self.frames) ,
                       parent=self)
             return 
         if numOutPnts<2:
-            error_msg('Found only %d time steps' % len(self.steps) ,
+            simple_msg('Found only %d time steps' % len(self.steps) ,
                       parent=self)
             return 
         def interpolate_tup3(tups):

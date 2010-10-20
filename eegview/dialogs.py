@@ -3849,9 +3849,12 @@ class AutoPlayDialog(gtk.Dialog, Observer):
 
 
         self.steps = arange(valMin, valMax-self.twidth+0.001, valStep)
-        #print valMin, valMax, valStep, self.twidth, len(self.steps)
-        if self.steps != self.lastSteps:
-            self.ind = 0
+        print valMin, valMax, valStep, self.twidth, len(self.steps) #DEBUG
+	#print self.steps
+	#print self.lastSteps
+        #if self.steps != self.lastSteps:
+        #    self.ind = 0
+	#the above were giving me trouble and don't seem very useful -eli
         self.lastSteps = self.steps
 
         return True
