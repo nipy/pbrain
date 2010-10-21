@@ -5,7 +5,7 @@ import re
 import array
 import scipy
 from matplotlib.cbook import iterable, Bunch
-from matplotlib.mlab import cohere_pairs, fftsurr, window_hanning as hanning
+from pbrainlib.mlab import cohere_pairs, fftsurr, window_hanning as hanning
 from math import floor, ceil
 from numpy import mean #changed from scipy mean. don't think it makes a difference. still have a problem on line 389 - invalid index to scalar var?
 
@@ -384,7 +384,6 @@ def cohere_bands(cxy, phase, freqs, keys,
                 ac[count]=thisCxy[inds]
                 ap[count]=thisPhase[inds]
             else:
-                print thisCxy, thisPhase, "erm", key, inds, inde, thisCxy.shape, ac.shape
                 ac[count] = mean(thisCxy[inds:inde])
                 ap[count] = mean(thisPhase[inds:inde])
             count += 1
@@ -715,8 +714,9 @@ def get_best_exp_params(x, y, guess=(1.0, -.5, 0.0)):
         best, info, ier, mesg = ret
     elif len(ret)==5:
         best, info, ier, mesg, cov_x = ret
+    print "WE'RE TRYING!", best
 
-    if ier != 1: return None 
+    if ier != 1: print "ier == 1..."#return None #so I took this out. I don't know if this is a terrible idea. Dr. Towle has informed me that sometimes the glove just don't fit, but that we still want to draw coherences with the best value, even if the error value is 1.
     return best 
 
 
@@ -797,7 +797,7 @@ def cohere_pairs_eeg( eeg, eoiPairs=None, indMin=0, indMax=None,
 
     if data is None: data = eeg.data
 
-    print "cohere_pairs_eeg: data.shape is ", data.shape
+    #print "cohere_pairs_eeg: data.shape is ", data.shape
     
     if indMax is None: indMax = data.shape[0]
     X = data[indMin:indMax]
@@ -828,10 +828,9 @@ def cohere_pairs_eeg( eeg, eoiPairs=None, indMin=0, indMax=None,
         e1, e2 = keyEOI
         seen[i] = e1
         seen[j] = e2
-    print "??????????????????????????????????????????????????????????????????????????????????"
-    print Cxy
-    for iii in Phase:
-	print iii
+    #print Cxy
+    #print Phase, "&*&*&"
+    #print freqs
     if returnPxx:
         for i, ei in seen.items():
             Pxx[ei] = Pxx[i]
