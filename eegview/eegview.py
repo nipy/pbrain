@@ -1042,7 +1042,7 @@ class EEGPlot(Observer):
 #updated by removing Point and Value methods and simply passing four points #to Bbox() this may be a bad idea... I tried passing them to Bbox.set_points#() but this method seems to be either not working or badly documented.
 #also, viewLim is deprecated from what I can tell, so I'll try to use axes.g#et_xlim
 	viewLimX=self.axes.get_xlim() #this returns a list of min and max x points, which is what we want to pass below
-	print "************", viewLimX        
+	#print "************", viewLimX        
 	boxin = Bbox(
             [[viewLimX[0], -vset], #replaced self.axes.viewLim.ll().x() with viewLimX
             [viewLimX[1], vset]])
@@ -1423,7 +1423,6 @@ class MainWindow(PrefixWrapper):
     widgetName = 'windowMain'
     gladeFile = 'main.glade'
     win = None
-
     def __init__(self):
         if os.path.exists(self.gladeFile):
             #print "opening %s" % self.gladeFile
@@ -1450,7 +1449,7 @@ class MainWindow(PrefixWrapper):
 
         figsize = eegviewrc.figsize
         self.fig = Figure(figsize=figsize, dpi=72)
-
+	
         self.canvas = FigureCanvas(self.fig)  # a gtk.DrawingArea
         self.canvas.set_size_request(600, 400)
 
@@ -1495,6 +1494,9 @@ class MainWindow(PrefixWrapper):
         self['vboxMain'].pack_start(self.statbar, False, False)
         self.update_status_bar('')
         self.buttonDown = None
+	fsize = self.fig.get_size_inches()
+	self.fsize = copy.deepcopy(fsize)
+	
 
         # Init Annotations menu sensitivity.
         menuItemAnnBrowser = Shared.widgets.get_widget('menuItemAnnBrowser')
@@ -1882,11 +1884,22 @@ class MainWindow(PrefixWrapper):
     #    return False
 
     def expose_event(self, widget, event):
-        return False
-    
+	#now the traces resize themselves on window resize - hurrah! eli
+	#I had more trouble with this than I care to admit, which explains the messiness of the code
+	try: self.eegplot 
+	except AttributeError: return False
+	newsize = self.fig.get_size_inches()
+	fsize = self.fsize
+	#print newsize.all(), fsize.all() #why didn't .all() work??
+	if (fsize[1] != newsize[1]) or (fsize[0] != newsize[0]) :
+	    self.eegplot.plot() #added these two lines -eli
+ 	    self.eegplot.draw()
+	    self.fsize = copy.deepcopy(newsize) #why didn't regular copy work?
+	return False    
+	
     def configure_event(self, widget, event):
-        self._isConfigured = True
-        return False
+	
+	return False
 
     def realize(self, widget):
         return False
@@ -1962,12 +1975,14 @@ class MainWindow(PrefixWrapper):
         
         self.axes.set_position([l1, b2+h2, w1, h1])
         self.axesSpec.set_position([l2, b2, w2, h2])
-
+	#self.eegplot.plot() #added these two lines -eli
+	#self.eegplot.draw()
         self.canvas.draw()
         
     def button_press_event(self, event):
         try: self.eegplot
         except AttributeError: return False
+	
 
         if not event.inaxes: return
 
@@ -2034,7 +2049,7 @@ class MainWindow(PrefixWrapper):
             else: label = 'Edit Selected Annotation'
 
             menu.popup(None, None, None, 0, 0)
-
+	
         return False
 
     def button_release_event(self, event):
@@ -2488,7 +2503,6 @@ if __name__=='__main__':
     __import__('__init__')
     Shared.windowMain = MainWindow()
     Shared.windowMain.show_widget()
-
     from optparse import OptionParser
     parser = OptionParser()
 
@@ -2512,6 +2526,7 @@ if __name__=='__main__':
         #No longer load the sql/zope dialog.
         #Shared.windowMain.on_menuFilePreferences_activate(None)
         pass
+    Shared.windowMain.widget.connect('expose-event', Shared.windowMain.expose_event)
     Shared.windowMain.widget.connect('destroy', update_rc_and_die)
     Shared.windowMain.widget.connect('delete_event', update_rc_and_die)
     #Shared.windowMain['menubarMain'].hide()
