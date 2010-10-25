@@ -264,6 +264,7 @@ class EEGNavBar(gtk.Toolbar, Observer):
         tmin, tmax = response
         
         self.eegplot.set_time_lim(tmin, tmax, updateData=True)
+	self.eegplot.plot()
         self.eegplot.draw()
 
     def specify_range_time(self, *args):
@@ -294,6 +295,7 @@ class EEGNavBar(gtk.Toolbar, Observer):
         # figure out what times these times correspond to by getting eeg start time
         
         self.eegplot.set_time_lim(tmin, tmax, updateData=True)
+	self.eegplot.plot() #redraw the traces -eli
         self.eegplot.draw()
 
     def save_figure(self, button):
@@ -331,8 +333,9 @@ class EEGNavBar(gtk.Toolbar, Observer):
         else:
             if arg.direction == gdk.SCROLL_UP: right=1
             else: right=0
-
+	
         self.eegplot.pan_time(right)
+	self.eegplot.plot() #redraw the traces -eli
         self.eegplot.draw()
         return False
 
@@ -345,6 +348,7 @@ class EEGNavBar(gtk.Toolbar, Observer):
             else: direction=0
 
         self.eegplot.change_time_gain(direction)
+	self.eegplot.plot() #redraw the traces -eli
         self.eegplot.draw()
         return False
 
@@ -357,6 +361,7 @@ class EEGNavBar(gtk.Toolbar, Observer):
             else: direction=0
 
         self.eegplot.change_volt_gain(direction)
+	self.eegplot.plot() #redraw the traces -eli
         self.eegplot.draw()
         return False
 
@@ -878,7 +883,7 @@ class EEGPlot(Observer):
     def get_selected_window(self, filtergm=False, extraTime=0):
         'return t, data[ind], trode'
         tmin, tmax = self.get_time_lim()
-
+	print "get_selected_window: ", tmin, tmax
         # XXX mcc, taking this out for neuroscanascii format which doesn't handle negative vals well
         #tmin -= extraTime/2.
         #tmax += extraTime/2.
@@ -944,7 +949,7 @@ class EEGPlot(Observer):
         hpsf: high pass stop freq=None
 
         """
-        #print "\n========\nEEGPlot.filter(%f, %f, ...)" % (tmin, tmax)
+        print "\n========\nEEGPlot.filter(%f, %f, ...)" % (tmin, tmax)
 
         try: t, data = self.eeg.get_data(tmin, tmax)
         
@@ -988,8 +993,8 @@ class EEGPlot(Observer):
         decimateFactor= 1
 
         #print "EEGPlot.filter(): decimateFactor  = int(Nyq=%f/lpcf=%d) = " % (Nyq, lpcf), decimateFactor, "self.decfreq=(eeg.freq=%f)/(%d) = " % (self.eeg.freq, decimateFactor), self.decfreq
-
-        #print "EEGPlot.filter(): returning decimated data t[::%d], data[::%d], %f" % (decimateFactor, decimateFactor, decfreq)
+	#are all of the above commented lines really not needed anymore? -eli
+        print "EEGPlot.filter(): returning decimated data t[::%d], data[::%d], %f" % (decimateFactor, decimateFactor, decfreq)
         return t[::decimateFactor], data[::decimateFactor], decfreq
 
 
@@ -997,7 +1002,9 @@ class EEGPlot(Observer):
         print "EEGPlot.plot()"
         
         self.axes.cla()
-        t, data, freq = self.filter(0, 10) 
+	tmin, tmax = self.get_time_lim() #it turns out hardcoding 0,10 in this function was ahem counterproductive -eli 
+	#print "EEGPLOT.plot(): tmn, tmax ", tmin, tmax        
+	t, data, freq = self.filter(tmin, tmax) 
 
         dt = 1/freq
 
@@ -1098,7 +1105,7 @@ class EEGPlot(Observer):
             count += 1
             #print 'locs', labels[0], locs[0], self.offsets[0]
 
-        self.set_time_lim(0, updateData=False)
+        self.set_time_lim(tmin,tmax, updateData=False) #put the correct tmin and tmax in here -eli
 
         self.axes.set_yticks(locs)            
 
@@ -1152,6 +1159,7 @@ class EEGPlot(Observer):
         xmax = origmin+wid
         
         self.set_time_lim(xmin, xmax, updateData=True)
+	#self.plot() #update the traces -eli
 
     def change_volt_gain(self, magnify=1):
         """Change the voltage scale.  zoom out with magnify=0, zoom in
@@ -1186,30 +1194,33 @@ class EEGPlot(Observer):
         # keep the index in bounds
         wid, step = self.get_twid_step()
         tmin, tmax = self.get_time_lim()
-        step *= right
-        
+	#print "pan_time tmin,tmax: ", tmin, tmax        
+	step *= right
+        #print "pan_time step: ", step
         self.set_time_lim(tmin+step)
-
+	#self.plot() #update the plot! eli
 
     def get_time_lim(self,):
         return self.axes.get_xlim()
 
 
     def get_twid_step(self):
-        return self.timeSets[self.timeInd]
+	#print "get_twid_step(): ", self.timeSets[self.timeInd]
+        return self.timeSets[self.timeInd] #still not sure exactly why we return twice in this function -eli
         ticks = self.axes.get_xticks()
         wid = ticks[-1] - ticks[0]
         step = ticks[1] - ticks[0]
+	#print "get_twid_step(): ", wid, step
         return wid, step
         
     def set_time_lim(self, xmin=None, xmax=None,
                      updateData=True, broadcast=True):
         #make sure xmin keeps some eeg on the screen
-        print "EEGPlot.set_time_lim(xmin=", xmin, "xmax=", xmax, ")"
+        #print "EEGPlot.set_time_lim(xmin=", xmin, "xmax=", xmax, ")"
         
         
         origmin, origmax = self.get_time_lim()
-        print "EEGPlot.set_time_lim(): origmin, origmax = ", origmin, origmax
+        #print "EEGPlot.set_time_lim(): origmin, origmax = ", origmin, origmax
         if xmin is None: xmin = origmin
         
         if xmax is None:
@@ -1344,6 +1355,7 @@ class SpecPlot(Observer):
         self.axes.cla()
         xmin, xmax = self.eegplot.get_time_lim()
         xextent = xmin, xmax
+	print "make spec: xmin, xmax: ", xmin, xmax
         #try:
         #print "SpecPlot.make_spec(): calling specgram(data=", data.shape, "NFFT=%d, Fs=%d, noverlap=%d, xextent=" % (NFFT, Fs, Noverlap), xextent, ")"
         Pxx, freqs, t, im = self.axes.specgram(
@@ -1384,7 +1396,7 @@ class SpecPlot(Observer):
             self.axes.set_yticks(arange(flim[0], flim[1]+1, 10))
 
     def recieve(self, event, *args):
-
+	#note: this gets called on a timescale update -eli 
         if event in (Observer.SELECT_CHANNEL, Observer.SET_TIME_LIM):
             self.make_spec()
             self.canvas.draw()
@@ -1975,8 +1987,8 @@ class MainWindow(PrefixWrapper):
         
         self.axes.set_position([l1, b2+h2, w1, h1])
         self.axesSpec.set_position([l2, b2, w2, h2])
-	#self.eegplot.plot() #added these two lines -eli
-	#self.eegplot.draw()
+	self.eegplot.plot() #added these two lines -eli
+	self.eegplot.draw()
         self.canvas.draw()
         
     def button_press_event(self, event):
@@ -2526,7 +2538,7 @@ if __name__=='__main__':
         #No longer load the sql/zope dialog.
         #Shared.windowMain.on_menuFilePreferences_activate(None)
         pass
-    Shared.windowMain.widget.connect('expose-event', Shared.windowMain.expose_event)
+    Shared.windowMain.widget.connect('expose-event', Shared.windowMain.expose_event) #handle page resizes -eli
     Shared.windowMain.widget.connect('destroy', update_rc_and_die)
     Shared.windowMain.widget.connect('delete_event', update_rc_and_die)
     #Shared.windowMain['menubarMain'].hide()

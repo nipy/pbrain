@@ -1105,7 +1105,7 @@ class EEGBase:
         print "_read_neuroscanascii(", tmin, ",", tmax,")"
         raw_data = self.get_raw_data()
         print "_read_neuroscanascii(): raw data has shape ", raw_data.shape
-        print "_read_neuroscanascii(): raw data[0,0:10]=", raw_data[0,0:10]
+        #print "_read_neuroscanascii(): raw data[0,0:10]=", raw_data[0,0:10]
         (raw_data_rows, raw_data_cols) = raw_data.shape
         freq = self.get_freq()
         print "_read_neuroscanascii(): freq=" ,freq
@@ -1114,7 +1114,7 @@ class EEGBase:
 
         t = arange(tmin, tmax , 1.0/freq)
         print "t[-1] is" , t[-1]
-        print "_read_neuroscanascii(): t[0:10] is ", t[0:10]
+        #print "_read_neuroscanascii(): t[0:10] is ", t[0:10]
 
         print "_read_neuroscanascii(): len(t)=", len(t)
 
