@@ -302,13 +302,14 @@ class View3(gtk.Window, Observer):
         
     def add_toolbutton1(self, toolbar, icon_name, tip_text, tip_private, clicked_function, clicked_param1=None):
         iconSize = gtk.ICON_SIZE_SMALL_TOOLBAR
-        iconw = gtk.Image()
-        iconw.set_from_stock(icon_name, iconSize)
+        #iconw = gtk.Image()
+        #iconw.set_from_stock(icon_name, iconSize)
             
         toolitem = gtk.ToolButton()
-        toolitem.set_icon_widget(iconw)
-        toolitem.show_all()
-        toolitem.set_tooltip_text(tip_text) #updated the tooltip method
+        #toolitem.set_icon_widget(iconw) #Dr. Towle has requested that buttons lose icons and be all text...
+	toolitem.set_label(tip_text)        
+	toolitem.show_all()
+        #toolitem.set_tooltip_text(tip_text) #updated the tooltip method
         toolitem.connect("clicked", clicked_function, clicked_param1)
         toolitem.connect("scroll_event", clicked_function)
         toolbar.insert(toolitem, -1)
@@ -330,24 +331,24 @@ class View3(gtk.Window, Observer):
                 self.gridManager.show()
             
         self.add_toolbutton1(toolbar1, gtk.STOCK_FLOPPY, 'Load .vtk/.reg file', 'Private', self.mesh_from_file)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_SAVE_AS, 'Save .reg file', 'Private', self.registration_to_file)
+	self.add_toolbutton1(toolbar1, gtk.STOCK_SAVE_AS, 'Save .reg file', 'Private', self.registration_to_file)
         self.add_toolbutton1(toolbar1, gtk.STOCK_PREFERENCES, 'Grid properties', 'Private', show_grid_manager)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_OPEN, 'Coherence from datafile', 'Private', self.coherence_from_file)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_OPEN, 'Coher. from file', 'Private', self.coherence_from_file)
         self.add_toolbutton1(toolbar1, gtk.STOCK_SELECT_COLOR, 'Voltage map', 'Private', self.voltage_map)
 
         def compute_and_plot(*args):
             self.compute_coherence()
             self.plot_band()
             
-        self.add_toolbutton1(toolbar1, gtk.STOCK_EXECUTE, 'Compute coherence', 'Private', compute_and_plot)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_PROPERTIES, 'Define coherence normalization window', 'Private', self.compute_norm_over_range)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_EXECUTE, 'Compute coher.', 'Private', compute_and_plot)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_PROPERTIES, 'coher. norm. wndw', 'Private', self.compute_norm_over_range)
         
         self.add_separator(toolbar1)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_CLEAR, 'Plot band connections', 'Private', self.plot_band, 'mouse1 color')
+        self.add_toolbutton1(toolbar1, gtk.STOCK_CLEAR, 'Plot band conn.', 'Private', self.plot_band, 'mouse1 color')
 
         self.add_separator(toolbar1)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_SAVE_AS, 'Save screenshot to file', 'Private', self.save_image)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_JUMP_TO, 'Automatically page the EEG', 'Private', self.auto_play)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_SAVE_AS, 'Save screenshot', 'Private', self.save_image)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_JUMP_TO, 'Auto page EEG', 'Private', self.auto_play)
 
         def close(*args):
             print "View3.close(): calling self.destroy()"
