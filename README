@@ -2,19 +2,31 @@
  Pbrain repository
 ===================
 
-This is the development repository for pbrain.
+This is the development repository for pbrain, forked by Eli Albert, programmer for Dr. Towle's lab at the University of Chicago hospital.
 
 Pbrain is an analysis package for EEG, electrocorticography, and
 structural data.  The main developer was John Hunter, who was then at
-the university of Chicago.  More recently Micheal Castelle has been in
-charge of maintenance.
+the university of Chicago.  More recently Micheal Castelle had been in
+charge of maintenance, and now Eli Albert is updating the suite for the new decade. This includes compatability with all new versions of matplotlib, numpy, scipy, and ubuntu.
 
 See http://nipy.sourceforge.net/pbrain for the introductory docs.
 
 You may well want the example CT and EEG data at http://nipy.sourceforge.net/example_data 
 
-We (the nipy team) don't maintain pbrain - please feel free to dive in
-and take charge if you find it useful.
+system requirements:
+matplotlib > .9
+numpy
+scipy
+gtk > 2
+pygtk
+vtk
+python 2.6
+maybe a couple other packages? (sorry, I forget what they are now but check the terminal for errors and it should be obvious and next time I'll write them down)
 
-Please say hello on the nipy mailing list - http://mail.scipy.org/mailman/listinfo/nipy-devel
+to install:
+type the following in your bash terminal from this directory:
+python setup.py build
+sudo python setup.py install 
+(and input your password)
 
+please contact ealbert@bsd.uchicago.edu with any problems.
