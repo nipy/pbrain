@@ -15,9 +15,9 @@ from matplotlib.cbook import exception_to_str
 from shared import fmanager
 
 try:
-	set
+    set
 except:
-	from sets import Set as set
+    from sets import Set as set
 
 #from Numeric import array, zeros, ones, sort, absolute, sqrt, divide,\
 #     argsort, take, arange
@@ -88,9 +88,9 @@ class GridManager:
         self.do_scale_pipes = False 
         self.do_scale_pipes_with_coherence = False 
         self.pipes_scaling_factor = 0.2
-	
-	#self.entryAsciiFile = None	
-	
+    
+    #self.entryAsciiFile = None    
+    
           
     def markers_as_collection(self):
         markers = vtk.vtkActorCollection()
@@ -666,15 +666,15 @@ class GridManager:
 
             print "Loading amp file.."
             if fmanager.amp == "" or fmanager.amp == " ": #retooled for streamlining using .eegviewrc file
-		amp_filename = fmanager.get_filename(title="Select .amp file")
-            	if amp_filename is None: return
-	    else:
-		amp_filename = fmanager.amp
-            if not os.path.exists(amp_filename):
-                error_msg('File %s does not exist' % amp_filename, parent=dlg)
-		fmanager.amp = ""
-		amp_filename = fmanager.amp
-                return
+                amp_filename = fmanager.get_filename(title="Select .amp file")
+                if amp_filename is None: return
+            else:
+                amp_filename = fmanager.amp
+                if not os.path.exists(amp_filename):
+                    error_msg('File %s does not exist' % amp_filename, parent=dlg)
+                    fmanager.amp = ""
+                    amp_filename = fmanager.amp
+                    return
 
             try: fh = file(amp_filename)
             except IOError, msg:
@@ -730,18 +730,18 @@ class GridManager:
             self.ampAscii = amp
            
         def set_filename(button):
-	    if fmanager.dat == "" or fmanager.dat == " ": #retooled for streamlining
-		filename = fmanager.get_filename(title="Select .dat file")
+            if fmanager.dat == "" or fmanager.dat == " ": #retooled for streamlining
+                filename = fmanager.get_filename(title="Select .dat file")
                 if filename is None: return
             else:
-		filename = fmanager.dat
-	    if not os.path.exists(filename):
-                error_msg('File %s does not exist' % filename, parent=dlg)
-		fmanager.dat = ""
-		filename = fmanager.dat
-                return
-            entryAsciiFile.set_text(filename)
-            load_ascii_data(filename)
+                filename = fmanager.dat
+                if not os.path.exists(filename):
+                    error_msg('File %s does not exist' % filename, parent=dlg)
+                    fmanager.dat = ""
+                    filename = fmanager.dat
+                    return
+                entryAsciiFile.set_text(filename)
+                load_ascii_data(filename)
 
         def doit(button):
             s = entryChannels.get_text()
@@ -792,6 +792,11 @@ class GridManager:
                     return
             
             am = ArrayMapper(self, self.X, channels, self.ampAscii, start_time=start_time, end_time=end_time)
+		    
+            #here, we'll try to preemptively load a colormap if the .eegviewrc file has been set.
+            self.set_custom_colormap()
+
+
             am.show()
 
         def radio_changed(button):
@@ -1047,7 +1052,7 @@ class GridManager:
         combo1.append_text('custom')
         combo1.set_active(1)
         frameVBox.pack_start(combo1)
-
+        """
         def parse_colormap_textfile(colormap_filename):
             if colormap_filename is None: return
             if not os.path.exists(colormap_filename):
@@ -1068,7 +1073,7 @@ class GridManager:
                 i = i+ 1
             print "yo custom_colormap=", custom_colormap
             return custom_colormap
-
+        """
         def change_colormap_surf(combo):
             print "!! change_colormap(): combo=", combo
             if (combo.get_active() == 0):
@@ -1098,14 +1103,17 @@ class GridManager:
                 self.interactor.Render() 
             elif (combo.get_active() == 2):
                 print "loading custom map a la Leo"
-		if fmanager.col == "" or fmanager.col == " ":
+                if fmanager.col == "" or fmanager.col == " ":
                     colormap_filename = fmanager.get_filename()
-		else:
-		    colormap_filename = fmanager.col
-                print "colormap_filename is " , colormap_filename
-                if colormap_filename is None: return
+                else:
+                    colormap_filename = fmanager.col
+                    print "colormap_filename is " , colormap_filename
+                    if not os.path.exists(colormap_filename):
+                        colormap_filename = fmanager.get_filename()
+                    if colormap_filename is None: 
+                        return
                 
-                custom_colormap = parse_colormap_textfile(colormap_filename)
+                custom_colormap = self.parse_colormap_textfile(colormap_filename)
 
                 for name in self.get_grid2_names():
                     grid, actor, filter, markers = self.surfs[name]
@@ -1221,10 +1229,10 @@ class GridManager:
 
         self._update_frames()
         notebook.set_current_page(2)        
-	#if not (fmanager.dat == "" or fmanager.dat == " "):
-	#    entryAsciiFile.set_text(fmanager.dat)
-	#    load_ascii_data(fmanager.dat)
-	
+    #if not (fmanager.dat == "" or fmanager.dat == " "):
+    #    entryAsciiFile.set_text(fmanager.dat)
+    #    load_ascii_data(fmanager.dat)
+    
         return dlg
 
 
@@ -1851,9 +1859,48 @@ class GridManager:
 
             marker.normal = thisNorm
 
-
-
+    def parse_colormap_textfile(self, colormap_filename):
+        if colormap_filename is None: return
+        if not os.path.exists(colormap_filename):
+            error_msg('File %s does not exist' % colormap_filename)
+            colormap_filename = None
+            return None
+        fh = open(colormap_filename)
+        custom_colormap = zeros((256, 4), 'd')
+        i = 0
+        while 1:
+            line = fh.readline().strip()
+            #print "colormap line='%s'" % line
             
+            if (line == ''):
+                break
+
+            foo = line.split('\t')
+            custom_colormap[i] = map(float,foo)
+            i = i+ 1
+        #print "yo custom_colormap=", custom_colormap
+        return custom_colormap
+
+    def set_custom_colormap(self):
+        if fmanager.col == "" or fmanager.col == " ": 
+            return
+        else:
+            colormap_filename = fmanager.col
+            print "colormap_filename is " , colormap_filename
+            if colormap_filename is None: return
+            custom_colormap = self.parse_colormap_textfile(colormap_filename)
+            if not (custom_colormap == None):
+                for name in self.get_grid2_names():
+                    grid, actor, filter, markers = self.surfs[name]
+                    mapper = actor.GetMapper()
+                    lut = vtk.vtkLookupTable()
+                    for i in range(0, 256):
+                        lut.SetTableValue(i, custom_colormap[i])
+                    lut.Build()
+                
+                    mapper.SetLookupTable(lut)
+
+
 def coherence_matrix(Cxy, Pxy, xyzd, eoi, bandind):
     N = len(eoi)
     M = zeros( (N,N), 'd')

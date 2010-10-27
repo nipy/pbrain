@@ -923,8 +923,9 @@ class View3(gtk.Window, Observer):
             named[name]=1
 	
         self.gridNames = named.keys()
-
         self.renderer.ResetCamera()
+		#here, we'll try to preemptively load a colormap if the .eegviewrc file has been set.
+        self.gridManager.set_custom_colormap()
         self.interactor.Render()
         return True
     

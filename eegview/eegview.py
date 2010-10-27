@@ -219,8 +219,8 @@ class EEGNavBar(gtk.Toolbar, Observer):
         self.add_toolbutton(gtk.STOCK_GO_DOWN, 'Decrease the voltage gain', 'Private', self.zoomy, 0)
         
         self.add_toolbutton(gtk.STOCK_REDO, 'Specify time range', 'Private', self.specify_range)
-        self.add_toolbutton(gtk.STOCK_REDO, 'Increase the voltage gain', 'Private', self.specify_range_time)
-        
+        #self.add_toolbutton(gtk.STOCK_REDO, 'Specify the voltage gain', 'Private', self.specify_range_time)
+        #the above was not important enough to keep right now -eli
         self.add_toolbutton(gtk.STOCK_JUMP_TO, 'Automatically page the EEG', 'Private', self.auto_play)
         self.add_toolbutton(gtk.STOCK_SAVE, 'Save the figure', 'Private', self.save_figure)
 
@@ -266,7 +266,7 @@ class EEGNavBar(gtk.Toolbar, Observer):
         self.eegplot.set_time_lim(tmin, tmax, updateData=True)
 	self.eegplot.plot()
         self.eegplot.draw()
-
+	"""
     def specify_range_time(self, *args):
         # mcc XXX: trying to be able to specify time as hour:min:sec
         
@@ -297,7 +297,7 @@ class EEGNavBar(gtk.Toolbar, Observer):
         self.eegplot.set_time_lim(tmin, tmax, updateData=True)
 	self.eegplot.plot() #redraw the traces -eli
         self.eegplot.draw()
-
+	"""
     def save_figure(self, button):
                 
         def print_ok(button):
