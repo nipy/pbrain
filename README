@@ -29,4 +29,17 @@ python setup.py build
 sudo python setup.py install 
 (and input your password)
 
+using the .eegviewrc file:
+the .eegviewrc file is by default stored and updated in your home folder. to edit it, make sure you have hidden files displayed, or open it through the terminal by typing:
+gedit ~/.eegviewrc
+at the bottom are 5 values that look like this:
+bni : 
+csv : 
+amp : 
+dat : 
+col : 
+you can replace them with paths to files of the respective extension, and this will streamline the execution of eegview tremendously. Any incorrect input will revert back to normal file loading behavior. Leaving them blank will result in normal eegview file loading behavior.
+Note: This file is updated every time the program exits. Thus, try not to edit it while the program is open, as you may lose your changes. 
+
+
 please contact ealbert@bsd.uchicago.edu with any problems.
