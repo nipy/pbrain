@@ -348,7 +348,7 @@ class View3(gtk.Window, Observer):
 
         self.add_separator(toolbar1)
         self.add_toolbutton1(toolbar1, gtk.STOCK_SAVE_AS, 'Save screenshot', 'Private', self.save_image)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_JUMP_TO, 'Auto page EEG', 'Private', self.auto_play)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_JUMP_TO, 'Autopage/Movie', 'Private', self.auto_play)
 
         def close(*args):
             print "View3.close(): calling self.destroy()"

@@ -216,7 +216,7 @@ class EEGNavBar(gtk.Toolbar, Observer):
         self.add_separator()
 
         self.add_toolbutton(gtk.STOCK_GO_UP, 'Increase the voltage gain', 'Private', self.zoomy, 1)
-        self.add_toolbutton(gtk.STOCK_GO_DOWN, 'Increase the voltage gain', 'Private', self.zoomy, 0)
+        self.add_toolbutton(gtk.STOCK_GO_DOWN, 'Decrease the voltage gain', 'Private', self.zoomy, 0)
         
         self.add_toolbutton(gtk.STOCK_REDO, 'Specify time range', 'Private', self.specify_range)
         self.add_toolbutton(gtk.STOCK_REDO, 'Increase the voltage gain', 'Private', self.specify_range_time)
@@ -1162,6 +1162,7 @@ class EEGPlot(Observer):
 	#self.plot() #update the traces -eli
 
     def change_volt_gain(self, magnify=1):
+	#note: I had to seriously take this function apart further down. -eli
         """Change the voltage scale.  zoom out with magnify=0, zoom in
         with magnify=1)"""
         #print "EEGPlot.change_volt_gain: magnify=%d, self.voltInd=%d" % (magnify, self.voltInd)
@@ -1178,12 +1179,22 @@ class EEGPlot(Observer):
         vset = self.voltSets[self.voltInd]
 
         #print "vset = self.voltSets[%d]" % self.voltInd
-
+	#note: matplotlib had no way of getting at the constructors of a compositeaffine2d object. This use to be done with the get_bbox1 method, but of course this is deprecated and not replaced by ANYTHING. So, using python's built-in hacky __dict__ method below, I extract the in bbox, change the y values to the aboveset vset values, and because python is only using symbolic links and not copying, this does the trick. I am not John and I do not wish to contribute to matplotlib at this time (actually I do but I have other things to do!!) but I wish someone would fix this and then tell me. -eli 
         for line in self.lines:
             trans = line.get_transform()
-            box1 =  trans.get_bbox1()
-            #print "calling line.get_transform().get_bbox1().intervaly().set_bounds(-vset, vset)"
-            box1.intervaly().set_bounds(-vset, vset)
+	    boxin = trans.__dict__['_a'].__dict__['_boxin'].__dict__['_points_orig']
+	    #print boxin
+	    x0 = boxin[0][0]
+	    x1 = boxin[1][0]
+	    y0 = -vset
+	    y1 = vset
+	    boxin = Bbox(
+		[[x0,y0],
+		[x1,y1]])
+	    #print boxin
+	    #box1 =  trans.get_bbox1()
+            #print "calling line.get_transform().get_bbox1().intervaly().set_bounds(-vset, vset)", box1
+            #boxin.intervaly().set_bounds(-vset, vset)
 
         #print "end of EEGPlot.change_volt_gain()"
 
