@@ -670,11 +670,10 @@ class GridManager:
                 if amp_filename is None: return
             else:
                 amp_filename = fmanager.amp
-                if not os.path.exists(amp_filename):
+                while not os.path.exists(amp_filename):
                     error_msg('File %s does not exist' % amp_filename, parent=dlg)
                     fmanager.amp = ""
-                    amp_filename = fmanager.amp
-                    return
+                    amp_filename = fmanager.get_filename(title="Select .amp file")
 
             try: fh = file(amp_filename)
             except IOError, msg:
