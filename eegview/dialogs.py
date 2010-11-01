@@ -1,5 +1,6 @@
 import sys, os, re
-import gtk, gobject
+import gtk, gobject, pygtk
+pygtk.require('2.0')
 
 
 from matplotlib.numerix import arange
@@ -3738,7 +3739,18 @@ class AutoPlayDialog(gtk.Dialog, Observer):
 
 
         def set_filename(*args):
-            fname = fmanager.get_filename()
+            #fname = fmanager.get_filename()
+            dialog = gtk.FileChooserDialog("Save Movie As...",
+                                          None,
+                                          gtk.FILE_CHOOSER_ACTION_SAVE,
+                                          (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
+                                          gtk.STOCK_OPEN, gtk.RESPONSE_OK))
+            dialog.set_default_response(gtk.RESPONSE_OK)
+            response = dialog.run()
+            if response == gtk.RESPONSE_OK:
+                fname = dialog.get_filename()
+            dialog.destroy()
+
             if fname is None: return
             self.entryMovie.set_text(fname)
 

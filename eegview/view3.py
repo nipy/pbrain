@@ -1002,7 +1002,7 @@ class View3(gtk.Window, Observer):
         if self.filterGM:            
             data = filter_grand_mean(data)
 
-        print "View3.compute_coherence(): self.eoiPairs = ", self.eoiPairs
+        #print "View3.compute_coherence(): self.eoiPairs = ", self.eoiPairs
         Cxy, Phase, freqs, Pxx = cohere_pairs_eeg(
             eeg,
             self.eoiPairs,
@@ -1137,7 +1137,6 @@ class View3(gtk.Window, Observer):
 
             
         threshType, threshVal = self.thresholdParams
-
         
         if pars is None:
             bandind = self.get_band_ind()
@@ -1293,7 +1292,7 @@ class View3(gtk.Window, Observer):
             return None
         dvec, cvec, cxy, pxy, predicted, pars, normedvec, cutoff = ret
 
-        print "View3.draw_connections(): cxy = ", cxy
+        #print "View3.draw_connections(): cxy = ", cxy #debug
         cvals = cxy.values()
 
         def posphase(frac):
