@@ -740,8 +740,8 @@ class GridManager:
                     fmanager.dat = ""
                     filename = fmanager.dat
                     return
-                entryAsciiFile.set_text(filename)
-                load_ascii_data(filename)
+            entryAsciiFile.set_text(filename)
+            load_ascii_data(filename)
 
         def doit(button):
             s = entryChannels.get_text()
