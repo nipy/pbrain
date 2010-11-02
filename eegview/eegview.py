@@ -967,7 +967,7 @@ class EEGPlot(Observer):
         #baseline =  self.eeg.get_baseline()
         #data +=  baseline
 
-        #print "eeg.freq is ", self.eeg.freq
+        print "eeg.freq is ", self.eeg.freq
         Nyq = self.eeg.freq/2
         Rp, Rs = 2, 20
         
@@ -985,7 +985,8 @@ class EEGPlot(Observer):
         # mcc XXX: do not run filter
         #data = transpose( lfilter(b,a,transpose(data)))
 
-        decimateFactor = int(Nyq/lpcf)
+        decimateFactor = Nyq/lpcf #int(Nyq/lpcf) #why should this be rounded? -eli
+        print "decimate factor: ", decimateFactor
         decfreq = self.eeg.freq/decimateFactor
         self.decfreq = decfreq
 

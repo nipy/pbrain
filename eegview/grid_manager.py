@@ -108,7 +108,7 @@ class GridManager:
         **********************************************************************
         """
         #return # XXX: mcc
-        print "GridManager.set_scalar_data(", datad, ")"
+        #print "GridManager.set_scalar_data(", datad, ")" #debug
 
         self.scalarVals.extend([val for key, val in datad.items()])
         if self.dimensiond is None:

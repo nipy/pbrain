@@ -9,6 +9,7 @@ from matplotlib.cbook import exception_to_str
 from matplotlib.mlab import detrend_none, detrend_mean, detrend_linear,\
      window_none, fftsurr, window_hanning, prctile #took out mean
 import matplotlib.numerix as nx
+from scipy import mean
 from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanvas
 from matplotlib.backends.backend_gtk import NavigationToolbar2GTK
 
@@ -2185,14 +2186,15 @@ class Dialog_PhaseSynchronyPlot(PrefixWrapper) :
         self.eegplot = eegplot
 
         print "uhhh self['vbox'] is ", self['vbox']
+        #for some reason self['vbox'] is None if we've already opened and closed the phasesynchrony window once!! -eli
         # Add figure canvas
         vbox = self['vbox']
         self.fig = Figure()
-        self.axesSignals = self.fig.add_subplot(311)
+        self.axesSignals = self.fig.add_subplot(311, ylabel="signal")
         self.axesSignals.grid(True)
-        self.axesFiltered = self.fig.add_subplot(312)
+        self.axesFiltered = self.fig.add_subplot(312, ylabel="filtered")
         self.axesFiltered.grid(True)
-        self.axesSync = self.fig.add_subplot(313)
+        self.axesSync = self.fig.add_subplot(313, ylabel="sync")
         self.axesSync.grid(True)
         self.canvas = FigureCanvas(self.fig)
         print "Dialog_PhaseSynchronyPlot(): self.fig=", self.fig, "self.canvas=", self.canvas
@@ -2448,11 +2450,11 @@ class Dialog_PhaseSynchronyPlot(PrefixWrapper) :
             print "Dialog_PhaseSynchronyPlot.update_signals(): props=", props
             winLen = props[0]
             filter = bandpass(props[1][0], props[1][1], props[1][2], 
-                              props[1][3], props[1][4])
-            print "Dialog_PhaseSynchronyPlot.update_signals(): filter=", filter, ". filtering..."
+                              props[1][3], props[1][4]) #bandpass returns a function, see bandpass in utils.py
             f1 = filter(s1)
             f2 = filter(s2)
-
+            print "Dialog_PhaseSynchronyPlot.update_signals(): filter=", f1, f2, ". filtering..."
+            
             # Plot filtered signals
             self.axesFiltered.cla()
             self.axesFiltered.grid(True)
@@ -2462,6 +2464,7 @@ class Dialog_PhaseSynchronyPlot(PrefixWrapper) :
             # Comput synchrony
             print "Dialog_PhaseSynchronyPlot.update_signals(): calling synchrony()"
             sync, time = synchrony(f1, f2, t, self.filters[band][0], self.eegplot.eeg.freq, overlap)
+            #the utils.py synchrony function seems valid, but I still don't understand why the first 10% of it is off from the rest. -eli
 
 #            sync = []
 #            time = []
