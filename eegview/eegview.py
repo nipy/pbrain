@@ -947,7 +947,9 @@ class EEGPlot(Observer):
         lpsf: low pass stop freq=55 (Hz)
         hpcf: high pass corner freq=None
         hpsf: high pass stop freq=None
-
+        a lowpass decimate filter first uses a lowpass to smooth out the data, and then takes chunks out of it according to the decimation factor
+        in order to speed up processing. Here we use a butterworth lowpass - this was here before I got here, but I think there must be simpler 
+        options -eli
         """
         print "\n========\nEEGPlot.filter(%f, %f, ...)" % (tmin, tmax)
 
@@ -977,35 +979,37 @@ class EEGPlot(Observer):
         Ws = lpsf/Nyq
 
         [n,Wn] = buttord(Wp,Ws,Rp,Rs)
-        #print "EEGPlot.filter(): [n,Wn] = buttord(Wp= ", Wp, ",Ws=", Ws, ",Rp=", Rp, ",Rs=", Rs, ") = [", n, "," , Wn, "]"
+        print "EEGPlot.filter(): [n,Wn] = buttord(Wp= ", Wp, ",Ws=", Ws, ",Rp=", Rp, ",Rs=", Rs, ") = [", n, "," , Wn, "]"
         [b,a] = butter(n,Wn)
-        #print "EEGPlot.filter(): [b,a] = butter(n=" , n , " , Wn=", Wn, ") = [", b, ",", a, "]" 
-        #print "EEGPlot.filter(): doing transpose(lfilter(b,a,transpose(data)))"
+        print "EEGPlot.filter(): [b,a] = butter(n=" , n , " , Wn=", Wn, ") = [", b, ",", a, "]" 
+        print "EEGPlot.filter(): doing transpose(lfilter(b,a,transpose(data)))"
 
-        # mcc XXX: do not run filter
-        #data = transpose( lfilter(b,a,transpose(data)))
+        # mcc XXX: do not run filter #try filter -eli
+        data = transpose( lfilter(b,a,transpose(data)))
 
-        decimateFactor = Nyq/lpcf #int(Nyq/lpcf) #why should this be rounded? -eli
+        decimateFactor = int(Nyq/lpcf) #a decimation factor has to be an integer as it turns out-eli
+        if decimateFactor == 0:
+            decimateFactor = 1 #take care of dividebyzero errors - this shouldn't happen anyway when Nyq is high enough (ie when freq is high enough ~500)
         print "decimate factor: ", decimateFactor
         decfreq = self.eeg.freq/decimateFactor
         self.decfreq = decfreq
 
-        # mcc XXX: do not decimate (for now)
-        decimateFactor= 1
+        # mcc XXX: do not decimate (for now) #try decimation -eli
+        #decimateFactor= 1
 
-        #print "EEGPlot.filter(): decimateFactor  = int(Nyq=%f/lpcf=%d) = " % (Nyq, lpcf), decimateFactor, "self.decfreq=(eeg.freq=%f)/(%d) = " % (self.eeg.freq, decimateFactor), self.decfreq
-	#are all of the above commented lines really not needed anymore? -eli
+        print "EEGPlot.filter(): decimateFactor  = int(Nyq=%f/lpcf=%d) = " % (Nyq, lpcf), decimateFactor, "self.decfreq=(eeg.freq=%f)/(%d) = " %     (self.eeg.freq, decimateFactor), self.decfreq
+        #are all of the above commented lines really not needed anymore? -eli
         print "EEGPlot.filter(): returning decimated data t[::%d], data[::%d], %f" % (decimateFactor, decimateFactor, decfreq)
-        return t[::decimateFactor], data[::decimateFactor], decfreq
+        return t[::decimateFactor], data[::decimateFactor], decfreq #the "::" takes every decimateFactorth value from each array!
 
 
     def plot(self):
         print "EEGPlot.plot()"
         
         self.axes.cla()
-	tmin, tmax = self.get_time_lim() #it turns out hardcoding 0,10 in this function was ahem counterproductive -eli 
-	#print "EEGPLOT.plot(): tmn, tmax ", tmin, tmax        
-	t, data, freq = self.filter(tmin, tmax) 
+        tmin, tmax = self.get_time_lim() #it turns out hardcoding 0,10 in this function was ahem counterproductive -eli 
+        #print "EEGPLOT.plot(): tmn, tmax ", tmin, tmax        
+        t, data, freq = self.filter(tmin, tmax) 
 
         dt = 1/freq
 
@@ -1047,16 +1051,16 @@ class EEGPlot(Observer):
                   ))
         """ 
         #new transformation block
-#updated by removing Point and Value methods and simply passing four points #to Bbox() this may be a bad idea... I tried passing them to Bbox.set_points#() but this method seems to be either not working or badly documented.
-#also, viewLim is deprecated from what I can tell, so I'll try to use axes.g#et_xlim
-	viewLimX=self.axes.get_xlim() #this returns a list of min and max x points, which is what we want to pass below
-	#print "************", viewLimX        
-	boxin = Bbox(
+        #updated by removing Point and Value methods and simply passing four points #to Bbox() this may be a bad idea... I tried passing them to Bbox.set_points#() but this method seems to be either not working or badly documented.
+        #also, viewLim is deprecated from what I can tell, so I'll try to use axes.g#et_xlim
+        viewLimX=self.axes.get_xlim() #this returns a list of min and max x points, which is what we want to pass below
+	    #print "************", viewLimX        
+        boxin = Bbox(
             [[viewLimX[0], -vset], #replaced self.axes.viewLim.ll().x() with viewLimX
             [viewLimX[1], vset]])
 
-	#does this work? yes! there actually is a bbox living in axes, for whatever reason, and this method returns all four points as an array of the form [[x0,y0],[x1,y1]]. the bbox that we rebuild below is (hopefully!) taking the x values of the two points.
-	axesBboxCoords = self.axes.bbox.get_points()
+	    #does this work? yes! there actually is a bbox living in axes, for whatever reason, and this method returns all four points as an array of the form [[x0,y0],[x1,y1]]. the bbox that we rebuild below is (hopefully!) taking the x values of the two points.
+        axesBboxCoords = self.axes.bbox.get_points()
         boxout = Bbox(
             [[axesBboxCoords[0][0], -72], #see comment above: I replaced self.axes.bbox.ll().x() with axesBboxCoords[0][0]
             [axesBboxCoords[1][0], 72]])
