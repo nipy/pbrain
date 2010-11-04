@@ -17,7 +17,7 @@ from scipy import minimum, maximum
 
 from matplotlib.cbook import exception_to_str
 from pbrainlib.gtkutils import str2num_or_err, simple_msg, error_msg, \
-     not_implemented, yes_or_no, FileManager, select_name, get_num_range, Dialog_FileSelection, Dialog_FileChooser
+     not_implemented, yes_or_no, FileManager, select_name, get_num_range, Dialog_FileSelection, Dialog_FileChooser, get_num_value
 
 from matplotlib.widgets import Cursor, SpanSelector
 
@@ -165,9 +165,9 @@ class EEGNavBar(gtk.Toolbar, Observer):
         toolitem = gtk.ToolButton()
         toolitem.set_icon_widget(iconw)
         toolitem.show_all()
-	#updated for new tooltip api
-	toolitem.set_tooltip_text(tip_text)
-	#toolitem.set_tooltip(self.tooltips, tip_text, tip_private)
+        #updated for new tooltip api
+        toolitem.set_tooltip_text(tip_text)
+        #toolitem.set_tooltip(self.tooltips, tip_text, tip_private)
         toolitem.connect("clicked", clicked_function, clicked_param1)
         toolitem.connect("scroll_event", clicked_function)
         self.insert(toolitem, -1)
@@ -247,6 +247,28 @@ class EEGNavBar(gtk.Toolbar, Observer):
         self.add_toolitem(self.buttonLockTrode, 'Lock Selected Electrode')
         #self.append_widget(
         #    self.buttonLockTrode, 'Lock Selected Electrode', '')
+        
+        self.add_separator()
+        #adding a decimate toggle here, without an icon
+        toolitem = gtk.ToolButton()
+        toolitem.show_all()
+        toolitem.set_label("Dec.")
+        toolitem.connect("clicked", self.set_decimate, None)
+        self.insert(toolitem, -1)
+        #/decimate toggle
+
+    def set_decimate(self, *args):
+        decfactor = self.eegplot.find_decimate_factor()
+        dec_input = get_num_value(labelStr='Choose a decimation factor (1 for none)', title='Enter value', parent=None,
+                  default=decfactor) #the default value will be the optimal dec factor
+        if dec_input < self.eegplot.decimateFactor:
+            self.eegplot.decimateFactor = copy.deepcopy(dec_input)
+            self.eegplot.set_time_lim(updateData=True, broadcast=True)
+            return
+        else:
+            self.eegplot.decimateFactor = dec_input
+            self.eegplot.plot()
+            self.eegplot.draw()
 
     def auto_play(self, *args):
 
@@ -263,7 +285,7 @@ class EEGNavBar(gtk.Toolbar, Observer):
 
         tmin, tmax = response
         
-        self.eegplot.set_time_lim(tmin, tmax, updateData=True)
+        self.eegplot.set_time_lim(tmin, tmax, updateData=False)
         self.eegplot.plot()
         self.eegplot.draw()
 	"""
@@ -295,7 +317,7 @@ class EEGNavBar(gtk.Toolbar, Observer):
         # figure out what times these times correspond to by getting eeg start time
         
         self.eegplot.set_time_lim(tmin, tmax, updateData=True)
-	self.eegplot.plot() #redraw the traces -eli
+        self.eegplot.plot() #redraw the traces -eli
         self.eegplot.draw()
 	"""
     def save_figure(self, button):
@@ -335,7 +357,7 @@ class EEGNavBar(gtk.Toolbar, Observer):
             else: right=0
 	
         self.eegplot.pan_time(right)
-	self.eegplot.plot() #redraw the traces -eli
+        self.eegplot.plot() #redraw the traces -eli
         self.eegplot.draw()
         return False
 
@@ -348,7 +370,7 @@ class EEGNavBar(gtk.Toolbar, Observer):
             else: direction=0
 
         self.eegplot.change_time_gain(direction)
-	self.eegplot.plot() #redraw the traces -eli
+        self.eegplot.plot() #redraw the traces -eli
         self.eegplot.draw()
         return False
 
@@ -361,12 +383,12 @@ class EEGNavBar(gtk.Toolbar, Observer):
             else: direction=0
 
         self.eegplot.change_volt_gain(direction)
-	self.eegplot.plot() #redraw the traces -eli
+        self.eegplot.plot() #redraw the traces -eli
         self.eegplot.draw()
         return False
-
+"""
 class AnnotationManager:
-    """
+    #""
     CLASS: AnnotationManager
     
     The highlight is the currently created rectangle that has not yet been
@@ -375,7 +397,7 @@ class AnnotationManager:
     The selected rectangle is a rect that has been annotated and
     selected (not the same as highlighted!)
     
-    """
+    #""
     def __init__(self, eegplot):
         self.eegplot = eegplot
         self.axes = self.eegplot.axes
@@ -499,14 +521,14 @@ class AnnotationManager:
                 del info['rects']
 
     def over_annotation(self, x, y):
-        """
+        #""
         If you are over an annotation, return it's key
 
         If you are over multiple annotations, return the one who's
         center is closest to point
 
         If not over annotation, return None
-        """
+        #""
         ret = []
         for key, info in self.ann.items() :
            for rect in info['rects'] :
@@ -523,10 +545,10 @@ class AnnotationManager:
         return ret[0][1]  
 
     def over_edge(self, x, y) :
-        """
+        #""
         If you are over an annotation edge, return its key.
         x,y are figure coordinates (i.e., event.x, event.y)
-        """
+        #""
         key, side = None, None
         t, yt = self.axes.transData.inverted().transform((x, y)) #replaced inverse_xy_tup with inverted().transform()
         for key, info in self.ann.items() :
@@ -575,11 +597,11 @@ class AnnotationManager:
         menuItemAnnDelete.set_sensitive(0)
 
     def get_highlight(self):
-        """
+        #""
 
         return (xmin, xmax, Rectangle instance) if a rect is highlighted
         Otherwise return None
-        """
+        #""
         return self._highlight 
 
     def highlight_span(self):
@@ -589,10 +611,10 @@ class AnnotationManager:
         return xmin, xmax
 
     def remove_selected(self):
-        """
+        #""
         remove the selected annotation from the ann data struct and
         the plot stff and redraw
-        """
+        #""
 
         thisann = self.eegplot.annman.ann.pop(self.selectedkey) #trying to make this work with python's list.pop()
         if thisann is None:
@@ -676,9 +698,9 @@ class AnnotationManager:
         self.eegplot.canvas.blit(self.eegplot.axes.bbox)
 
     def update_annotations(self) :
-        """
+        #""
         Create new annotation rectangles on file load or navigation
-        """
+        #""
         tmin, tmax = self.eegplot.get_time_lim()
 
         keys = self.ann.keys()
@@ -739,7 +761,7 @@ class AnnotationManager:
 
     def add_eoi(self, eoi) :
         self.eois[eoi.description] = eoi
-
+"""
 class EEGPlot(Observer):
     """
     CLASS: EEGPlot
@@ -765,7 +787,7 @@ class EEGPlot(Observer):
         self.eeg = eeg
         self.cnumDict = self.eeg.get_amp().get_channel_num_dict()
 
-        self.annman = AnnotationManager(self)
+        #self.annman = AnnotationManager(self)
 
         amp = eeg.get_amp()
         eoi = amp.to_eoi()
@@ -787,7 +809,8 @@ class EEGPlot(Observer):
         self.timeInd = 3
         self.voltInd = 27
         self.maxLabels = 36
-
+        
+        self.decimateFactor = 1 #this is set when toggled by the user
         self.filterGM = Shared.windowMain.toolbar.buttonGM.get_active()
         # mcc XXX: turning off cache
         #self._selectedCache = None, None
@@ -818,7 +841,7 @@ class EEGPlot(Observer):
 
         if event in (Observer.SET_TIME_LIM,):
             tmin, tmax = args
-            self.set_time_lim(tmin, tmax, broadcast=False)
+            self.set_time_lim(tmin, tmax, updataData=False, broadcast=False)
             self.draw()
 
         elif event==Observer.SAVE_FRAME:
@@ -883,7 +906,7 @@ class EEGPlot(Observer):
     def get_selected_window(self, filtergm=False, extraTime=0):
         'return t, data[ind], trode'
         tmin, tmax = self.get_time_lim()
-	print "get_selected_window: ", tmin, tmax
+        print "get_selected_window: ", tmin, tmax
         # XXX mcc, taking this out for neuroscanascii format which doesn't handle negative vals well
         #tmin -= extraTime/2.
         #tmax += extraTime/2.
@@ -934,13 +957,25 @@ class EEGPlot(Observer):
 
         # Remove annotation rects, so they will get redrawn on the next 
         # update_annotations()
-        self.annman.remove_rects()
+        #self.annman.remove_rects()
             
         return True
         
     def get_eeg(self):
         return self.eeg
     
+
+    def find_decimate_factor(self, lpcf = 40):
+        print "EEGPlot.find_decimate_factor(): calculating decimation factor"
+        print "EEGPlot.find_decimate_factor(): eeg.freq is ", self.eeg.freq
+        Nyq = self.eeg.freq/2
+       
+        self.decimateFactor = int(Nyq/lpcf) #a decimation factor has to be an integer as it turns out-eli
+        if self.decimateFactor == 0:
+            self.decimateFactor = 1 #take care of dividebyzero errors - this shouldn't happen anyway when Nyq is high enough (ie when freq is high enough ~500)
+        print "EEGPlot.find_decimate_factor: ", self.decimateFactor
+        return self.decimateFactor
+
     def filter(self, tmin, tmax, lpcf=40, lpsf=55, hpcf=None, hpsf=None):
         """
         lpcf: low pass corner freq=40 (Hz)
@@ -960,47 +995,32 @@ class EEGPlot(Observer):
             error_msg(exception_to_str('Could not get data'))
             return None
 
-        #data = -data  # invert neg up
+        #data = -data  # invert neg up #why?
 
         if self.filterGM:
             data = filter_grand_mean(data)
-
-        # mcc XXX : this used to be enabled. for what?
-        #baseline =  self.eeg.get_baseline()
-        #data +=  baseline
-
-        print "eeg.freq is ", self.eeg.freq
         Nyq = self.eeg.freq/2
+        #as of now we do a lowpass filter regardless of whether the decimation factor is > 1. -eli
         Rp, Rs = 2, 20
         
-        #Wp = [0.5/Nyq, lpcf/Nyq]
-        #Ws = [0.1/Nyq, lpsf/Nyq]
         Wp = lpcf/Nyq
         Ws = lpsf/Nyq
 
         [n,Wn] = buttord(Wp,Ws,Rp,Rs)
-        #print "EEGPlot.filter(): [n,Wn] = buttord(Wp= ", Wp, ",Ws=", Ws, ",Rp=", Rp, ",Rs=", Rs, ") = [", n, "," , Wn, "]"
+        print "EEGPlot.filter(): [n,Wn] = buttord(Wp= ", Wp, ",Ws=", Ws, ",Rp=", Rp, ",Rs=", Rs, ") = [", n, "," , Wn, "]"
         [b,a] = butter(n,Wn)
-        #print "EEGPlot.filter(): [b,a] = butter(n=" , n , " , Wn=", Wn, ") = [", b, ",", a, "]" 
+        print "EEGPlot.filter(): [b,a] = butter(n=" , n , " , Wn=", Wn, ") = [", b, ",", a, "]" 
         print "EEGPlot.filter(): doing transpose(lfilter(b,a,transpose(data)))"
 
-        # mcc XXX: do not run filter #try filter -eli
         data = transpose( lfilter(b,a,transpose(data)))
 
-        decimateFactor = int(Nyq/lpcf) #a decimation factor has to be an integer as it turns out-eli
-        if decimateFactor == 0:
-            decimateFactor = 1 #take care of dividebyzero errors - this shouldn't happen anyway when Nyq is high enough (ie when freq is high enough ~500)
-        #print "decimate factor: ", decimateFactor
-        decfreq = self.eeg.freq/decimateFactor
+        decfreq = self.eeg.freq/self.decimateFactor
         self.decfreq = decfreq
-
-        # mcc XXX: do not decimate (for now) #try decimation -eli
-        decimateFactor= 1
 
         #print "EEGPlot.filter(): decimateFactor  = int(Nyq=%f/lpcf=%d) = " % (Nyq, lpcf), decimateFactor, "self.decfreq=(eeg.freq=%f)/(%d) = " %     (self.eeg.freq, decimateFactor), self.decfreq
         #are all of the above commented lines really not needed anymore? -eli
-        print "EEGPlot.filter(): returning decimated data t[::%d], data[::%d], %f" % (decimateFactor, decimateFactor, decfreq)
-        return t[::decimateFactor], data[::decimateFactor], decfreq #the "::" takes every decimateFactorth value from each array!
+        print "EEGPlot.filter(): returning decimated data t[::%d], data[::%d], %f" % (self.decimateFactor, self.decimateFactor, decfreq)
+        return t[::self.decimateFactor], data[::self.decimateFactor], decfreq #the "::" takes every decimateFactorth value from each array!
 
 
     def plot(self):
@@ -1125,7 +1145,7 @@ class EEGPlot(Observer):
             tick.gridline.set_transform(self.axes.transAxes)            
         print "EEGPlot.plot(): successful"
         # Update annotation boxes
-        self.annman.update_annotations()
+        #self.annman.update_annotations()
 
         self.save_excursion()
         self.draw()
@@ -1135,7 +1155,7 @@ class EEGPlot(Observer):
         try: self.saveExcursion
         except AttributeError: return
         tmin, self.timeInd, self.voltInd = self.saveExcursion 
-        self.set_time_lim(tmin)
+        self.set_time_lim(tmin, updateData=True)
         
 
     def save_excursion(self):
@@ -1164,7 +1184,7 @@ class EEGPlot(Observer):
         xmin = origmin
         xmax = origmin+wid
         
-        self.set_time_lim(xmin, xmax, updateData=True)
+        self.set_time_lim(xmin, xmax, updateData=False)
 
     def change_volt_gain(self, magnify=1):
 	#note: I had to seriously take this function apart further down. -eli
@@ -1230,7 +1250,7 @@ class EEGPlot(Observer):
         return wid, step
         
     def set_time_lim(self, xmin=None, xmax=None,
-                     updateData=True, broadcast=True):
+                     updateData=False, broadcast=True):
         #make sure xmin keeps some eeg on the screen
         #print "EEGPlot.set_time_lim(xmin=", xmin, "xmax=", xmax, ")"
         
@@ -1257,13 +1277,14 @@ class EEGPlot(Observer):
         #self.axes.set_xticklabels([fmt(val) for val in ticks])
         self.axes.set_xticklabels([])
 
-        """
+        
         if updateData:
+            print "EEGPlot.set_time_lim(): update data"
             t, data, freq = self.filter(xmin, xmax)        
             self.axes.set_xlim((xmin, xmax))
             for ind, line in zip(self.indices, self.lines):
                 line.set_data(t, data[:,ind])
-        """
+        
         # recieve the observers
         if broadcast:
             self.broadcast(Observer.SET_TIME_LIM, xmin, xmax)
@@ -1347,6 +1368,7 @@ class SpecPlot(Observer):
 
         selected = self.eegplot.get_selected_window(extraTime=float(NFFT)/float(self.eegplot.eeg.freq))
         #selected = self.eegplot.get_selected()
+        print "SpecPlot.make_spec(): selected = ", selected
         if selected is None:
             self.axes.cla()
             t = self.axes.text(
@@ -1397,10 +1419,11 @@ class SpecPlot(Observer):
         self.pmin = minimum.reduce(minimum.reduce(Z))
         self.pmax = maximum.reduce(maximum.reduce(Z))
         
-
+        self.eegplot.set_time_lim(xmin=None, xmax=None,
+                     updateData=False, broadcast=False)
         self.axes.set_xlim( [xmin, xmax] )
         self.axes.set_xticks( self.eegplot.axes.get_xticks()  )
-
+        print "SpecPlot.make_spec: xticks = ", self.eegplot.axes.get_xticks()
         #self.axes.set_title('Spectrogram for electrode %s' % label)
         #self.axes.set_xlabel('TIME (s)')
         self.axes.set_ylabel('FREQUENCY (Hz)')
@@ -1479,7 +1502,7 @@ class MainWindow(PrefixWrapper):
         self.fig = Figure(figsize=figsize, dpi=72)
 	
         self.canvas = FigureCanvas(self.fig)  # a gtk.DrawingArea
-        self.canvas.set_size_request(600, 400)
+        self.canvas.set_size_request(800, 640)
 
         self.canvas.connect("scroll_event", self.scroll_event)
         self.canvas.show()
@@ -1522,10 +1545,10 @@ class MainWindow(PrefixWrapper):
         self['vboxMain'].pack_start(self.statbar, False, False)
         self.update_status_bar('')
         self.buttonDown = None
-	fsize = self.fig.get_size_inches()
-	self.fsize = copy.deepcopy(fsize)
+        fsize = self.fig.get_size_inches()
+        self.fsize = copy.deepcopy(fsize)
 	
-
+        """
         # Init Annotations menu sensitivity.
         menuItemAnnBrowser = Shared.widgets.get_widget('menuItemAnnBrowser')
         menuItemAnnBrowser.set_sensitive(0)
@@ -1545,7 +1568,7 @@ class MainWindow(PrefixWrapper):
             menuItemAnnVertCursor.set_active(1)
         else :
             menuItemAnnVertCursor.set_active(0)
-
+        """
         self.canvas.mpl_connect('motion_notify_event', self.motion_notify_event)
         self.canvas.mpl_connect('button_press_event', self.button_press_event)
         self.canvas.mpl_connect('button_release_event', self.button_release_event)
@@ -1618,7 +1641,7 @@ class MainWindow(PrefixWrapper):
         if success:
             tmin, tmax = self.eegplot.get_time_lim()
             self.eegplot.plot()
-            self.eegplot.set_time_lim(tmin, tmax)
+            self.eegplot.set_time_lim(tmin, tmax, updateData=True)
             self.eegplot.draw()
         else:
             #TODO: popup edit window for eoi
@@ -1672,7 +1695,7 @@ class MainWindow(PrefixWrapper):
         menuItemSep = gtk.MenuItem()
         contextMenu.append(menuItemSep)
         menuItemSep.show()
-
+        """
         label = "Create New Annotation"
         menuItemAnnCreateEdit = gtk.MenuItem(label)
         menuItemAnnCreateEdit.connect("activate", self.on_menuItemAnnCreateEdit_activate)
@@ -1684,7 +1707,7 @@ class MainWindow(PrefixWrapper):
         menuItemAnnDelete.connect("activate", self.on_menuItemAnnDelete_activate)
         menuItemAnnDelete.show()
         contextMenu.append(menuItemAnnDelete)
-
+        """
         menuItemSep = gtk.MenuItem()
         contextMenu.append(menuItemSep)
         menuItemSep.show()
@@ -1713,7 +1736,7 @@ class MainWindow(PrefixWrapper):
             if success:
                 tmin, tmax = self.eegplot.get_time_lim()
                 self.eegplot.plot()
-                self.eegplot.set_time_lim(tmin, tmax)
+                self.eegplot.set_time_lim(tmin, tmax,updateData=True)
                 self.eegplot.draw()
 
             d.destroy_dialog()
@@ -1747,7 +1770,7 @@ class MainWindow(PrefixWrapper):
             
             tmin, tmax = self.eegplot.get_time_lim()
             self.eegplot.plot()
-            self.eegplot.set_time_lim(tmin, tmax)
+            self.eegplot.set_time_lim(tmin, tmax,updateData=True)
             self.eegplot.draw()
             
             d.destroy_dialog()
@@ -1836,7 +1859,7 @@ class MainWindow(PrefixWrapper):
                            ok_callback=ok_callback)
         dlgSave.get_widget().set_transient_for(self.widget)
         dlgSave.show_widget()
-
+    """
     def on_menuItemAnnCreateEdit_activate(self, event) :
         annman = self.eegplot.annman
         
@@ -1892,7 +1915,7 @@ class MainWindow(PrefixWrapper):
             eegviewrc.vertcursor = False
 
         return False
-    
+    """
     #def on_buttonSaveExcursion_clicked(self, event):
     #    self.eegplot.save_excursion()
     #    return False
@@ -1912,22 +1935,22 @@ class MainWindow(PrefixWrapper):
     #    return False
 
     def expose_event(self, widget, event):
-	#now the traces resize themselves on window resize - hurrah! eli
-	#I had more trouble with this than I care to admit, which explains the messiness of the code
-	try: self.eegplot 
-	except AttributeError: return False
-	newsize = self.fig.get_size_inches()
-	fsize = self.fsize
-	#print newsize.all(), fsize.all() #why didn't .all() work??
-	if (fsize[1] != newsize[1]) or (fsize[0] != newsize[0]) :
-	    self.eegplot.plot() #added these two lines -eli
- 	    self.eegplot.draw()
-	    self.fsize = copy.deepcopy(newsize) #why didn't regular copy work?
-	return False    
+        #now the traces resize themselves on window resize - hurrah! eli
+        #I had more trouble with this than I care to admit, which explains the messiness of the code
+        try: self.eegplot 
+        except AttributeError: return False
+        newsize = self.fig.get_size_inches()
+        fsize = self.fsize
+        #print newsize.all(), fsize.all() #why didn't .all() work??
+        if (fsize[1] != newsize[1]) or (fsize[0] != newsize[0]) :
+            self.eegplot.plot() #added these two lines -eli
+            self.eegplot.draw()
+            self.fsize = copy.deepcopy(newsize) #why didn't regular copy work?
+	    return False    
 	
     def configure_event(self, widget, event):
 	
-	return False
+        return False
 
     def realize(self, widget):
         return False
@@ -1937,11 +1960,12 @@ class MainWindow(PrefixWrapper):
         except : return False
 
         if not event.inaxes: return
-
+        
         # Motion within EEG axes
         if event.inaxes == self.axes:
             t, yt = event.xdata, event.ydata
             #t = float('%1.1f' % t)
+            """
             annman = self.eegplot.annman
 
             # Resize annotation.
@@ -1964,7 +1988,7 @@ class MainWindow(PrefixWrapper):
                     self.widget.window.set_cursor(gdk.Cursor(gdk.SB_H_DOUBLE_ARROW))
                 else :
                     self.widget.window.set_cursor(gdk.Cursor(gdk.LEFT_PTR))
-
+            """
             # Update status bar with time and electrode name and number
             trode = self.eegplot.get_channel_at_point(event.x, event.y, False)
             if trode is not None:
@@ -2003,8 +2027,8 @@ class MainWindow(PrefixWrapper):
         
         self.axes.set_position([l1, b2+h2, w1, h1])
         self.axesSpec.set_position([l2, b2, w2, h2])
-	self.eegplot.plot() #added these two lines -eli
-	self.eegplot.draw()
+        self.eegplot.plot() #added these two lines -eli
+        self.eegplot.draw()
         self.canvas.draw()
         
     def button_press_event(self, event):
@@ -2018,30 +2042,30 @@ class MainWindow(PrefixWrapper):
 #        print 'axes coords', xa, ya
         
         self.buttonDown = event.button
-        annman = self.eegplot.annman
+        #annman = self.eegplot.annman
 
         if event.button == 1 or event.button == 3 :
             if event.inaxes == self.axes:
                 t, yt = event.xdata, event.ydata
-
+                """
                 if not annman.is_over_highlight(t) :
                     key = annman.over_annotation(event.x, event.y)
                     annman.remove_highlight()
                     annman.set_selected(key)
                     annman.dlgAnnBrowser.update_ann_info(key)
-
+                """
         if event.button==1:
             if event.inaxes == self.axes:
                 self.eegplot.cursor.visible = False
                 t, yt = event.xdata, event.ydata
-
+                """
                 # Start resize if edge of an annotation clicked.
                 selected, side = annman.over_edge(event.x, event.y)
                 if selected is not None :
                     annman.set_selected(selected)
                     annman.start_resize(side)
                     annman.selector.visible = False
-
+                """
                 # Select an electrode if not locked.
                 if not self.eegplot.lock_trode :                        
                     trode = self.eegplot.get_channel_at_point(event.x, event.y)
@@ -2069,7 +2093,7 @@ class MainWindow(PrefixWrapper):
 
             elif event.inaxes == self.axesSpec:
                 menu = self.specMenu
-
+            """
             # Update popup menu items
             highsens =  annman.get_highlight() is not None
             selsens = self.eegplot.annman.selectedkey is not None
@@ -2077,13 +2101,13 @@ class MainWindow(PrefixWrapper):
             else: label = 'Edit Selected Annotation'
 
             menu.popup(None, None, None, 0, 0)
-	
+	        """
         return False
 
     def button_release_event(self, event):
         try: self.eegplot
         except AttributeError: return False
-
+        """
         annman = self.eegplot.annman
 
         # Write ann file
@@ -2091,7 +2115,7 @@ class MainWindow(PrefixWrapper):
             annman.ann.save_data()
             annman.selector.visible = True
             annman.end_resize()
-
+        """
         self.eegplot.cursor.visible = True
         self.buttonDown = None
 
@@ -2358,7 +2382,7 @@ class MainWindow(PrefixWrapper):
             w.writeframes(struct.pack('%dh' % len(shrt_array), *shrt_array))
             w.close()
             
-        
+    """    
     def on_menuItemAnnBrowser_activate(self, event) :
         try : self.eegplot
         except : pass
@@ -2366,7 +2390,7 @@ class MainWindow(PrefixWrapper):
             self.eegplot.annman.dlgAnnBrowser.show()
 
         return False
-
+    """
     def on_menuHelpAbout_activate(self, event):
         not_implemented(self.widget)
 

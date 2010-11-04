@@ -307,8 +307,8 @@ class View3(gtk.Window, Observer):
             
         toolitem = gtk.ToolButton()
         #toolitem.set_icon_widget(iconw) #Dr. Towle has requested that buttons lose icons and be all text...
-	toolitem.set_label(tip_text)        
-	toolitem.show_all()
+        toolitem.set_label(tip_text)        
+        toolitem.show_all()
         #toolitem.set_tooltip_text(tip_text) #updated the tooltip method
         toolitem.connect("clicked", clicked_function, clicked_param1)
         toolitem.connect("scroll_event", clicked_function)
