@@ -264,7 +264,7 @@ class EEGNavBar(gtk.Toolbar, Observer):
         tmin, tmax = response
         
         self.eegplot.set_time_lim(tmin, tmax, updateData=True)
-	self.eegplot.plot()
+        self.eegplot.plot()
         self.eegplot.draw()
 	"""
     def specify_range_time(self, *args):
@@ -979,9 +979,9 @@ class EEGPlot(Observer):
         Ws = lpsf/Nyq
 
         [n,Wn] = buttord(Wp,Ws,Rp,Rs)
-        print "EEGPlot.filter(): [n,Wn] = buttord(Wp= ", Wp, ",Ws=", Ws, ",Rp=", Rp, ",Rs=", Rs, ") = [", n, "," , Wn, "]"
+        #print "EEGPlot.filter(): [n,Wn] = buttord(Wp= ", Wp, ",Ws=", Ws, ",Rp=", Rp, ",Rs=", Rs, ") = [", n, "," , Wn, "]"
         [b,a] = butter(n,Wn)
-        print "EEGPlot.filter(): [b,a] = butter(n=" , n , " , Wn=", Wn, ") = [", b, ",", a, "]" 
+        #print "EEGPlot.filter(): [b,a] = butter(n=" , n , " , Wn=", Wn, ") = [", b, ",", a, "]" 
         print "EEGPlot.filter(): doing transpose(lfilter(b,a,transpose(data)))"
 
         # mcc XXX: do not run filter #try filter -eli
@@ -990,14 +990,14 @@ class EEGPlot(Observer):
         decimateFactor = int(Nyq/lpcf) #a decimation factor has to be an integer as it turns out-eli
         if decimateFactor == 0:
             decimateFactor = 1 #take care of dividebyzero errors - this shouldn't happen anyway when Nyq is high enough (ie when freq is high enough ~500)
-        print "decimate factor: ", decimateFactor
+        #print "decimate factor: ", decimateFactor
         decfreq = self.eeg.freq/decimateFactor
         self.decfreq = decfreq
 
         # mcc XXX: do not decimate (for now) #try decimation -eli
-        #decimateFactor= 1
+        decimateFactor= 1
 
-        print "EEGPlot.filter(): decimateFactor  = int(Nyq=%f/lpcf=%d) = " % (Nyq, lpcf), decimateFactor, "self.decfreq=(eeg.freq=%f)/(%d) = " %     (self.eeg.freq, decimateFactor), self.decfreq
+        #print "EEGPlot.filter(): decimateFactor  = int(Nyq=%f/lpcf=%d) = " % (Nyq, lpcf), decimateFactor, "self.decfreq=(eeg.freq=%f)/(%d) = " %     (self.eeg.freq, decimateFactor), self.decfreq
         #are all of the above commented lines really not needed anymore? -eli
         print "EEGPlot.filter(): returning decimated data t[::%d], data[::%d], %f" % (decimateFactor, decimateFactor, decfreq)
         return t[::decimateFactor], data[::decimateFactor], decfreq #the "::" takes every decimateFactorth value from each array!
@@ -1009,7 +1009,8 @@ class EEGPlot(Observer):
         self.axes.cla()
         tmin, tmax = self.get_time_lim() #it turns out hardcoding 0,10 in this function was ahem counterproductive -eli 
         #print "EEGPLOT.plot(): tmn, tmax ", tmin, tmax        
-        t, data, freq = self.filter(tmin, tmax) 
+        t, data, freq = self.filter(tmin, tmax)
+        #print "EEGplot filtertest: ", data[0:10] 
 
         dt = 1/freq
 
@@ -1110,7 +1111,7 @@ class EEGPlot(Observer):
             count += 1
             #print 'locs', labels[0], locs[0], self.offsets[0]
 
-        self.set_time_lim(tmin,tmax, updateData=False) #put the correct tmin and tmax in here -eli
+        #self.set_time_lim(tmin,tmax, updateData=False) #i fixed this and then realized it was reduntant anyway -eli
 
         self.axes.set_yticks(locs)            
 
@@ -1122,7 +1123,7 @@ class EEGPlot(Observer):
             tick.tick1line.set_transform(self.axes.transAxes)
             tick.tick2line.set_transform(self.axes.transAxes)
             tick.gridline.set_transform(self.axes.transAxes)            
-        
+        print "EEGPlot.plot(): successful"
         # Update annotation boxes
         self.annman.update_annotations()
 
@@ -1164,7 +1165,6 @@ class EEGPlot(Observer):
         xmax = origmin+wid
         
         self.set_time_lim(xmin, xmax, updateData=True)
-	#self.plot() #update the traces -eli
 
     def change_volt_gain(self, magnify=1):
 	#note: I had to seriously take this function apart further down. -eli
@@ -1210,23 +1210,23 @@ class EEGPlot(Observer):
         # keep the index in bounds
         wid, step = self.get_twid_step()
         tmin, tmax = self.get_time_lim()
-	#print "pan_time tmin,tmax: ", tmin, tmax        
-	step *= right
+        #print "pan_time tmin,tmax: ", tmin, tmax        
+        step *= right
         #print "pan_time step: ", step
         self.set_time_lim(tmin+step)
-	#self.plot() #update the plot! eli
+        #self.plot() #update the plot! eli
 
     def get_time_lim(self,):
         return self.axes.get_xlim()
 
 
     def get_twid_step(self):
-	#print "get_twid_step(): ", self.timeSets[self.timeInd]
+        #print "get_twid_step(): ", self.timeSets[self.timeInd]
         return self.timeSets[self.timeInd] #still not sure exactly why we return twice in this function -eli
         ticks = self.axes.get_xticks()
         wid = ticks[-1] - ticks[0]
         step = ticks[1] - ticks[0]
-	#print "get_twid_step(): ", wid, step
+        #print "get_twid_step(): ", wid, step
         return wid, step
         
     def set_time_lim(self, xmin=None, xmax=None,
@@ -1257,13 +1257,13 @@ class EEGPlot(Observer):
         #self.axes.set_xticklabels([fmt(val) for val in ticks])
         self.axes.set_xticklabels([])
 
-
+        """
         if updateData:
             t, data, freq = self.filter(xmin, xmax)        
             self.axes.set_xlim((xmin, xmax))
             for ind, line in zip(self.indices, self.lines):
                 line.set_data(t, data[:,ind])
-
+        """
         # recieve the observers
         if broadcast:
             self.broadcast(Observer.SET_TIME_LIM, xmin, xmax)
@@ -1371,7 +1371,7 @@ class SpecPlot(Observer):
         self.axes.cla()
         xmin, xmax = self.eegplot.get_time_lim()
         xextent = xmin, xmax
-	print "make spec: xmin, xmax: ", xmin, xmax
+        print "make spec: xmin, xmax: ", xmin, xmax
         #try:
         #print "SpecPlot.make_spec(): calling specgram(data=", data.shape, "NFFT=%d, Fs=%d, noverlap=%d, xextent=" % (NFFT, Fs, Noverlap), xextent, ")"
         Pxx, freqs, t, im = self.axes.specgram(
@@ -2301,7 +2301,7 @@ class MainWindow(PrefixWrapper):
         # change the window title
         self.win = self['windowMain']
         self.win.set_title(eeg.filename)
-        
+        self.eegplot.set_time_lim(0, 10, updateData=True)
         
     def on_menuFileSave_activate(self, event):
         not_implemented(self.widget)
