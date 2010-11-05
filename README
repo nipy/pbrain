@@ -21,7 +21,10 @@ gtk > 2
 pygtk
 vtk
 python 2.6
-maybe a couple other packages? (sorry, I forget what they are now but check the terminal for errors and it should be obvious and next time I'll write them down)
+gtkgl
+pygtkgl
+mysqldb
+
 
 to install:
 type the following in your bash terminal from this directory:
