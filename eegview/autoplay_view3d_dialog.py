@@ -13,7 +13,7 @@ from events import Observer
 class AutoPlayView3Dialog(AutoPlayDialog):
     """
     CLASS: AutoPlayView3Dialog 
-    DESCR: 
+    DESCR: note: setpars() is defined in dialogs.py, line 3852
     """
     def __init__(self, view3, tmin, tmax, twidth, quitHook=None):
         AutoPlayDialog.__init__(self, tmin, tmax, twidth, quitHook)

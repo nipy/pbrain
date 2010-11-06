@@ -933,6 +933,7 @@ class View3(gtk.Window, Observer):
         if event in (Observer.SET_TIME_LIM,):
             self.compute_coherence()
             self.plot_band()
+            print "VIEW3.VIEW3.recieve() and buttonFollowEvents is active"
         elif event==Observer.SAVE_FRAME:
             fname = args[0]
             basename = '%s_%s_coherence' % (fname, self._activeBand)

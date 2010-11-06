@@ -841,7 +841,8 @@ class EEGPlot(Observer):
 
         if event in (Observer.SET_TIME_LIM,):
             tmin, tmax = args
-            self.set_time_lim(tmin, tmax, updataData=False, broadcast=False)
+            print "EEGVIEW.EEGVIEW.recieve: set_time_lim"
+            self.set_time_lim(tmin, tmax, updateData=False, broadcast=False)
             self.draw()
 
         elif event==Observer.SAVE_FRAME:

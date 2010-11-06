@@ -1,5 +1,5 @@
 from __future__ import division
-import sys, os, math
+import sys, os, math, copy
 import vtk
 
 #from Numeric import array, zeros, ones, sort, absolute, sqrt, divide,\
@@ -34,7 +34,7 @@ class ArrayMapper(gtk.Window, ScalarMapper):
     def __init__(self, gridManager, X, channels, amp, start_time=None, end_time=None):
         ScalarMapper.__init__(self, gridManager)
         gtk.Window.__init__(self)
-        self.resize(400,600)
+        self.resize(800,600)
         self.set_title('Array data')
 
         self.channels = channels        
@@ -111,17 +111,17 @@ class ArrayMapper(gtk.Window, ScalarMapper):
         if (self.time_in_secs == True):
             val = float(bar.get_value())
             ind = ((val -self.start_time)  / (self.end_time - self.start_time) * self.numSamples)
-            #print "ArrayMapper.set_sample_num() : ind=", ind
+            print "ArrayMapper.set_sample_num() : ind=", ind
             datad = self.get_datad(ind)
             self.gridManager.set_scalar_data(datad)
             xdata = array([val, val], 'd')
-            #print "shape of xdata is " , xdata.shape
+            print "shape of xdata is " , xdata.shape
             for line in self.lines:
-                #print "ArrayMapper.set_sample_num(): doing line " , line
+                print "ArrayMapper.set_sample_num(): doing line " , line
                 line.set_xdata(xdata) 
         else:
             ind = int(bar.get_value())
-            #print "ArrayMapper.set_sample_num(", ind, ")"
+            print "ArrayMapper.set_sample_num(", ind, ")"
             datad = self.get_datad(ind)
             self.gridManager.set_scalar_data(datad)
             xdata = array([ind, ind], 'd')
@@ -132,7 +132,7 @@ class ArrayMapper(gtk.Window, ScalarMapper):
             self.numlabel.set_text(str(float(bar.get_value())))
         else:
             self.numlabel.set_text(str(int(bar.get_value())))
-        #print "self.fig.get_axes() = ", self.fig.get_axes()
+        print "self.fig.get_axes() = ", self.fig.get_axes()
         self.canvas.draw()
 
 
@@ -148,36 +148,45 @@ class ArrayMapper(gtk.Window, ScalarMapper):
         fig = Figure(figsize=(7,5), dpi=72)
         self.lines = []
         N = len(self.channels)
+        self.ax = fig.add_subplot(1,1,1) #new singleplot configuration
+        colordict = ['blue','green','red','cyan','magenta','yellow','black']
+        minx = 0
+        maxx = 0
         for i, channel in enumerate(self.channels):
-            self.ax = fig.add_subplot(N, 1, i+1)
+            #self.ax = fig.add_subplot(N, 1, i+1) #switching to 1 plot -eli
+            #subplot syntax is numrows, numcolumns, subplot ID
             print "ArrayMapper.make_fig(): self.X is is " , self.X, type(self.X), len(self.X)
             print "ArrayMapper.make_fig(): channel is ", channel
             print "ArrayMapper.make_fig(): self.numSamples=", self.numSamples
 
             time_range = arange(self.numSamples)
-            print "start_time= ", start_time, "end_time =", end_time
+            #print "start_time= ", start_time, "end_time =", end_time
             if ((start_time != None) & (end_time != None)):
                 time_range = arange(start_time, end_time, (end_time - start_time)/self.numSamples)
             
-            print "time_range is ", time_range
+            #print "time_range is ", time_range
             x = self.X[channel-1,:]
-            self.ax.plot(time_range, x)
+            if minx > min(x):
+                minx = copy.deepcopy(min(x))
+            if maxx < max(x):
+                maxx = copy.deepcopy(max(x))
+            color = colordict[((i-1)%7)]
+            self.ax.plot(time_range, x, color, label=("channel " + str(i+1)))
             #self.ax.grid(True)
-
-            if ((start_time != None) & (end_time != None)):
-                mid = start_time + (end_time - start_time)/2.0
-            else:
-                mid = self.numSamples/2.0
             
-
-            print "setting up line at (([%d, %d], [%d, %d])[0]" % (mid, mid, min(x), max(x))
-            line = self.ax.plot([mid, mid], [min(x), max(x)])[0]
-            self.ax.add_line(line)
-            self.ax.set_ylabel('Chan #%d' % channel)
-            self.lines.append(line)
-            if self.ax.is_last_row(): self.ax.set_xlabel('index')
-            if self.ax.is_first_row(): self.ax.set_title('Evoked response')
-
-            
+            #line = self.ax.plot([mid, mid], [min(x), max(x)])[0] #switching to single plot
+            #self.ax.add_line(line) #switching to single plot - moved out of loop
+        self.ax.set_xlabel('index')
+        self.ax.set_title('Evoked response')
+        self.ax.legend()
+        if ((start_time != None) & (end_time != None)):
+            mid = start_time + (end_time - start_time)/2.0
+        else:
+            mid = self.numSamples/2.0
+        #print "setting up line at (([%d, %d], [%d, %d])[0]" % (mid, mid, min(x), max(x))
+        line = self.ax.plot([mid, mid], [minx, maxx])[0]
+        self.ax.add_line(line)
+        self.lines.append(line)
+        
         return fig
 
