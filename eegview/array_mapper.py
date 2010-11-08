@@ -1,5 +1,6 @@
 from __future__ import division
 import sys, os, math, copy
+import pylab as p
 import vtk
 
 #from Numeric import array, zeros, ones, sort, absolute, sqrt, divide,\
@@ -11,7 +12,7 @@ import gtk, gobject
 from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanvas
 from matplotlib.backends.backend_gtkagg import NavigationToolbar
 from matplotlib.figure import Figure
-
+from events import Observer
 
 class ScalarMapper:
     """
@@ -26,7 +27,7 @@ class ScalarMapper:
         self.gridManager = gridManager
 
 
-class ArrayMapper(gtk.Window, ScalarMapper):
+class ArrayMapper(gtk.Window, ScalarMapper, Observer):
     """
     CLASS: ArrayMapper
     DESCR: 
@@ -34,7 +35,8 @@ class ArrayMapper(gtk.Window, ScalarMapper):
     def __init__(self, gridManager, X, channels, amp, start_time=None, end_time=None):
         ScalarMapper.__init__(self, gridManager)
         gtk.Window.__init__(self)
-        self.resize(800,600)
+        Observer.__init__(self)
+        self.resize(512,512)
         self.set_title('Array data')
 
         self.channels = channels        
@@ -58,9 +60,8 @@ class ArrayMapper(gtk.Window, ScalarMapper):
         vbox = gtk.VBox()
         vbox.show()
         self.add(vbox)
-
         self.fig = self.make_fig(start_time, end_time)
-
+        self.broadcast(Observer.ARRAY_CREATED, self.fig, True)
         self.canvas = FigureCanvas(self.fig)  # a gtk.DrawingArea
         self.canvas.show()
         vbox.pack_start(self.canvas, True, True)        
@@ -76,7 +77,7 @@ class ArrayMapper(gtk.Window, ScalarMapper):
         scrollbar = gtk.HScrollbar()
         scrollbar.show()
         hbox.pack_start(scrollbar, True, True)
-
+        
         
         if (self.time_in_secs == True):
             scrollbar.set_range(start_time, end_time)
@@ -134,6 +135,7 @@ class ArrayMapper(gtk.Window, ScalarMapper):
             self.numlabel.set_text(str(int(bar.get_value())))
         print "self.fig.get_axes() = ", self.fig.get_axes()
         self.canvas.draw()
+        self.broadcast(Observer.ARRAY_CREATED, self.fig, False) #redraw the view3 version of the array
 
 
     def get_datad(self, ind):
@@ -143,15 +145,14 @@ class ArrayMapper(gtk.Window, ScalarMapper):
         return datad
 
     def make_fig(self, start_time, end_time):
-        
-
         fig = Figure(figsize=(7,5), dpi=72)
         self.lines = []
         N = len(self.channels)
         self.ax = fig.add_subplot(1,1,1) #new singleplot configuration
-        colordict = ['blue','green','red','cyan','magenta','yellow','black']
+        colordict = ['blue','green','red','cyan','magenta','yellow','white']
         minx = 0
         maxx = 0
+        graph = []
         for i, channel in enumerate(self.channels):
             #self.ax = fig.add_subplot(N, 1, i+1) #switching to 1 plot -eli
             #subplot syntax is numrows, numcolumns, subplot ID
@@ -171,22 +172,26 @@ class ArrayMapper(gtk.Window, ScalarMapper):
             if maxx < max(x):
                 maxx = copy.deepcopy(max(x))
             color = colordict[((i-1)%7)]
-            self.ax.plot(time_range, x, color, label=("channel " + str(i+1)))
+            newp = self.ax.plot(time_range, x, color, label=("channel " + str(i+1)))
+            graph.append(newp)
             #self.ax.grid(True)
             
             #line = self.ax.plot([mid, mid], [min(x), max(x)])[0] #switching to single plot
             #self.ax.add_line(line) #switching to single plot - moved out of loop
         self.ax.set_xlabel('index')
         self.ax.set_title('Evoked response')
-        self.ax.legend()
+        #self.ax.legend()
+        fig.legend(graph,self.channels,'upper right')
         if ((start_time != None) & (end_time != None)):
             mid = start_time + (end_time - start_time)/2.0
         else:
             mid = self.numSamples/2.0
         #print "setting up line at (([%d, %d], [%d, %d])[0]" % (mid, mid, min(x), max(x))
-        line = self.ax.plot([mid, mid], [minx, maxx])[0]
+        line = self.ax.plot([mid, mid], [minx, maxx],'w')[0]
         self.ax.add_line(line)
         self.lines.append(line)
+        self.ax.patch.set_facecolor('black') #transparency
+        self.finishedFigure = fig
         
         return fig
 

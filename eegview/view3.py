@@ -40,6 +40,7 @@ Todo:
 """
 from __future__ import division
 import sys, os, math
+import pylab as p
 import vtk
 import pygtk
 pygtk.require('2.0')
@@ -72,6 +73,8 @@ from utils import filter_grand_mean, all_pairs_eoi, cohere_bands, power_bands,\
      get_exp_prediction, read_cohstat
 
 from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanvas
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+
 from matplotlib.backends.backend_gtkagg import NavigationToolbar
 from matplotlib.figure import Figure
 
@@ -159,8 +162,11 @@ class View3(gtk.Window, Observer):
 
 
         interactor = GtkGLExtVTKRenderWindowInteractor()
+        #connect interactor button presses. try to disable interact with the overlay.
         interactor.AddObserver('LeftButtonPressEvent', self.press_left)
-	
+        interactor.AddObserver('RightButtonPressEvent',self.disable_overlay_interact)
+        interactor.AddObserver('MiddleButtonPressEvent', self.disable_overlay_interact)
+	    
         self.picker = vtk.vtkCellPicker()
 	
         self.picker.SetTolerance(0.005)
@@ -176,6 +182,7 @@ class View3(gtk.Window, Observer):
         interactor.AddObserver("ExitEvent", lambda o,e,x=None: x)
 
         self.renderer = vtk.vtkRenderer()
+        self.overlayRenderer = vtk.vtkRenderer()
         interactor.GetRenderWindow().AddRenderer(self.renderer)
         self.interactor = interactor
 
@@ -251,6 +258,33 @@ class View3(gtk.Window, Observer):
         
         self.csv_save_electrodes = None
 
+        #attempting to link mpl graphs into the vtk renderwindow. source taken from scipy cookbook.
+        #essentially, plane texture -> image filter -> importer and mpl canvas -> importer -> image filter -> plane texture. or something. 
+        #the operation will be completely around line 987, when the observer recieves the array_created signal from the array mapper
+        # The vtkImageImporter will treat a python string as a void pointer
+        importer = vtk.vtkImageImport()
+        importer.SetDataScalarTypeToUnsignedChar()
+        importer.SetNumberOfScalarComponents(4)
+        self.importer = importer
+        
+        # It's upside-down when loaded, so add a flip filter
+        imflip = vtk.vtkImageFlip()
+        imflip.SetInput(self.importer.GetOutput())
+        imflip.SetFilteredAxis(1)
+        self.imflip = imflip
+        
+        
+        
+    def disable_overlay_interact(self, *args):
+        #figure out where we clicked
+        x,y = self.interactor.GetEventPosition()
+        if self.overlayRenderer.IsInViewport(x,y):
+            #don't let the camera move
+            cam = self.overlayRenderer.GetActiveCamera()
+            cam.SetViewUp(0,1,0)
+            cam.SetFocalPoint(15.086358767571982, 4.6935338388001755, 0.0)
+            cam.SetPosition(15.086358767571982, 4.6935338388001755, 12.533026371713074)
+            self.importer.Update()
 
     def set_eoi(self, eoi):
         self.eoi = eoi
@@ -263,7 +297,8 @@ class View3(gtk.Window, Observer):
         except AttributeError: pass
         
     def press_left(self, *args):
-        #print "View3.press_left()!"
+        self.disable_overlay_interact(*args) #-eli
+        print "View3.press_left()!"
         'If in selection mode and click over marker, select it and update plot'
         if not self.buttonSelected.get_active(): return
         if self.gridManager is None: return
@@ -431,7 +466,6 @@ class View3(gtk.Window, Observer):
                 error_msg('Unrecognized label %s' % label,
                           parent=self)
                 return
-        
             oldLabel, oldVal = self.thresholdParams            
             if label==oldLabel: default = oldVal
             value = get_num_value(
@@ -503,7 +537,7 @@ class View3(gtk.Window, Observer):
         self.buttonPhase = gtk.CheckButton('Phase Threshold')
         self.buttonPhase.show()
         self.buttonPhase.set_active(True)
-        print "dude buttonPhase"
+        #print "dude buttonPhase"
         self.add_toolitem2(toolbar2, self.buttonPhase, 'Draw white pipes when abs(phase) is <0.1')
 	
         def phase_toggled(button):
@@ -925,8 +959,61 @@ class View3(gtk.Window, Observer):
         self.gridNames = named.keys()
         self.renderer.ResetCamera()
 
+
         self.interactor.Render()
         return True
+    
+    def overlay_array(self,finishedFigure,init):
+        if init == True:
+            print "OVERLAYARRAY INIT!"
+            #rejigger the renderers
+            self.renderer.SetViewport(0,.3,1,1) #maintain two renderers to overlay graph data
+            self.overlayRenderer.SetViewport(0,0,1,.3)
+            self.interactor.GetRenderWindow().AddRenderer(self.overlayRenderer)
+            
+        # Map the plot as a texture on a plane
+        plane = vtk.vtkPlaneSource()
+        #plane.SetResolution(100,100)
+        plane.SetOrigin(0,0,0)
+        plane.SetPoint1(30,0,0)
+        plane.SetPoint2(0,10,0)
+        planeMapper = vtk.vtkPolyDataMapper()
+        planeMapper.SetInput(plane.GetOutput())
+        planeActor = vtk.vtkActor()
+        planeActor.SetMapper(planeMapper)
+        
+
+        # Create a texture based off of the image
+        planeTexture = vtk.vtkTexture()
+        planeTexture.InterpolateOn()
+        planeTexture.SetInput(self.imflip.GetOutput())
+        planeActor.SetTexture(planeTexture)
+
+        # Now create our plot
+        fig = finishedFigure 
+        canvas = FigureCanvasAgg(fig)
+        
+        # Powers of 2 image to be clean
+        w,h = 512,512
+        dpi = canvas.figure.get_dpi()
+        fig.set_size_inches(w / dpi, h / dpi)
+        #print "VIEW3 SIG DEBUG: W H ", w, h
+        canvas.draw() # force a draw
+
+        self.overlayRenderer.AddActor(planeActor)
+        
+        # This is where we tell the image importer about the mpl image
+        extent = (0, w - 1, 0, h - 1, 0, 0)
+        self.importer.SetWholeExtent(extent)
+        self.importer.SetDataExtent(extent)
+        self.importer.SetImportVoidPointer(canvas.buffer_rgba(0,0), 1)
+        self.importer.Update()
+        
+        if init == True:
+            #set up the graph in a nice place
+            cam = self.overlayRenderer.GetActiveCamera()
+            cam.SetFocalPoint(15.086358767571982, 4.6935338388001755, 0.0)
+            cam.SetPosition(15.086358767571982, 4.6935338388001755, 12.533026371713074)
     
     def recieve(self, event, *args):
         if not self.buttonFollowEvents.get_active(): return
@@ -961,7 +1048,14 @@ class View3(gtk.Window, Observer):
             self.filterGM = button.get_active()
             self.compute_coherence()
             self.plot_band()
+        elif event == Observer.ARRAY_CREATED:
+            #here we'll try to load the arraymapper data in the main window
+            finishedFigure = args[0]
+            init = args[1]
+            self.overlay_array(finishedFigure, init)
+            
 
+            
 
     def compute_coherence(self, setTime=None, *args):
 

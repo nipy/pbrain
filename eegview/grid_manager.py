@@ -791,11 +791,9 @@ class GridManager:
                     return
             
             am = ArrayMapper(self, self.X, channels, self.ampAscii, start_time=start_time, end_time=end_time)
-		    
             #here, we'll try to preemptively load a colormap if the .eegviewrc file has been set.
             self.set_custom_colormap()
-
-
+            
             am.show()
 
         def radio_changed(button):
