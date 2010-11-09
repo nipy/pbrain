@@ -258,21 +258,6 @@ class View3(gtk.Window, Observer):
         
         self.csv_save_electrodes = None
 
-        #attempting to link mpl graphs into the vtk renderwindow. source taken from scipy cookbook.
-        #essentially, plane texture -> image filter -> importer and mpl canvas -> importer -> image filter -> plane texture. or something. 
-        #the operation will be completely around line 987, when the observer recieves the array_created signal from the array mapper
-        # The vtkImageImporter will treat a python string as a void pointer
-        importer = vtk.vtkImageImport()
-        importer.SetDataScalarTypeToUnsignedChar()
-        importer.SetNumberOfScalarComponents(4)
-        self.importer = importer
-        
-        # It's upside-down when loaded, so add a flip filter
-        imflip = vtk.vtkImageFlip()
-        imflip.SetInput(self.importer.GetOutput())
-        imflip.SetFilteredAxis(1)
-        self.imflip = imflip
-        
         
         
     def disable_overlay_interact(self, *args):
@@ -963,57 +948,81 @@ class View3(gtk.Window, Observer):
         self.interactor.Render()
         return True
     
-    def overlay_array(self,finishedFigure,init):
-        if init == True:
-            print "OVERLAYARRAY INIT!"
-            #rejigger the renderers
-            self.renderer.SetViewport(0,.3,1,1) #maintain two renderers to overlay graph data
-            self.overlayRenderer.SetViewport(0,0,1,.3)
-            self.interactor.GetRenderWindow().AddRenderer(self.overlayRenderer)
+    def overlay_array(self,finishedFigure,init,destroy):
+        #attempting to link mpl graphs into the vtk renderwindow. source taken from scipy cookbook.
+        #essentially, plane texture -> image filter -> importer and mpl canvas -> importer -> image filter -> plane texture. or something. 
+        #the operation will be completely around line 987, when the observer recieves the array_created signal from the array mapper
+        # The vtkImageImporter will treat a python string as a void pointer
+        #I wish the following init-type code could be in view3's init function where it used to be. for some reason on some computers, the graph doesn't update in the view3 window when i don't recreate the importer every single time. not sure why - the slowdown is small so i'll leave it like this for now. -eli
+        if destroy == True:
+            self.renderer.SetViewport(0,0,1,1)
+            self.overlayRenderer.SetViewport(0,0,0,0)
+            self.interactor.show()
+            self.interactor.Initialize()
+            self.interactor.Start()
+            return
+        else:
+            importer = vtk.vtkImageImport()
+            importer.SetDataScalarTypeToUnsignedChar()
+            importer.SetNumberOfScalarComponents(4)
+            self.importer = importer
             
-        # Map the plot as a texture on a plane
-        plane = vtk.vtkPlaneSource()
-        #plane.SetResolution(100,100)
-        plane.SetOrigin(0,0,0)
-        plane.SetPoint1(30,0,0)
-        plane.SetPoint2(0,10,0)
-        planeMapper = vtk.vtkPolyDataMapper()
-        planeMapper.SetInput(plane.GetOutput())
-        planeActor = vtk.vtkActor()
-        planeActor.SetMapper(planeMapper)
-        
+            # It's upside-down when loaded, so add a flip filter
+            imflip = vtk.vtkImageFlip()
+            imflip.SetInput(self.importer.GetOutput())
+            imflip.SetFilteredAxis(1)
+            self.imflip = imflip
+            
+            if init == True:
+                #rejigger the renderers
+                self.renderer.SetViewport(0,.3,1,1) #maintain two renderers to overlay graph data
+                self.overlayRenderer.SetViewport(0,0,1,.3)
+                self.interactor.GetRenderWindow().AddRenderer(self.overlayRenderer)
+                
+            # Map the plot as a texture on a plane
+            plane = vtk.vtkPlaneSource()
+            #plane.SetResolution(100,100)
+            plane.SetOrigin(0,0,0)
+            plane.SetPoint1(30,0,0)
+            plane.SetPoint2(0,10,0)
+            planeMapper = vtk.vtkPolyDataMapper()
+            planeMapper.SetInput(plane.GetOutput())
+            planeActor = vtk.vtkActor()
+            planeActor.SetMapper(planeMapper)
+            
 
-        # Create a texture based off of the image
-        planeTexture = vtk.vtkTexture()
-        planeTexture.InterpolateOn()
-        planeTexture.SetInput(self.imflip.GetOutput())
-        planeActor.SetTexture(planeTexture)
+            # Create a texture based off of the image
+            planeTexture = vtk.vtkTexture()
+            planeTexture.InterpolateOn()
+            planeTexture.SetInput(self.imflip.GetOutput())
+            planeActor.SetTexture(planeTexture)
 
-        # Now create our plot
-        fig = finishedFigure 
-        canvas = FigureCanvasAgg(fig)
-        
-        # Powers of 2 image to be clean
-        w,h = 512,512
-        dpi = canvas.figure.get_dpi()
-        fig.set_size_inches(w / dpi, h / dpi)
-        #print "VIEW3 SIG DEBUG: W H ", w, h
-        canvas.draw() # force a draw
+            # Now create our plot
+            fig = finishedFigure 
+            canvas = FigureCanvasAgg(fig)
+            
+            # Powers of 2 image to be clean
+            w,h = 512,512
+            dpi = canvas.figure.get_dpi()
+            fig.set_size_inches(w / dpi, h / dpi)
+            
+            axtest = fig.get_axes()[0]
+            canvas.draw() # force a draw
 
-        self.overlayRenderer.AddActor(planeActor)
-        
-        # This is where we tell the image importer about the mpl image
-        extent = (0, w - 1, 0, h - 1, 0, 0)
-        self.importer.SetWholeExtent(extent)
-        self.importer.SetDataExtent(extent)
-        self.importer.SetImportVoidPointer(canvas.buffer_rgba(0,0), 1)
-        self.importer.Update()
-        
-        if init == True:
-            #set up the graph in a nice place
-            cam = self.overlayRenderer.GetActiveCamera()
-            cam.SetFocalPoint(15.086358767571982, 4.6935338388001755, 0.0)
-            cam.SetPosition(15.086358767571982, 4.6935338388001755, 12.533026371713074)
+            self.overlayRenderer.AddActor(planeActor)
+            
+            # This is where we tell the image importer about the mpl image
+            extent = (0, w - 1, 0, h - 1, 0, 0)
+            self.importer.SetWholeExtent(extent)
+            self.importer.SetDataExtent(extent)
+            self.importer.SetImportVoidPointer(canvas.buffer_rgba(0,0), 1)
+            self.importer.Update()
+            
+            if init == True:
+                #set up the graph in a nice place
+                cam = self.overlayRenderer.GetActiveCamera()
+                cam.SetFocalPoint(15.086358767571982, 4.6935338388001755, 0.0)
+                cam.SetPosition(15.086358767571982, 4.6935338388001755, 12.533026371713074)
     
     def recieve(self, event, *args):
         if not self.buttonFollowEvents.get_active(): return
@@ -1052,7 +1061,8 @@ class View3(gtk.Window, Observer):
             #here we'll try to load the arraymapper data in the main window
             finishedFigure = args[0]
             init = args[1]
-            self.overlay_array(finishedFigure, init)
+            destroy = args[2]
+            self.overlay_array(finishedFigure, init, destroy)
             
 
             

@@ -741,7 +741,9 @@ class GridManager:
                     return
             entryAsciiFile.set_text(filename)
             load_ascii_data(filename)
-
+        
+        self.addview3 = False #toggle for whether to add arraymapper output to view3 window
+        
         def doit(button):
             s = entryChannels.get_text()
             if not len(s):
@@ -790,7 +792,7 @@ class GridManager:
                     error_msg('key %s not in list of grid names: %s' % (curr_grid_name, grid_names))
                     return
             
-            am = ArrayMapper(self, self.X, channels, self.ampAscii, start_time=start_time, end_time=end_time)
+            am = ArrayMapper(self, self.X, channels, self.ampAscii, self.addview3, start_time=start_time, end_time=end_time)
             #here, we'll try to preemptively load a colormap if the .eegviewrc file has been set.
             self.set_custom_colormap()
             
@@ -802,7 +804,13 @@ class GridManager:
                 set_filename(button=None)
             else:
                 load_ascii_data(filename)
-                
+        
+               
+        def view3_add(button):
+            if self.addview3 == False:
+                self.addview3 = True
+            else:
+                self.addview3 = False
                 
         radioGrp = None
         button = gtk.RadioButton(radioGrp)
@@ -848,6 +856,12 @@ class GridManager:
         entry.set_text('1 2 3')
         hbox.pack_start(entry, False, False)
         entryChannels = entry
+        
+        button = gtk.CheckButton('Add to View3')
+        button.show()
+        button.set_active(False)
+        hbox.pack_start(button, False, False)
+        button.connect('clicked', view3_add)
 
         hbox = gtk.HBox()
         hbox.show()

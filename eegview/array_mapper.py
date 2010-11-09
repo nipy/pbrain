@@ -32,13 +32,14 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
     CLASS: ArrayMapper
     DESCR: 
     """
-    def __init__(self, gridManager, X, channels, amp, start_time=None, end_time=None):
+    def __init__(self, gridManager, X, channels, amp, addview3, start_time=None, end_time=None):
         ScalarMapper.__init__(self, gridManager)
         gtk.Window.__init__(self)
         Observer.__init__(self)
-        self.resize(512,512)
+        self.resize(512,570)
         self.set_title('Array data')
-
+        
+        self.addview3 = addview3
         self.channels = channels        
         self.amp = amp
         self.trodes = [(gname, gnum) for cnum, gname, gnum in amp]
@@ -47,6 +48,7 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
         self.ax = None
 
         self.numChannels, self.numSamples = X.shape
+        self.addview3destroy = False
 
         self.time_in_secs = False
         self.start_time = None
@@ -61,7 +63,14 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
         vbox.show()
         self.add(vbox)
         self.fig = self.make_fig(start_time, end_time)
-        self.broadcast(Observer.ARRAY_CREATED, self.fig, True)
+        if self.addview3:
+            button = gtk.CheckButton('Remove from View3')
+            button.show()
+            button.set_active(False)
+            vbox.pack_start(button, False, False)
+            button.connect('clicked', self.view3_remove)
+            if self.addview3destroy == False:
+                self.broadcast(Observer.ARRAY_CREATED, self.fig, True, False)
         self.canvas = FigureCanvas(self.fig)  # a gtk.DrawingArea
         self.canvas.show()
         vbox.pack_start(self.canvas, True, True)        
@@ -108,6 +117,15 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
 
         self.set_sample_num(scrollbar)
 
+    def view3_remove(self, button):
+        #a switch in the array mapper to toggle view3 display
+        if self.addview3destroy == False:
+            self.addview3destroy = True
+            self.broadcast(Observer.ARRAY_CREATED, self.fig, False, True)
+        else:
+            self.addview3destroy = False
+            self.broadcast(Observer.ARRAY_CREATED, self.fig, True, False)
+                
     def set_sample_num(self, bar):
         if (self.time_in_secs == True):
             val = float(bar.get_value())
@@ -135,7 +153,10 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
             self.numlabel.set_text(str(int(bar.get_value())))
         print "self.fig.get_axes() = ", self.fig.get_axes()
         self.canvas.draw()
-        self.broadcast(Observer.ARRAY_CREATED, self.fig, False) #redraw the view3 version of the array
+        if self.addview3:
+            if self.addview3destroy == False: #don't signal unless we have to
+                self.broadcast(Observer.ARRAY_CREATED, self.fig, False, False) #redraw the view3 version of the array
+                #the second false is to say that we shouldn't destroy the display in view3
 
 
     def get_datad(self, ind):
@@ -145,11 +166,11 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
         return datad
 
     def make_fig(self, start_time, end_time):
-        fig = Figure(figsize=(7,5), dpi=72)
+        fig = Figure(figsize=(8,8), dpi=72)
         self.lines = []
         N = len(self.channels)
         self.ax = fig.add_subplot(1,1,1) #new singleplot configuration
-        colordict = ['blue','green','red','cyan','magenta','yellow','white']
+        colordict = ['#A6D1FF','green','red','cyan','magenta','yellow','white']
         minx = 0
         maxx = 0
         graph = []
