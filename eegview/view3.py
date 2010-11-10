@@ -143,7 +143,7 @@ class View3(gtk.Window, Observer):
         self.cohCache = None  # cache coherence results from other window
 
         self.csv_fname = None
-        
+        self.scalarDisplay = False
         self.filterGM = eegplot.filterGM
         self.gridManager = None
 
@@ -185,6 +185,8 @@ class View3(gtk.Window, Observer):
         self.overlayRenderer = vtk.vtkRenderer()
         interactor.GetRenderWindow().AddRenderer(self.renderer)
         self.interactor = interactor
+
+        
 
         #self.set_title("View3 Window")
         self.set_border_width(10)
@@ -493,8 +495,8 @@ class View3(gtk.Window, Observer):
         
         self.buttonFollowEvents = gtk.CheckButton('Auto')
         self.buttonFollowEvents.show()
-        self.buttonFollowEvents.set_active(False)
-        self.add_toolitem2(toolbar2, self.buttonFollowEvents, 'Automatically update figure in response to changes in EEG window')
+        self.buttonFollowEvents.set_active(True)
+        self.add_toolitem2(toolbar2, self.buttonFollowEvents, 'Automatically update figure in response to changes in EEG and Scalar Data window')
 
         def toggled(button):
             
@@ -858,7 +860,7 @@ class View3(gtk.Window, Observer):
         tmin, tmax = self.eegplot.get_time_lim()
         twidth = tmax-tmin
         maxTime = self.eeg.get_tmax()
-        dlg = AutoPlayView3Dialog(self, tmin, maxTime, twidth)
+        dlg = AutoPlayView3Dialog(self, tmin, maxTime, twidth, self.scalarDisplay)
         self.buttonFollowEvents.set_active(True)
         dlg.show()
 
@@ -960,6 +962,7 @@ class View3(gtk.Window, Observer):
             self.interactor.show()
             self.interactor.Initialize()
             self.interactor.Start()
+            self.scalarDisplay = False
             return
         else:
             importer = vtk.vtkImageImport()
@@ -974,6 +977,7 @@ class View3(gtk.Window, Observer):
             self.imflip = imflip
             
             if init == True:
+                self.scalarDisplay = True
                 #rejigger the renderers
                 self.renderer.SetViewport(0,.3,1,1) #maintain two renderers to overlay graph data
                 self.overlayRenderer.SetViewport(0,0,1,.3)

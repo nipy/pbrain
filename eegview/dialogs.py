@@ -3666,10 +3666,24 @@ class AutoPlayDialog(gtk.Dialog, Observer):
     direction = 1
     lastSteps = None
 
-    def __init__(self, tmin, tmax, twidth, quitHook=None):
+    def __init__(self, tmin, tmax, twidth, scalarDisplay, quitHook=None):
         Observer.__init__(self)
         gtk.Dialog.__init__(self, 'Auto play')
 
+        if scalarDisplay:
+            radioGrp = None
+            button = gtk.RadioButton(radioGrp)
+            button.set_label('Page EEG')
+            button.set_active(True)
+            button.connect('clicked', self.page_changed)
+            self.buttonPageEEG = button
+            self.buttonPageEEG.show()
+        
+            button = gtk.RadioButton(button)
+            button.set_label('Page Scalar Data')
+            self.buttonPageScalar = button
+            self.buttonPageScalar.show()
+        
         self.tmin = tmin
         self.tmax = tmax
         self.twidth = twidth
@@ -3702,7 +3716,7 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         self.entryStep.set_activates_default(True)
         self.entryStep.set_text('10.0')
 
-        table = gtk.Table(2,3)
+        table = gtk.Table(2,4)
         table.show()
         table.set_row_spacings(4)
         table.set_col_spacings(4)
@@ -3714,6 +3728,9 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         table.attach(self.entryMin,  1, 2, 0, 1)
         table.attach(self.entryMax,  1, 2, 1, 2)
         table.attach(self.entryStep, 1, 2, 2, 3)
+        if scalarDisplay:
+            table.attach(self.buttonPageEEG, 0,1,3,4)
+            table.attach(self.buttonPageScalar,1,2,3,4) 
         self.vbox.pack_start(table, True, True)
 
         buttonBack = self.add_button(gtk.STOCK_GO_BACK, gtk.RESPONSE_REJECT)
@@ -3737,9 +3754,6 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         hbox.set_spacing(3)
         
         frame.add(hbox)
-
-            
-
 
         def set_filename(*args):
             #fname = fmanager.get_filename()
@@ -3793,6 +3807,11 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         self.statbarCID = self.statbar.get_context_id('my stat bar')
         vbox.pack_end(self.statbar, False, False)
 
+    def page_changed(self, *args):
+        print "AUTOPAGE: driver changed to ", args[0]
+        #if buttonPageScalar.get_active():
+            
+            
     def update_status_bar(self):
 
         self.statbar.pop(self.statbarCID) 

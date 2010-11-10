@@ -15,8 +15,8 @@ class AutoPlayView3Dialog(AutoPlayDialog):
     CLASS: AutoPlayView3Dialog 
     DESCR: note: setpars() is defined in dialogs.py, line 3852
     """
-    def __init__(self, view3, tmin, tmax, twidth, quitHook=None):
-        AutoPlayDialog.__init__(self, tmin, tmax, twidth, quitHook)
+    def __init__(self, view3, tmin, tmax, twidth, scalarDisplay, quitHook=None):
+        AutoPlayDialog.__init__(self, tmin, tmax, twidth, scalarDisplay, quitHook)
         self.view3 = view3
         
         frame = gtk.Frame('Rotation')
