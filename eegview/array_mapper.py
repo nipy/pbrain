@@ -175,7 +175,6 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
         maxx = 0
         graph = []
         for i, channel in enumerate(self.channels):
-            #self.ax = fig.add_subplot(N, 1, i+1) #switching to 1 plot -eli
             #subplot syntax is numrows, numcolumns, subplot ID
             print "ArrayMapper.make_fig(): self.X is is " , self.X, type(self.X), len(self.X)
             print "ArrayMapper.make_fig(): channel is ", channel
@@ -195,10 +194,7 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
             color = colordict[((i-1)%7)]
             newp = self.ax.plot(time_range, x, color, label=("channel " + str(i+1)))
             graph.append(newp)
-            #self.ax.grid(True)
             
-            #line = self.ax.plot([mid, mid], [min(x), max(x)])[0] #switching to single plot
-            #self.ax.add_line(line) #switching to single plot - moved out of loop
         self.ax.set_xlabel('index')
         self.ax.set_title('Evoked response')
         #self.ax.legend()
@@ -215,4 +211,9 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
         self.finishedFigure = fig
         
         return fig
+        
+    def recieve(self, event, *args):
+        if event in (Observer.SET_SCALAR,):
+            #move the scrollbar forward by the twidth
+            self.scrollbarIndex.set_value(args[1])
 

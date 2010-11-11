@@ -3670,7 +3670,17 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         Observer.__init__(self)
         gtk.Dialog.__init__(self, 'Auto play')
 
-        if scalarDisplay:
+        self.eegtmin = tmin
+        self.eegtmax = tmax
+        self.eegtwidth = twidth
+        #save the original eeg argdata
+        
+        self.tmin = tmin
+        self.tmax = tmax
+        self.twidth = twidth
+        self.quitHook = None
+        
+        if scalarDisplay["scalardisplay"]: #update the movie box for scalar driving possibility
             radioGrp = None
             button = gtk.RadioButton(radioGrp)
             button.set_label('Page EEG')
@@ -3683,11 +3693,8 @@ class AutoPlayDialog(gtk.Dialog, Observer):
             button.set_label('Page Scalar Data')
             self.buttonPageScalar = button
             self.buttonPageScalar.show()
+            
         
-        self.tmin = tmin
-        self.tmax = tmax
-        self.twidth = twidth
-        self.quitHook = None
         vbox = self.vbox
 
         self.labelMin = gtk.Label('Min time')
@@ -3702,7 +3709,7 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         self.entryMin = gtk.Entry()
         self.entryMin.show()
         self.entryMin.set_width_chars(10)
-        self.entryMin.set_text('0.0')
+        self.entryMin.set_text('%1.1f' % tmin)
 
         
         self.entryMax = gtk.Entry()
@@ -3714,7 +3721,7 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         self.entryStep.show()
         self.entryStep.set_width_chars(10)
         self.entryStep.set_activates_default(True)
-        self.entryStep.set_text('10.0')
+        self.entryStep.set_text('%1.1f' %twidth)
 
         table = gtk.Table(2,4)
         table.show()
@@ -3728,7 +3735,7 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         table.attach(self.entryMin,  1, 2, 0, 1)
         table.attach(self.entryMax,  1, 2, 1, 2)
         table.attach(self.entryStep, 1, 2, 2, 3)
-        if scalarDisplay:
+        if scalarDisplay["scalardisplay"]:
             table.attach(self.buttonPageEEG, 0,1,3,4)
             table.attach(self.buttonPageScalar,1,2,3,4) 
         self.vbox.pack_start(table, True, True)
@@ -3754,6 +3761,7 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         hbox.set_spacing(3)
         
         frame.add(hbox)
+        self.scalarDisplay = scalarDisplay
 
         def set_filename(*args):
             #fname = fmanager.get_filename()
@@ -3809,8 +3817,18 @@ class AutoPlayDialog(gtk.Dialog, Observer):
 
     def page_changed(self, *args):
         print "AUTOPAGE: driver changed to ", args[0]
-        #if buttonPageScalar.get_active():
-            
+        if self.buttonPageScalar.get_active():
+            self.tmin = self.scalarDisplay["tmin"]
+            self.tmax = self.scalarDisplay["tmax"]
+            self.twidth = self.scalarDisplay["tstep"]
+        else:
+            self.tmin = self.eegtmin
+            self.tmax = self.eegtmax
+            self.twidth = self.eegtwidth
+        self.entryMin.set_text('%1.1f' % self.tmin )
+        self.entryMax.set_text('%1.1f' % self.tmax )
+        self.entryStep.set_text('%1.1f' % self.twidth )
+            #the above lines update the default data in the text boxes in the dialog for the scalar array mapper as opposed to the eeg tracer or vice versa
             
     def update_status_bar(self):
 
@@ -3856,7 +3874,11 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         if self.ind>=0 and self.ind<len(self.steps):
             thisMin = self.steps[self.ind]
             thisMax = thisMin + self.twidth
-            self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
+            #decide who to send the signal to
+            if self.scalarDisplay["scalardisplay"]:
+                self.broadcast(Observer.SET_SCALAR, thisMin, thisMax)
+            else:
+                self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
             self.ind += self.direction
 
             if self.checkButtonMovie.get_active():
@@ -3884,11 +3906,11 @@ class AutoPlayDialog(gtk.Dialog, Observer):
 
         self.steps = arange(valMin, valMax-self.twidth+0.001, valStep)
         print valMin, valMax, valStep, self.twidth, len(self.steps) #DEBUG
-	#print self.steps
-	#print self.lastSteps
+	    #print self.steps
+	    #print self.lastSteps
         #if self.steps != self.lastSteps:
         #    self.ind = 0
-	#the above were giving me trouble and don't seem very useful -eli
+	    #the above were giving me trouble and don't seem very useful -eli
         self.lastSteps = self.steps
 
         return True

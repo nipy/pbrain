@@ -9,7 +9,7 @@ class Observer:
     DESCR: 
     """
     SET_TIME_LIM, SELECT_CHANNEL, SAVE_FRAME, COMPUTE_COHERENCE,\
-                  GMTOGGLED, LOCK_TRODE_TOGGLED, ARRAY_CREATED= range(7)
+                  GMTOGGLED, LOCK_TRODE_TOGGLED, ARRAY_CREATED, SET_SCALAR= range(8)
     observers = set()
 
     def __init__(self):

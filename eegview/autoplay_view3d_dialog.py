@@ -275,7 +275,12 @@ class AutoPlayView3Dialog(AutoPlayDialog):
         # we're still playing
         thisMin = self.steps[self.ind]
         thisMax = thisMin + self.twidth
-        self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
+        #decide who to send the signal to
+        if self.scalarDisplay["scalardisplay"]:
+            self.broadcast(Observer.SET_SCALAR, thisMin, thisMax)
+        else:
+            self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
+        #self.ind += self.direction
 
         # do the rotate interpolation for view3
         if self.buttonUseRotation.get_active():

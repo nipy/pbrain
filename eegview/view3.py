@@ -143,7 +143,8 @@ class View3(gtk.Window, Observer):
         self.cohCache = None  # cache coherence results from other window
 
         self.csv_fname = None
-        self.scalarDisplay = False
+        self.scalarDisplay = {"scalardisplay" : False, "tmin" : 0, "tmax" : 10, "tstep" : 1} 
+        
         self.filterGM = eegplot.filterGM
         self.gridManager = None
 
@@ -860,7 +861,7 @@ class View3(gtk.Window, Observer):
         tmin, tmax = self.eegplot.get_time_lim()
         twidth = tmax-tmin
         maxTime = self.eeg.get_tmax()
-        dlg = AutoPlayView3Dialog(self, tmin, maxTime, twidth, self.scalarDisplay)
+        dlg = AutoPlayView3Dialog(self, tmin, maxTime, twidth, self.scalarDisplay) #self.scalardisplay decides whether to load scalar display stuff in the autodisplay dialog. it is a tuple of bool, tmin, tmax, tstep
         self.buttonFollowEvents.set_active(True)
         dlg.show()
 
@@ -962,7 +963,7 @@ class View3(gtk.Window, Observer):
             self.interactor.show()
             self.interactor.Initialize()
             self.interactor.Start()
-            self.scalarDisplay = False
+            self.scalarDisplay[0] = False
             return
         else:
             importer = vtk.vtkImageImport()
@@ -976,8 +977,17 @@ class View3(gtk.Window, Observer):
             imflip.SetFilteredAxis(1)
             self.imflip = imflip
             
+            
+            
             if init == True:
-                self.scalarDisplay = True
+                #retrieve the data length from the figure
+                dataLength = finishedFigure.get_axes()[0].get_lines()[0].get_xdata()[-1]
+                self.scalarDisplay["scalardisplay"] = True
+                self.scalarDisplay["tmin"] = 0
+                self.scalarDisplay["tmax"] = dataLength
+                self.scalarDisplay["tstep"] = int(dataLength/10)
+                
+                
                 #rejigger the renderers
                 self.renderer.SetViewport(0,.3,1,1) #maintain two renderers to overlay graph data
                 self.overlayRenderer.SetViewport(0,0,1,.3)
@@ -1010,7 +1020,6 @@ class View3(gtk.Window, Observer):
             dpi = canvas.figure.get_dpi()
             fig.set_size_inches(w / dpi, h / dpi)
             
-            axtest = fig.get_axes()[0]
             canvas.draw() # force a draw
 
             self.overlayRenderer.AddActor(planeActor)
