@@ -277,7 +277,9 @@ class AutoPlayView3Dialog(AutoPlayDialog):
         thisMax = thisMin + self.twidth
         #decide who to send the signal to
         if self.scalarDisplay["scalardisplay"]:
+            print "prebroadcast"
             self.broadcast(Observer.SET_SCALAR, thisMin, thisMax)
+            print "postbroadcast"
         else:
             self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
         #self.ind += self.direction

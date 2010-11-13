@@ -957,6 +957,7 @@ class View3(gtk.Window, Observer):
         #the operation will be completely around line 987, when the observer recieves the array_created signal from the array mapper
         # The vtkImageImporter will treat a python string as a void pointer
         #I wish the following init-type code could be in view3's init function where it used to be. for some reason on some computers, the graph doesn't update in the view3 window when i don't recreate the importer every single time. not sure why - the slowdown is small so i'll leave it like this for now. -eli
+        #notes: commandline arg init runs the init stuff when true, and destroy gets rid of the scalar data display when true. finishedFigure is the link to the mpl figure created in array_mapper.py. self.scalarDisplay is a tuple containing start and end data which is used only by the autoplay/movie feature to drive the arraymapper through steps. try it out!
         if destroy == True:
             self.renderer.SetViewport(0,0,1,1)
             self.overlayRenderer.SetViewport(0,0,0,0)
@@ -992,6 +993,11 @@ class View3(gtk.Window, Observer):
                 self.renderer.SetViewport(0,.3,1,1) #maintain two renderers to overlay graph data
                 self.overlayRenderer.SetViewport(0,0,1,.3)
                 self.interactor.GetRenderWindow().AddRenderer(self.overlayRenderer)
+                
+                #refresh screen
+                self.interactor.show()
+                self.interactor.Initialize()
+                self.interactor.Start()
                 
             # Map the plot as a texture on a plane
             plane = vtk.vtkPlaneSource()

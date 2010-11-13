@@ -64,13 +64,14 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
         self.add(vbox)
         self.fig = self.make_fig(start_time, end_time)
         if self.addview3:
-            button = gtk.CheckButton('Remove from View3')
+            button = gtk.Button('Remove from View3')
             button.show()
-            button.set_active(False)
+            #button.set_active(False)
             vbox.pack_start(button, False, False)
             button.connect('clicked', self.view3_remove)
             if self.addview3destroy == False:
                 self.broadcast(Observer.ARRAY_CREATED, self.fig, True, False)
+            self.addview3Button = button
         self.canvas = FigureCanvas(self.fig)  # a gtk.DrawingArea
         self.canvas.show()
         vbox.pack_start(self.canvas, True, True)        
@@ -121,10 +122,12 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
         #a switch in the array mapper to toggle view3 display
         if self.addview3destroy == False:
             self.addview3destroy = True
-            self.broadcast(Observer.ARRAY_CREATED, self.fig, False, True)
+            self.broadcast(Observer.ARRAY_CREATED, self.fig, False, self.addview3destroy)
+            self.addview3Button.set_label("Add to view3")
         else:
             self.addview3destroy = False
-            self.broadcast(Observer.ARRAY_CREATED, self.fig, True, False)
+            self.broadcast(Observer.ARRAY_CREATED, self.fig, True, self.addview3destroy)
+            self.addview3Button.set_label("Remove from view3")
                 
     def set_sample_num(self, bar):
         if (self.time_in_secs == True):
