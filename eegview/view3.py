@@ -63,7 +63,7 @@ from matplotlib.mlab import detrend_none, detrend_mean, detrend_linear,\
      window_none, window_hanning, log2
 from pbrainlib.gtkutils import error_msg, simple_msg, make_option_menu,\
      get_num_value, get_num_range, get_two_nums, str2int_or_err,\
-     OpenSaveSaveAsHBox, ButtonAltLabel
+     OpenSaveSaveAsHBox, ButtonAltLabel, str2num_or_err
 
 from shared import fmanager
 from borgs import Shared
@@ -354,7 +354,7 @@ class View3(gtk.Window, Observer):
                 self.gridManager.show()
             
         self.add_toolbutton1(toolbar1, gtk.STOCK_FLOPPY, 'Load .vtk/.reg file', 'Private', self.mesh_from_file)
-	self.add_toolbutton1(toolbar1, gtk.STOCK_SAVE_AS, 'Save .reg file', 'Private', self.registration_to_file)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_SAVE_AS, 'Save .reg file', 'Private', self.registration_to_file)
         self.add_toolbutton1(toolbar1, gtk.STOCK_PREFERENCES, 'Grid properties', 'Private', show_grid_manager)
         self.add_toolbutton1(toolbar1, gtk.STOCK_OPEN, 'Coher. from file', 'Private', self.coherence_from_file)
         self.add_toolbutton1(toolbar1, gtk.STOCK_SELECT_COLOR, 'Voltage map', 'Private', self.voltage_map)
@@ -364,7 +364,8 @@ class View3(gtk.Window, Observer):
             self.plot_band()
             
         self.add_toolbutton1(toolbar1, gtk.STOCK_EXECUTE, 'Compute coher.', 'Private', compute_and_plot)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_PROPERTIES, 'coher. norm. wndw', 'Private', self.compute_norm_over_range)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_PROPERTIES, 'Coher. norm. wndw', 'Private', self.compute_norm_over_range)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_PROPERTIES, 'Set camera', 'Private', self.control_camera)
         
         self.add_separator(toolbar1)
         self.add_toolbutton1(toolbar1, gtk.STOCK_CLEAR, 'Plot band conn.', 'Private', self.plot_band, 'mouse1 color')
@@ -855,7 +856,111 @@ class View3(gtk.Window, Observer):
         self.cohereResults = None, Cxy, Pxy
         self.plot_band()
 
+    def control_camera(self, *args):
+        #input exact coordinates to move the main camera
+        cam = self.renderer.GetActiveCamera()
+        dlg = gtk.Dialog("Set Camera Coordinates")
+        
+        vbox = dlg.vbox
 
+        label1 = gtk.Label("Set View Up")
+        label1.show()
+
+        label2 = gtk.Label("Set Focal Point")
+        label2.show()
+        
+        label3 = gtk.Label("Set Position")
+        label3.show()
+
+        entry11 = gtk.Entry()
+        entry11.show()
+        entry11.set_width_chars(10)
+        entry11.set_text(str(cam.GetViewUp()[0]))
+        entry12 = gtk.Entry()
+        entry12.show()
+        entry12.set_width_chars(10)
+        entry12.set_text(str(cam.GetViewUp()[1]))
+        entry13 = gtk.Entry()
+        entry13.show()
+        entry13.set_width_chars(10)
+        entry13.set_text(str(cam.GetViewUp()[2]))
+    
+        entry21 = gtk.Entry()
+        entry21.show()
+        entry21.set_width_chars(10)
+        entry21.set_text(str(cam.GetFocalPoint()[0]))
+        entry22 = gtk.Entry()
+        entry22.show()
+        entry22.set_width_chars(10)
+        entry22.set_text(str(cam.GetFocalPoint()[1]))
+        entry23 = gtk.Entry()
+        entry23.show()
+        entry23.set_width_chars(10)
+        entry23.set_text(str(cam.GetFocalPoint()[2]))
+        
+        entry31 = gtk.Entry()
+        entry31.show()
+        entry31.set_width_chars(10)
+        entry31.set_text(str(cam.GetPosition()[0]))
+        entry32 = gtk.Entry()
+        entry32.show()
+        entry32.set_width_chars(10)
+        entry32.set_text(str(cam.GetPosition()[1]))
+        entry33 = gtk.Entry()
+        entry33.show()
+        entry33.set_width_chars(10)
+        entry33.set_text(str(cam.GetPosition()[2]))
+    
+        table = gtk.Table(3,4)
+        table.show()
+        table.set_row_spacings(4)
+        table.set_col_spacings(4)
+
+        table.attach(label1, 0, 1, 0, 1)
+        table.attach(label2, 0, 1, 1, 2)
+        table.attach(label3, 0, 1, 2, 3)
+        table.attach(entry11, 1, 2, 0, 1)
+        table.attach(entry12, 2, 3, 0, 1)
+        table.attach(entry13, 3, 4, 0, 1)
+        table.attach(entry21, 1, 2, 1, 2)
+        table.attach(entry22, 2, 3, 1, 2)
+        table.attach(entry23, 3, 4, 1, 2)
+        table.attach(entry31, 1, 2, 2, 3)
+        table.attach(entry32, 2, 3, 2, 3)
+        table.attach(entry33, 3, 4, 2, 3)
+        dlg.vbox.pack_start(table, True, True)
+    
+        dlg.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
+        dlg.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
+        dlg.set_default_response(gtk.RESPONSE_OK)
+
+        dlg.show()
+
+        while 1:
+            response = dlg.run()
+    
+            if response==gtk.RESPONSE_OK:
+                val11 = str2num_or_err(entry11.get_text(), label1, None)
+                val12 = str2num_or_err(entry12.get_text(), label1, None)
+                val13 = str2num_or_err(entry13.get_text(), label1, None)
+                val21 = str2num_or_err(entry21.get_text(), label2, None)
+                val22 = str2num_or_err(entry22.get_text(), label2, None)
+                val23 = str2num_or_err(entry23.get_text(), label2, None)
+                val31 = str2num_or_err(entry31.get_text(), label3, None)
+                val32 = str2num_or_err(entry32.get_text(), label3, None)
+                val33 = str2num_or_err(entry33.get_text(), label3, None)
+                
+                cam.SetViewUp(val11,val12,val13)
+                cam.SetFocalPoint(val21,val22,val23)
+                cam.SetPosition(val31,val32,val33)
+    
+                dlg.destroy()
+                return
+            
+            if response==gtk.RESPONSE_CANCEL:
+                dlg.destroy()
+                return
+    
     def auto_play(self, *args):
         
         tmin, tmax = self.eegplot.get_time_lim()
