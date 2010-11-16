@@ -13,10 +13,10 @@ data.extend(glob.glob('gui/*.glade'))
 data.extend(glob.glob('gui/*.gladep'))
 
 setup(name="pbrain",
-      version= '0.59.3',
+      version= '0.8',
       description = "Integrated EEG, CT and MRI analysis",
-      author = "John D. Hunter",
-      author_email="jdhunter@ace.bsd.uchicago.edu",
+      author = "John D. Hunter & Eli Albert",
+      author_email="ealbert@bsd.uchicago.edu",
       long_description = """
       These packages to allow you to analyize and visualize EEG data
       either in a traditional chart based screen or spatially using
