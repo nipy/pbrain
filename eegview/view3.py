@@ -165,8 +165,6 @@ class View3(gtk.Window, Observer):
         interactor = GtkGLExtVTKRenderWindowInteractor()
         #connect interactor button presses. try to disable interact with the overlay.
         interactor.AddObserver('LeftButtonPressEvent', self.press_left)
-        interactor.AddObserver('RightButtonPressEvent',self.disable_overlay_interact)
-        interactor.AddObserver('MiddleButtonPressEvent', self.disable_overlay_interact)
 	    
         self.picker = vtk.vtkCellPicker()
 	
@@ -185,6 +183,7 @@ class View3(gtk.Window, Observer):
         self.renderer = vtk.vtkRenderer()
         self.overlayRenderer = vtk.vtkRenderer()
         interactor.GetRenderWindow().AddRenderer(self.renderer)
+        interactor.overlayRenderer = self.overlayRenderer
         self.interactor = interactor
 
         
@@ -261,8 +260,9 @@ class View3(gtk.Window, Observer):
         
         self.csv_save_electrodes = None
 
-        
-        
+    
+    #currently not used, will take out soon -eli    
+    """    
     def disable_overlay_interact(self, *args):
         #figure out where we clicked
         x,y = self.interactor.GetEventPosition()
@@ -273,6 +273,7 @@ class View3(gtk.Window, Observer):
             cam.SetFocalPoint(15.086358767571982, 4.6935338388001755, 0.0)
             cam.SetPosition(15.086358767571982, 4.6935338388001755, 12.533026371713074)
             self.importer.Update()
+    """
 
     def set_eoi(self, eoi):
         self.eoi = eoi
@@ -285,7 +286,6 @@ class View3(gtk.Window, Observer):
         except AttributeError: pass
         
     def press_left(self, *args):
-        self.disable_overlay_interact(*args) #-eli
         print "View3.press_left()!"
         'If in selection mode and click over marker, select it and update plot'
         if not self.buttonSelected.get_active(): return
