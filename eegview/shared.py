@@ -50,11 +50,11 @@ class RC:
         'sqldatabase',
         'horizcursor',
         'vertcursor',
-	'bni',
-	'csv',
-	'amp',
-	'dat',
-	'col'
+        'bni',
+        'csv',
+        'amp',
+        'dat',
+        'col',
         )
 
     def __init__(self):
@@ -101,16 +101,15 @@ class RC:
 
         self.horizcursor = True
         self.vertcursor = True
-	self.bni = ""
-	self.csv = ""
-	self.amp = ""
-	self.dat = ""
-	self.col = ""
+        self.bni = ""
+        self.csv = ""
+        self.amp = ""
+        self.dat = ""
+        self.col = ""
 
     def loadrc(self):
         
         for line in file(self.filename):
-	    print line
             key, val = line.split(':', 1)
             key = key.strip()
             val = val.strip()

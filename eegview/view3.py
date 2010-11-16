@@ -858,8 +858,11 @@ class View3(gtk.Window, Observer):
 
     def control_camera(self, *args):
         #input exact coordinates to move the main camera
+        #load and save allow you to use .cam files formatted as focalpoint : n n n using keywords focalpoint, position, viewup. 
         cam = self.renderer.GetActiveCamera()
         dlg = gtk.Dialog("Set Camera Coordinates")
+        
+        
         
         vbox = dlg.vbox
 
@@ -929,11 +932,15 @@ class View3(gtk.Window, Observer):
         table.attach(entry32, 2, 3, 2, 3)
         table.attach(entry33, 3, 4, 2, 3)
         dlg.vbox.pack_start(table, True, True)
-    
+        
+        RESPONSE_LOAD = 0
+        RESPONSE_SAVE = 1
+        dlg.add_button("Load", RESPONSE_LOAD)
+        dlg.add_button("Save", RESPONSE_SAVE)
         dlg.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
         dlg.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
         dlg.set_default_response(gtk.RESPONSE_OK)
-
+    
         dlg.show()
 
         while 1:
@@ -960,6 +967,59 @@ class View3(gtk.Window, Observer):
             if response==gtk.RESPONSE_CANCEL:
                 dlg.destroy()
                 return
+                
+            if response==RESPONSE_LOAD:
+                def split_ints(ints):
+                    return [int(val) for val in ints.split()]
+                filename = fmanager.get_filename(title="Select .cam file")
+                if filename is None: return
+                if not os.path.exists(filename):
+                    error_msg('File %s does not exist' % filename, parent=dlg)
+                    return
+                try: fh = file(filename)
+                except IOError, msg:
+                    msg = exception_to_str('Could not open %s' % filename)
+                    error_msg(msg)
+                    return
+                #try to read:
+                camdict = dict()
+                for line in fh:
+                    key, val = line.split(':', 1)
+                    key = key.strip()
+                    val = val.strip()
+                    camdict[key] = split_ints(val)
+                
+                cam.SetViewUp(camdict["viewup"])
+                cam.SetFocalPoint(camdict["focalpoint"])
+                cam.SetPosition(camdict["position"])
+                dlg.destroy()
+                return
+                
+            if response==RESPONSE_SAVE:
+                def join_ints(seq):
+                    return ' '.join(['%d'%val for val in seq])
+                chooser = gtk.FileChooserDialog(title="Select .cam file",action=gtk.FILE_CHOOSER_ACTION_SAVE,
+                                buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_OPEN,gtk.RESPONSE_OK))
+                response = chooser.run()
+                if response == gtk.RESPONSE_OK:
+                    filename = chooser.get_filename()
+                    chooser.destroy()
+                else:
+                    chooser.destroy()
+                if filename is None: return
+                try: 
+                    fh = file(filename, 'w')
+                    valv = join_ints(cam.GetViewUp())
+                    valp = join_ints(cam.GetPosition())
+                    valf = join_ints(cam.GetFocalPoint())
+                    fh.write('%s : %s\n' % ("viewup", valv))
+                    fh.write('%s : %s\n' % ("position", valp))
+                    fh.write('%s : %s\n' % ("focalpoint", valf))
+                except IOError:
+                    print >>sys.stderr, 'Failed to write to', self.filename
+                dlg.destroy()
+                return
+            
     
     def auto_play(self, *args):
         
