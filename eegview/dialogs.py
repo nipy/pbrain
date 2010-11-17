@@ -3876,11 +3876,17 @@ class AutoPlayDialog(gtk.Dialog, Observer):
             thisMax = thisMin + self.twidth
             #decide who to send the signal to
             if self.scalarDisplay["scalardisplay"]:
-                self.broadcast(Observer.SET_SCALAR, thisMin, thisMax)
-            else:
+                #if the scalar option is available, choose between them: 
+                if self.buttonPageScalar.get_active():
+                    self.broadcast(Observer.SET_SCALAR, thisMin, thisMax)
+                else:
+                    self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
+                
+            else: #otherwise just broadcast the eeg driver sig
                 self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
+            #update the data (actual scrolling step):
             self.ind += self.direction
-
+            
             if self.checkButtonMovie.get_active():
                 self.broadcast(Observer.SAVE_FRAME, fname)
             return True

@@ -181,9 +181,9 @@ class View3(gtk.Window, Observer):
         interactor.AddObserver("ExitEvent", lambda o,e,x=None: x)
 
         self.renderer = vtk.vtkRenderer()
-        self.overlayRenderer = vtk.vtkRenderer()
+        self.overlayRenderer = None #initialize later #vtk.vtkRenderer()
         interactor.GetRenderWindow().AddRenderer(self.renderer)
-        interactor.overlayRenderer = self.overlayRenderer
+        
         self.interactor = interactor
 
         
@@ -1126,6 +1126,7 @@ class View3(gtk.Window, Observer):
         if destroy == True:
             self.renderer.SetViewport(0,0,1,1)
             self.overlayRenderer.SetViewport(0,0,0,0)
+            del self.overlayRenderer
             self.interactor.show()
             self.interactor.Initialize()
             self.interactor.Start()
@@ -1152,11 +1153,12 @@ class View3(gtk.Window, Observer):
                 self.scalarDisplay["tmin"] = 0
                 self.scalarDisplay["tmax"] = dataLength
                 self.scalarDisplay["tstep"] = int(dataLength/10)
-                
+                self.overlayRenderer = vtk.vtkRenderer()
                 
                 #rejigger the renderers
                 self.renderer.SetViewport(0,.3,1,1) #maintain two renderers to overlay graph data
                 self.overlayRenderer.SetViewport(0,0,1,.3)
+                self.interactor.overlayRenderer = self.overlayRenderer
                 self.interactor.GetRenderWindow().AddRenderer(self.overlayRenderer)
                 
                 #refresh screen
@@ -1175,7 +1177,6 @@ class View3(gtk.Window, Observer):
             planeActor = vtk.vtkActor()
             planeActor.SetMapper(planeMapper)
             
-
             # Create a texture based off of the image
             planeTexture = vtk.vtkTexture()
             planeTexture.InterpolateOn()

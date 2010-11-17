@@ -277,11 +277,16 @@ class AutoPlayView3Dialog(AutoPlayDialog):
         thisMax = thisMin + self.twidth
         #decide who to send the signal to
         if self.scalarDisplay["scalardisplay"]:
-            print "prebroadcast"
-            self.broadcast(Observer.SET_SCALAR, thisMin, thisMax)
-            print "postbroadcast"
-        else:
+            #if the scalar option is available, choose between them: 
+            if self.buttonPageScalar.get_active():
+                print "DIALOGS: SEND SCALAR MESSAGE: ", thisMin, thisMax
+                self.broadcast(Observer.SET_SCALAR, thisMin, thisMax)
+                print "DIALOGS: SENT SCALAR MESSAGE"
+            else:
+                self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
+        else:  #otherwise just broadcast the eeg driver sig
             self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
+        #update the data (actual scrolling step): now done below
         #self.ind += self.direction
 
         # do the rotate interpolation for view3

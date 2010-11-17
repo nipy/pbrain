@@ -1,5 +1,5 @@
 from __future__ import division
-import sys, os, math, copy
+import sys, os, math, copy, gc
 import pylab as p
 import vtk
 
@@ -118,6 +118,9 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
 
         self.set_sample_num(scrollbar)
 
+        self.connect("destroy", self.on_destroy)
+               
+        
     def view3_remove(self, button):
         #a switch in the array mapper to toggle view3 display
         if self.addview3destroy == False:
@@ -128,7 +131,13 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
             self.addview3destroy = False
             self.broadcast(Observer.ARRAY_CREATED, self.fig, True, self.addview3destroy)
             self.addview3Button.set_label("Remove from view3")
-                
+            
+    def on_destroy(self, widget):
+        #take the view3 display out if we close the window
+        self.view3_remove(self.addview3destroy)
+        print "garbage collecting - unfortunately this doesn't prevent a segfault that will happen if you make a new arraymapper window and then try to drive the autoplay function with it. to be fixed in an upcoming patch, hopefully."
+        gc.collect()
+        
     def set_sample_num(self, bar):
         if (self.time_in_secs == True):
             val = float(bar.get_value())
@@ -219,4 +228,6 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
         if event in (Observer.SET_SCALAR,):
             #move the scrollbar forward by the twidth
             self.scrollbarIndex.set_value(args[1])
+            print "ARRAY MAPPER: RECIEVED SCALAR MESSAGE: ", args[1]
+        return
 
