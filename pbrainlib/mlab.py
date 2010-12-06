@@ -504,7 +504,7 @@ cohere.__doc__ = cohere.__doc__ % kwdocd
 def donothing_callback(*args):
     pass
 
-def cohere_pairs( X, ij, NFFT=256, Fs=2, detrend=detrend_none,
+def cohere_pairs( X, ij, newLength = 256, NFFT=256, Fs=2, detrend=detrend_none,
                   window=window_hanning, noverlap=0,
                   preferSpeedOverMemory=True,
                   progressCallback=donothing_callback,
@@ -585,6 +585,17 @@ def cohere_pairs( X, ij, NFFT=256, Fs=2, detrend=detrend_none,
             For information about the methods used to compute
             :math:`P_{xy}`, :math:`P_{xx}` and :math:`P_{yy}`.
     """
+    #further explanation from eli: dr. towle wanted to be able to take segments of epochs from neuroscanascii files, starting
+    #at the beginning of each epoch, to calculate coherence based on events rather than entire epochs.
+    #here i've coded in a new variable newLength, to be passed initially from view3 through utils.cohere_pairs_eeg to this function, 
+    #which decides how long the calculated segments should be. I've used the original nfft value only for finding the beginning of each new
+    #segment, since this is based on epoch length. the new length decides the shape of all arrays, as show below.
+    
+
+    #basically we've replaced the nfft by the shorter length, but we'll maintain it down below for one thing - epoch definitions
+    oldNFFT = NFFT
+    NFFT = newLength
+    
     numRows, numCols = X.shape
 
     # zero pad if X is too short
@@ -602,6 +613,7 @@ def cohere_pairs( X, ij, NFFT=256, Fs=2, detrend=detrend_none,
         allColumns.add(i); allColumns.add(j)
     Ncols = len(allColumns)
 
+
     # for real X, ignore the negative frequencies
     if np.iscomplexobj(X): numFreqs = NFFT
     else: numFreqs = NFFT//2+1
@@ -615,18 +627,22 @@ def cohere_pairs( X, ij, NFFT=256, Fs=2, detrend=detrend_none,
     else:
         windowVals = window_hanning(np.ones(NFFT, X.dtype)) #I changed this from window to window_hanning. window was not doing anything!! -eli
 	#print windowVals
-    ind = range(0, numRows-NFFT+1, NFFT-noverlap)
+    ind = range(0, numRows-oldNFFT+1, oldNFFT-noverlap) #note variable change to oldnfft
     numSlices = len(ind)
     FFTSlices = {}
     FFTConjSlices = {}
     Pxx = {}
+    if newLength > oldNFFT: #make sure that the newlength is shorter than the segment (epoch) length (see below)
+        newLength = oldNFFT
     slices = range(numSlices)
     normVal = np.linalg.norm(windowVals)**2
     for iCol in allColumns:
         progressCallback(i/Ncols, 'Cacheing FFTs')
         Slices = np.zeros( (numSlices,numFreqs), dtype=np.complex_)
         for iSlice in slices:
-            thisSlice = X[ind[iSlice]:ind[iSlice]+NFFT, iCol]
+            #thisSlice = X[ind[iSlice]:ind[iSlice]+NFFT, iCol] #this is the line that reads the data normally
+            thisSlice = X[ind[iSlice]:ind[iSlice]+newLength, iCol] #this is the line that reads sections of epochs
+            print "MLAB TESTING: ", ind[iSlice], " to ", ind[iSlice] + newLength
             thisSlice = windowVals*detrend(thisSlice)
             Slices[iSlice,:] = np.fft.fft(thisSlice)[:numFreqs]
         FFTSlices[iCol] = Slices

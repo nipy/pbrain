@@ -52,7 +52,7 @@ except:
 	from sets import Set as set
 
 from scipy import array, zeros, ones, sort, absolute, sqrt, divide,\
-     argsort, take, arange
+     argsort, take, arange, maximum as scimax
 from scipy import mean, std
 
 from loc3djr.GtkGLExtVTKRenderWindowInteractor import GtkGLExtVTKRenderWindowInteractor
@@ -746,7 +746,54 @@ class View3(gtk.Window, Observer):
             error_msg(msg)
             return
         print "View3.coherence_from_file(): called read_cohstat(): cxy.keys=", cxy.keys()
+        
+        #test for leo's subtraction idea:
+        
+        filename2 = fmanager.get_filename(title="Select second .dat file in order to subtract from first!!")
+        if filename2 is None: return
+        if not os.path.exists(filename2):
+            error_msg('File %s does not exist' % filename2, parent=dlg)
+            return
 
+        try: fh2 = file(filename2)
+        except IOError, msg:
+            msg = exception_to_str('Could not open %s' % filename2)
+            error_msg(msg)
+            return
+            
+        try: cxy2, pxy2 = read_cohstat(fh2)
+        except RuntimeError, msg:
+            msg = exception_to_str('Error parsing %s' % filename2)
+            error_msg(msg)
+            return
+        print "View3.coherence_from_file(): called read_cohstat(): cxy.keys=", cxy2.keys()
+        
+        if len(cxy) != len(cxy2):
+            print "dat file lengths are unequal: this will cause an error!"
+        cxy3 = cxy
+        pxy3 = pxy
+        for entry in cxy:
+            cxy3[entry] = scimax((cxy2[entry] - cxy[entry]), 0)
+            #cxy3[entry] = cxy2[entry] - cxy[entry]
+            print cxy3[entry]
+        for entry in pxy:
+            i = 0
+            while i != 6:
+                a = pxy2[entry][i]
+                b = pxy[entry][i]
+                i+= 1
+                if abs(a-b) > 180:
+                    res = a + b
+                else:
+                    res = a - b
+                pxy[entry][i - 1] = res    
+            pxy3[entry] = pxy[entry] #phases should be between -180 and 180. i know the above is ugly, can you think of a better way?
+        
+        cxy = cxy3
+        pxy = pxy3
+        #note: using the test code here will load 2 .dat files and subtract all relevant data before finally plotting coherence bars.
+        #/test 
+        
         seen = {}
         for i,j in cxy.keys():
             seen[i] = 1
@@ -1251,9 +1298,11 @@ class View3(gtk.Window, Observer):
             
 
             
-
+    #COMPUTE COHERENCE: CALLED BY RECIEVE: SET_TIME_LIM
+    #args are min and max time
     def compute_coherence(self, setTime=None, *args):
 
+        #code for view3 progressbar on the right
         if sys.platform == 'darwin':
             def progress_callback(frac,  msg):
                 print msg, frac
@@ -1262,14 +1311,13 @@ class View3(gtk.Window, Observer):
                 if frac<0 or frac>1: return
                 self.progBar.set_fraction(frac)
                 while gtk.events_pending(): gtk.main_iteration()
-
-        
-
+      
         if setTime is None:
             tmin, tmax = self.eegplot.get_time_lim()
         else:
             tmin, tmax = setTime
 
+        #if we call this function without changing time limits, and the coherence is already calculated, don't do it again!
         if self.cohCache is not None:
             tlim, eoiPairs, cohRes, pxxRes = self.cohCache
             if (tlim[0] == tmin and
@@ -1281,20 +1329,24 @@ class View3(gtk.Window, Observer):
 
         
         eeg = self.eegplot.get_eeg()
+        #dt is not used right now. le sigh.
         dt = 1.0/eeg.freq
 
         t, data = self.eeg.get_data(tmin, tmax)
 
         Nt = len(t)
         NFFT = int(2**math.floor(log2(Nt)-2))
-        print 'NFFT', NFFT
         NFFT = min(NFFT, 512)
         if self.filterGM:            
             data = filter_grand_mean(data)
+            
+        newLength = 256 #we will want to set this
 
+        print "View3.compute_coherence(): NFFT, dt: ", NFFT, " , ", dt
         #print "View3.compute_coherence(): self.eoiPairs = ", self.eoiPairs
         Cxy, Phase, freqs, Pxx = cohere_pairs_eeg(
             eeg,
+            newLength,
             self.eoiPairs,
             data = data,
             NFFT = NFFT,
@@ -1574,7 +1626,7 @@ class View3(gtk.Window, Observer):
         return returnKeys
         
     def draw_connections(self, Cxy, Pxy, phasethreshold=True):     
-	N = len(self.eoi)
+        N = len(self.eoi)
 
         ret = self.get_cxy_pxy_cutoff(Cxy, Pxy)
         if ret is None:
