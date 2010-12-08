@@ -5,9 +5,16 @@ try:
 	set
 except:
 	from sets import Set as set
+	
+import pygtk
+pygtk.require('2.0')
+import gtk, gobject
+
 from datetime import date, time
 import data
 from struct import unpack
+
+import numpy
 
 from scipy import fromstring
 
@@ -191,7 +198,7 @@ class FileFormat_NeuroscanAscii:
     electrode_labels = []
     channel_names = []
     channel_numbers = []
-
+    zerochans = []
 
     def istext(self, file, check=1024, mask=ascii7bit_mask):
         """Returns true if the first check characters in file
@@ -238,6 +245,12 @@ class FileFormat_NeuroscanAscii:
         print "parse_sampling_rate(): ", sr_strs, len(sr_strs)
         self.sampling_rate = float(sr_strs[1])
         
+    def chanbutswitch(self, widget, channelnum):
+        if widget.get_active():
+            self.zerochans.append(channelnum)
+        else:
+            self.zerochans.remove(channelnum)
+        print self.zerochans
         
 
     def __init__(self, path):
@@ -297,8 +310,10 @@ class FileFormat_NeuroscanAscii:
 
         print "line_count is " , line_count
         # ok this seems to work
-            
-        channel_data = zeros((n_channels, line_count), 'f')
+        #changing channel data to a numpy array
+        #default dtype is numpy.float64
+        #note: tested for validity; also seems to speed up program noticably
+        channel_data = numpy.zeros((n_channels, line_count))
         print "channel_data.shape is " , channel_data.shape
 
         print "seeking to beginning"
@@ -335,6 +350,7 @@ class FileFormat_NeuroscanAscii:
             for i in range(0,n_channels):
                 #print "asc_split[%d] is " % i, asc_split[i]
                 pass
+            #slicing works pretty much the same for numpy arrays
             channel_data[:, line_count] = map(float, asc_split[0:n_channels])
             #channel_data[:, trial_count*512+i] = map(float, asc_split[0:64])
             #print "assigned channel_data[:,", (trial_count * 512)+i, "]"
@@ -356,6 +372,72 @@ class FileFormat_NeuroscanAscii:
 
         print "electrode_labels = ", self.electrode_labels
         print "channels = ", channels
+        
+        #right here we will have a new functionality that allows adding zeroed channels and taking out channels, with user input. maybe this should really live somewhere else, but for the time being, here it shall be. -eli
+        dlg = gtk.Dialog("Channel Manipulation")
+        dlg.connect("destroy", dlg.destroy)
+        dlg.set_size_request(250,400)
+        scrolled_window = gtk.ScrolledWindow(None, None)
+        scrolled_window.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+        dlg.vbox.pack_start(scrolled_window, True, True, 0)
+        scrolled_window.show()
+
+        table = gtk.Table(1,(1+len(self.electrode_labels)))
+        table.set_row_spacings(8)
+        table.set_col_spacings(8)
+        scrolled_window.add_with_viewport(table)
+        table.show()
+        #attach format: obj, beg end x, beg end y
+        l1 = gtk.Label("zero?       channel")
+        l1.show()
+
+        table.attach(l1,0,1,0,1)
+        #an array to control the check boxes
+        chanbuts = []
+        for i in range(0, len(self.electrode_labels)):
+            s1 = "        %s" % (channels[i],)
+            chanbuts.append(gtk.CheckButton(s1))
+            chanbuts[i].show()
+            chanbuts[i].connect("toggled", self.chanbutswitch, channels[i][0])
+            table.attach(chanbuts[i], 0,1,i+1,i+2)
+
+        #dlg.add_button("Add zero channel", 34)
+        dlg.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
+        dlg.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
+        dlg.set_default_response(gtk.RESPONSE_OK)
+    
+        dlg.show()
+
+        while 1:
+            response = dlg.run()
+    
+            if response==gtk.RESPONSE_OK:
+                dlg.destroy()
+                #here take the newly gathered userinput info and apply it
+                for i in self.zerochans:
+                    print "zeroing out channel ", i
+                    #z should be the row of zero-indexed channel_data array corresponding to all of the data for the channel we want to zero
+                    z = channel_data[i-1,:]
+                    z[:] = 0
+                    #this is a hacky fix for a documented bug in numpy whereby comparing large arrays of all zeroes with themselves throws a yucky, badly traced error. It should insignificantly effect calculations.                    
+                    z[1] = .01
+                
+                break
+            """
+            if response==34:
+                #here we want to add a new channel.
+                channels.append((65,'P',72))
+                n_channels += 1
+                nz = numpy.zeros((len(channel_data[1])))
+                print "nz.shape is ", nz.shape 
+                channel_data = numpy.vstack((channel_data,nz))
+                print channel_data.shape
+            """            
+            if response==gtk.RESPONSE_CANCEL:
+                dlg.destroy()
+                #don't actually use the new userinput info
+                break
+        
             
         amp.extend(channels)
 
@@ -369,7 +451,7 @@ class FileFormat_NeuroscanAscii:
         }
 
 
-        #print "called amp.extend(channels); amp=", amp
+        print "called amp.extend(channels); amp=", amp
 
         self.eeg = data.EEGFileSystem(path, amp, params)
 
