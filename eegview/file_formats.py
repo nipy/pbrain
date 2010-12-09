@@ -304,20 +304,26 @@ class FileFormat_NeuroscanAscii:
     
             
             if response==32:
+                n_channels+=1
                 #here we want to add a new channel.
                 dlg2 = gtk.Dialog("Add a zeroed channel")
                 dlg2.connect("destroy", dlg.destroy)
-                dlg2.set_size_request(200,200)
+                dlg2.set_size_request(300,100)
                 table2 = gtk.Table(3,2)
                 table2.show()
                 table2.set_row_spacings(4)
                 table2.set_col_spacings(4)
-                linput = gtk.Label("input:")
+                linput = gtk.Label("channel num:")
                 linput.show()
                 lgnum = gtk.Label("grid number:")
                 lgnum.show()
                 lgname = gtk.Label("grid name:")
                 lgname.show()
+                ecnum = gtk.Entry()
+                ecnum.set_width_chars(3)
+                ecnum.connect('changed', self.numbify)
+                ecnum.set_text("%d" % n_channels)
+                ecnum.show()
                 egnum = gtk.Entry()
                 egnum.set_width_chars(3)
                 egnum.connect('changed', self.numbify) #make sure we only get numbers here
@@ -326,9 +332,10 @@ class FileFormat_NeuroscanAscii:
                 egname.set_width_chars(3)
                 egname.show()
                 
-                table2.attach(linput,0,1,1,2)
+                table2.attach(linput,0,1,0,1)
                 table2.attach(lgname,1,2,0,1)
                 table2.attach(lgnum,2,3,0,1)
+                table2.attach(ecnum,0,1,1,2)
                 table2.attach(egname,1,2,1,2)
                 table2.attach(egnum,2,3,1,2)
                 dlg2.vbox.pack_start(table2, True, True)
@@ -342,10 +349,9 @@ class FileFormat_NeuroscanAscii:
                     response2 = dlg2.run()
     
                     if response2==gtk.RESPONSE_OK:
-                        n_channels+=1
                         nc +=1
                         #here take the newly gathered userinput info and apply it
-                        newchannels.append((n_channels,egname.get_text().strip(),int(egnum.get_text())))
+                        newchannels.append((int(ecnum.get_text()),egname.get_text().strip(),int(egnum.get_text())))
                         print "fileformat test: ", newchannels
                         l3 = gtk.Label(newchannels[nc-1])
                         l3.show()
@@ -353,18 +359,14 @@ class FileFormat_NeuroscanAscii:
                         dlg2.destroy()
                         break
                     if response2==gtk.RESPONSE_CANCEL:
+                        n_channels-=1
                         dlg2.destroy()
                         break
                 
             if response==gtk.RESPONSE_OK:
                 dlg.destroy()
-                #here take the newly gathered userinput info and apply it                
-                for newchan in newchannels:
-                    channels.append(newchan)
-                    nz = numpy.zeros((len(channel_data[1])))
-                    nz[1] = .001 #this is the same hack as just above
-                    print "nz.shape is ", nz.shape 
-                    channel_data = numpy.vstack((channel_data,nz))
+                #here take the newly gathered userinput info and apply it    
+                #we'll zero out the chosen channels first, so that when we insert new ones, things still line up
                 
                 for i in self.zerochans:
                     print "zeroing out channel ", i
@@ -373,6 +375,36 @@ class FileFormat_NeuroscanAscii:
                     z[:] = 0
                     #this is a hacky fix for a documented bug in numpy whereby comparing large arrays of all zeroes with themselves throws a yucky, badly traced error. It should insignificantly effect calculations.                    
                     z[1] = .001
+                
+                #the channels list is a mess to work with, so I'll make it more useful temporarily:
+                tempchannels = []
+                for chan in channels:
+                    tempchannels.append((chan[1],chan[2]))
+                        
+                #now to insert the new channels + zeroed data IN THE RIGHT PLACE hopefully                            
+                for newchan in newchannels:
+                
+                    #fix the raw data with the new zeros, hopefully inserting a column into the array
+                    nz = numpy.zeros((len(channel_data[1])))
+                    nz[1] = .001 #this is the same hack as just above
+                    print "nz.shape, channel_data.shape, newchan[0]", nz.shape, channel_data.shape, newchan[0]
+                    if newchan[0] <= channel_data.shape[0]:
+                        channel_1, channel_2 = numpy.vsplit(channel_data,[newchan[0] - 1])
+                        print "nothertest: ", channel_1.shape, channel_2.shape
+                        channel_data = numpy.vstack((channel_1, nz, channel_2))
+                    else:
+                        channel_data = numpy.vstack((channel_data,nz))
+                    
+                    #put the new channel info in
+                    tempchannels.insert(newchan[0]-1, (newchan[1], newchan[2]))
+                print "first of all ", tempchannels
+                finalchannels = []
+                for i in range(0,len(tempchannels)):
+                    #add the indexes back into these tuples
+                    finalchannels.append((i + 1, tempchannels[i][0], tempchannels[i][1]))
+                print "here we go? ", finalchannels
+                channels = finalchannels 
+                
                 print channel_data.shape
                 break
                         
