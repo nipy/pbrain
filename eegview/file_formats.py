@@ -251,7 +251,138 @@ class FileFormat_NeuroscanAscii:
         else:
             self.zerochans.remove(channelnum)
         print self.zerochans
+    def numbify(self, widget, *args):
+        text = widget.get_text().strip()
+        widget.set_text(''.join([i for i in text if i in '0123456789']))
         
+    def manipulate_channels(self,n_channels,channels,channel_data):
+        #right here we will have a new functionality that allows adding zeroed channels and taking out channels, with user input. -eli
+        newchannels = []
+        
+        dlg = gtk.Dialog("Channel Manipulation")
+        dlg.connect("destroy", dlg.destroy)
+        dlg.set_size_request(400,400)
+        scrolled_window = gtk.ScrolledWindow(None, None)
+        scrolled_window.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+        dlg.vbox.pack_start(scrolled_window, True, True, 0)
+        scrolled_window.show()
+
+        table = gtk.Table(2,(1+len(self.electrode_labels)))
+        table.set_row_spacings(8)
+        table.set_col_spacings(8)
+        scrolled_window.add_with_viewport(table)
+        table.show()
+        #attach format: obj, beg end x, beg end y
+        l1 = gtk.Label("zero?            channel")
+        l1.show()
+
+        l2 = gtk.Label("    added zeroed channels:")
+        l2.show()
+
+        table.attach(l1,0,1,0,1)
+        table.attach(l2,1,2,0,1)
+        #an array to control the check boxes
+        chanbuts = []
+        for i in range(0, len(self.electrode_labels)):
+            s1 = "                %s" % (channels[i],)
+            chanbuts.append(gtk.CheckButton(s1))
+            chanbuts[i].show()
+            chanbuts[i].connect("toggled", self.chanbutswitch, channels[i][0])
+            table.attach(chanbuts[i], 0,1,i+1,i+2)
+            
+        dlg.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
+        dlg.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
+        dlg.add_button("Add zero channel", 32) #32 is my favorite number
+        dlg.set_default_response(gtk.RESPONSE_OK)
+    
+        dlg.show()
+        
+        nc = 0
+        while 1:
+            
+            response = dlg.run()
+    
+            
+            if response==32:
+                #here we want to add a new channel.
+                dlg2 = gtk.Dialog("Add a zeroed channel")
+                dlg2.connect("destroy", dlg.destroy)
+                dlg2.set_size_request(200,200)
+                table2 = gtk.Table(3,2)
+                table2.show()
+                table2.set_row_spacings(4)
+                table2.set_col_spacings(4)
+                linput = gtk.Label("input:")
+                linput.show()
+                lgnum = gtk.Label("grid number:")
+                lgnum.show()
+                lgname = gtk.Label("grid name:")
+                lgname.show()
+                egnum = gtk.Entry()
+                egnum.set_width_chars(3)
+                egnum.connect('changed', self.numbify) #make sure we only get numbers here
+                egnum.show()
+                egname = gtk.Entry()
+                egname.set_width_chars(3)
+                egname.show()
+                
+                table2.attach(linput,0,1,1,2)
+                table2.attach(lgname,1,2,0,1)
+                table2.attach(lgnum,2,3,0,1)
+                table2.attach(egname,1,2,1,2)
+                table2.attach(egnum,2,3,1,2)
+                dlg2.vbox.pack_start(table2, True, True)
+                
+                dlg2.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
+                dlg2.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
+                
+                dlg2.set_default_response(gtk.RESPONSE_OK)
+                dlg2.show()
+                while 1:
+                    response2 = dlg2.run()
+    
+                    if response2==gtk.RESPONSE_OK:
+                        n_channels+=1
+                        nc +=1
+                        #here take the newly gathered userinput info and apply it
+                        newchannels.append((n_channels,egname.get_text().strip(),int(egnum.get_text())))
+                        print "fileformat test: ", newchannels
+                        l3 = gtk.Label(newchannels[nc-1])
+                        l3.show()
+                        table.attach(l3,1,2,nc, nc+1)
+                        dlg2.destroy()
+                        break
+                    if response2==gtk.RESPONSE_CANCEL:
+                        dlg2.destroy()
+                        break
+                
+            if response==gtk.RESPONSE_OK:
+                dlg.destroy()
+                #here take the newly gathered userinput info and apply it                
+                for newchan in newchannels:
+                    channels.append(newchan)
+                    nz = numpy.zeros((len(channel_data[1])))
+                    nz[1] = .001 #this is the same hack as just above
+                    print "nz.shape is ", nz.shape 
+                    channel_data = numpy.vstack((channel_data,nz))
+                
+                for i in self.zerochans:
+                    print "zeroing out channel ", i
+                    #z should be the row of zero-indexed channel_data array corresponding to all of the data for the channel we want to zero
+                    z = channel_data[i-1,:]
+                    z[:] = 0
+                    #this is a hacky fix for a documented bug in numpy whereby comparing large arrays of all zeroes with themselves throws a yucky, badly traced error. It should insignificantly effect calculations.                    
+                    z[1] = .001
+                print channel_data.shape
+                break
+                        
+            if response==gtk.RESPONSE_CANCEL:
+                n_channels -= len(newchannels) #unwind any added zerochans
+                dlg.destroy()
+                #don't actually use the new userinput info
+                break
+        return n_channels, channels, channel_data
+
 
     def __init__(self, path):
         ascfile = file(path)
@@ -373,70 +504,7 @@ class FileFormat_NeuroscanAscii:
         print "electrode_labels = ", self.electrode_labels
         print "channels = ", channels
         
-        #right here we will have a new functionality that allows adding zeroed channels and taking out channels, with user input. maybe this should really live somewhere else, but for the time being, here it shall be. -eli
-        dlg = gtk.Dialog("Channel Manipulation")
-        dlg.connect("destroy", dlg.destroy)
-        dlg.set_size_request(250,400)
-        scrolled_window = gtk.ScrolledWindow(None, None)
-        scrolled_window.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
-        dlg.vbox.pack_start(scrolled_window, True, True, 0)
-        scrolled_window.show()
-
-        table = gtk.Table(1,(1+len(self.electrode_labels)))
-        table.set_row_spacings(8)
-        table.set_col_spacings(8)
-        scrolled_window.add_with_viewport(table)
-        table.show()
-        #attach format: obj, beg end x, beg end y
-        l1 = gtk.Label("zero?       channel")
-        l1.show()
-
-        table.attach(l1,0,1,0,1)
-        #an array to control the check boxes
-        chanbuts = []
-        for i in range(0, len(self.electrode_labels)):
-            s1 = "        %s" % (channels[i],)
-            chanbuts.append(gtk.CheckButton(s1))
-            chanbuts[i].show()
-            chanbuts[i].connect("toggled", self.chanbutswitch, channels[i][0])
-            table.attach(chanbuts[i], 0,1,i+1,i+2)
-
-        #dlg.add_button("Add zero channel", 34)
-        dlg.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
-        dlg.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
-        dlg.set_default_response(gtk.RESPONSE_OK)
-    
-        dlg.show()
-
-        while 1:
-            response = dlg.run()
-    
-            if response==gtk.RESPONSE_OK:
-                dlg.destroy()
-                #here take the newly gathered userinput info and apply it
-                for i in self.zerochans:
-                    print "zeroing out channel ", i
-                    #z should be the row of zero-indexed channel_data array corresponding to all of the data for the channel we want to zero
-                    z = channel_data[i-1,:]
-                    z[:] = 0
-                    #this is a hacky fix for a documented bug in numpy whereby comparing large arrays of all zeroes with themselves throws a yucky, badly traced error. It should insignificantly effect calculations.                    
-                    z[1] = .01
-                
-                break
-            """
-            if response==34:
-                #here we want to add a new channel.
-                channels.append((65,'P',72))
-                n_channels += 1
-                nz = numpy.zeros((len(channel_data[1])))
-                print "nz.shape is ", nz.shape 
-                channel_data = numpy.vstack((channel_data,nz))
-                print channel_data.shape
-            """            
-            if response==gtk.RESPONSE_CANCEL:
-                dlg.destroy()
-                #don't actually use the new userinput info
-                break
+        n_channels, channels, channel_data = self.manipulate_channels(n_channels,channels,channel_data)
         
             
         amp.extend(channels)

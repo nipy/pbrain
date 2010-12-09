@@ -1376,6 +1376,8 @@ class EEGFileSystem(EEGBase):
         csvs = self._get_assocfiles('*.csv')
         legit = set(self.grds + self.anns)
         bad = []
+        #taking out this annoying and seemingly unnecessary warning, for now -eli
+        """
         for csv in csvs:
             if csv not in legit:
                 bad.append(csv)
@@ -1390,6 +1392,7 @@ class EEGFileSystem(EEGBase):
             dlg.set_title('Old CSV Files Found')
             response = dlg.run()
             dlg.destroy()
+        """
 
     def _get_assocfiles(self, pattern):
         return glob.glob(os.path.join(self.path, pattern))
