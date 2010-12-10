@@ -382,6 +382,7 @@ class FileFormat_NeuroscanAscii:
                 for chan in channels:
                     tempchannels.append((chan[1],chan[2]))
                 
+                cc = 0
                 #now to insert the new channels + zeroed data IN THE RIGHT PLACE hopefully                            
                 for newchan in newchannels:
                     #fix the raw data with the new zeros, hopefully inserting a column into the array
@@ -389,19 +390,21 @@ class FileFormat_NeuroscanAscii:
                     nz[1] = .001 #this is the same hack as just above
                     #print "nz.shape, channel_data.shape, newchan[0]", nz.shape, channel_data.shape, newchan[0]
                     if newchan[0] <= channel_data.shape[0]:
-                        channel_1, channel_2 = numpy.vsplit(channel_data,[newchan[0] - 1])
+                        channel_1, channel_2 = numpy.vsplit(channel_data,[newchan[0] - 1 + cc])
                         #print "make sure columns are split right: ", channel_1.shape, channel_2.shape
                         channel_data = numpy.vstack((channel_1, nz, channel_2))
                     else:
                         channel_data = numpy.vstack((channel_data,nz))
                     
                     #put the new channel info in
-                    tempchannels.insert(newchan[0]-1, (newchan[1], newchan[2]))
+                    tempchannels.insert(newchan[0]-1 + cc, (newchan[1], newchan[2]))
+                    cc += 1
                 finalchannels = []
                 for i in range(0,len(tempchannels)):
                     #add the indexes back into these tuples
                     finalchannels.append((i + 1, tempchannels[i][0], tempchannels[i][1]))
                 channels = finalchannels 
+                print "FILEFORMATS CHANNELS: ", channels
                 break
                         
             if response==gtk.RESPONSE_CANCEL:
