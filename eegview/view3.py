@@ -1340,7 +1340,7 @@ class View3(gtk.Window, Observer):
         if self.filterGM:            
             data = filter_grand_mean(data)
             
-        newLength = 256 #we will want to set this
+        newLength = 512 #we will want to set this
 
         print "View3.compute_coherence(): NFFT, dt: ", NFFT, " , ", dt
         #print "View3.compute_coherence(): self.eoiPairs = ", self.eoiPairs

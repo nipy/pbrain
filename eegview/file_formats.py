@@ -416,46 +416,36 @@ class FileFormat_NeuroscanAscii:
 
 
     def __init__(self, path):
-        ascfile = file(path)
-        beginning_position = ascfile.tell()
-        if(self.istext(ascfile) == 0):
-            print "FileFormat_NeuroscanAscii(): not an ASCII file"
-            raise IOError('%s not an ASCII file' %path)
-           
-
-        ascfile.seek(beginning_position, 0)
-        still_file = 1
-
+        newheader = 0
+        almostdone = 0
         line_count = 0
-        found_eof = 0
-        # mcc: XXX
-        n_channels = -1
+        with open(path) as ascfile:
+            for line in ascfile:
+                found_eof = 0
+                n_channels = -1
         
-        
-        while (1 == still_file):
-            if (still_file != 1):
-                break
-            while 1:
-                ascline = ascfile.readline()
-                #ascline = ascline[:-1]
-                ascline = ascline.strip()
-                #print "ascline is ", ascline
+                ascline = line.strip()
+                #the following few lines are a hack to get around a problem I've been having with random EOFs strangely peppered through neuroscanascii files before the true EOF -eli
                 if not ascline:
-                    print "FOUND EOF"
-                    found_eof = 1
-                    still_file = 0
-                    break
-                elif (ascline[0] == '['):
-                    #print "ascline is", ascline[:-2] # [:-2] for \r\n
-
+                    almostdone = 1
+                    continue
+                if almostdone == 1:
+                    if not ascline:
+                        break
+                    else:
+                        almostdone = 0
+                if (ascline[0] == '['):
                     # on initial parse, grab "electrode_labels" (a.k.a. "channels" for Amp class)
-                    if (ascline == '[Electrode Labels]'):
-                        ascline = ascfile.readline()
-                        #print "parsing electrode_labels: ",ascline
+                    if newheader == 1:
+                        print "parsing electrode_labels: ",ascline
                         electrode_labels = self.parse_electrode_labels(ascline)
+                        newheader = 0
+                    #skip to the next line:
+                    if (ascline == '[Electrode Labels]'):
+                        newheader = 1
+                    
                     elif (ascline.find('[Rate]') == 0):
                         sampling_rate = self.parse_sampling_rate(ascline)
-                    continue
                 else:
                     if (n_channels == -1):
                         n_channels = len(ascline.split('\t'))
@@ -463,67 +453,39 @@ class FileFormat_NeuroscanAscii:
                         if (n_channels != len(ascline.split('\t'))):
                             print "wtf , got %d channels but already had %d n_channels", (len(ascline.split('\t')), n_channels)
                     line_count = line_count + 1
-                    # we have found numbers, break out 
-                    break
-                    
-            if  not still_file:
-                break
-            #asc_split = ascline.split('	')
 
         print "line_count is " , line_count
-        # ok this seems to work
         #changing channel data to a numpy array
         #default dtype is numpy.float64
         #note: tested for validity; also seems to speed up program noticably
         channel_data = numpy.zeros((n_channels, line_count))
         print "channel_data.shape is " , channel_data.shape
 
-        print "seeking to beginning"
-        ascfile.seek(beginning_position, 0)
-
         line_count = 0
-        found_eof = 0
-        still_file = 1
-        channel_assign_count = 0
-        while (1 == still_file):
-            if (still_file != 1):
-                break
-            while 1:
-                ascline = ascfile.readline()
-                #print "ascline is ", ascline[:-1]
-                ascline = ascline.strip()
+        almostdone = 0
+        with open(path) as ascfile:
+            for line in ascfile:
+                ascline = line.strip()
+                if almostdone == 1:
+                    if not ascline:
+                        break
+                    else:
+                        almostdone = 0
                 if not ascline:
-                    print "FOUND EOF"
-                    found_eof = 1
-                    still_file = 0
-                    break
+                    print "Working.."
+                    almostdone = 1
+                    continue
                 elif (ascline[0] == '['):
                     continue
-                else:
-                    break
-            if  not still_file:
-                break
-            asc_split = ascline.split('	')
-            # we now have n_channels channel values which basically consist of a column of data in channel_data, sweet
-            #print "asc_split is", asc_split
-            #print "asc_split is of size " , len(asc_split)
-            #print "setting data[:, ", line_count, "]"
-            #print "dude float(asc_split[0] is", float(asc_split[0])
-            for i in range(0,n_channels):
-                #print "asc_split[%d] is " % i, asc_split[i]
-                pass
-            #slicing works pretty much the same for numpy arrays
-            channel_data[:, line_count] = map(float, asc_split[0:n_channels])
-            #channel_data[:, trial_count*512+i] = map(float, asc_split[0:64])
-            #print "assigned channel_data[:,", (trial_count * 512)+i, "]"
-            channel_assign_count += 1
-            #print channel_data[:,trial_count*512]
-                
-            if not found_eof:
+                asc_split = ascline.split('	')
+                # we now have n_channels channel values which basically consist of a column of data in channel_data, sweet
+                #slicing works pretty much the same for numpy arrays
+                #print asc_split[0:n_channels]
+                channel_data[:, line_count] = map(float, asc_split[0:n_channels])
                 line_count += 1
 
-        "ok, done with channel_data. assigned " , channel_assign_count, " channels"
-
+        #"ok, done with channel_data. assigned " , channel_assign_count, " channels"
+        print "new linecount!! ", line_count
         amp = data.Amp()
 
         channels = []
