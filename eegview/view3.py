@@ -141,6 +141,7 @@ class View3(gtk.Window, Observer):
         self.eoiPairs = all_pairs_eoi(self.eoi)
         self.selected = None
         self.cohCache = None  # cache coherence results from other window
+        self.cohereResults = None
 
         self.csv_fname = None
         self.scalarDisplay = {"scalardisplay" : False, "tmin" : 0, "tmax" : 10, "tstep" : 1} 
@@ -171,7 +172,7 @@ class View3(gtk.Window, Observer):
         self.picker.SetTolerance(0.005)
         interactor.SetPicker(self.picker)
 
-        W = 240  
+        W = 360
         #interactor.set_size_request(W, int(W/1.3))
         interactor.set_size_request(W*2, W*2) # XXX mcc: hack. maybe try show()ing after add()
       
@@ -483,12 +484,12 @@ class View3(gtk.Window, Observer):
         self.add_toolitem2(toolbar2,button, 'Only plot low')
         button.connect('toggled', low_clicked)
 
-        self.entryMaxDist = gtk.Entry()
-        self.entryMaxDist.show()
-        self.entryMaxDist.set_text('None')
-        self.entryMaxDist.set_width_chars(5)
+        #self.entryMaxDist = gtk.Entry()
+        #self.entryMaxDist.show()
+        #self.entryMaxDist.set_text('None')
+        #self.entryMaxDist.set_width_chars(5)
         #toolbar2.append_widget(self.entryMaxDist, 'Maximum distace', '')
-        self.add_toolitem2(toolbar2, self.entryMaxDist, 'Maximum distance')
+        #self.add_toolitem2(toolbar2, self.entryMaxDist, 'Maximum distance')
 
         self.add_toolbutton1(toolbar2, gtk.STOCK_EXECUTE, 'Replot', 'Private', self.plot_band)
 
@@ -541,6 +542,23 @@ class View3(gtk.Window, Observer):
 
         self.buttonPhase.connect('toggled', phase_toggled)
         
+        self.buttonRange = gtk.CheckButton('Full Range')
+        self.buttonRange.show()
+        self.buttonRange.set_active(False)
+        self.add_toolitem2(toolbar2, self.buttonRange, 'Use the entire range of the EEGView herald window for coherence calculations')
+        
+        def range_toggled(button):
+            tmax = self.eeg.get_tmax()
+            print "view3.range_toggled test: tmax: ", tmax, self.eeg.freq
+            tmax = tmax*self.eeg.freq
+            if not button.get_active():
+                #don't broadcast
+                self.eegplot.set_time_lim(0,10, True, False)
+            else:
+                
+                self.eegplot.set_time_lim(0,tmax, True, False)
+        self.buttonRange.connect('toggled',range_toggled)
+            
 
 	
         def show_image_prefs(widget, *args):
@@ -597,9 +615,9 @@ class View3(gtk.Window, Observer):
                 return None
             dvec, cvec, cxy, pxy, predicted, pars, normedvec, cutoff = ret
 
-            maxd = self.entryMaxDist.get_text()
-            try: maxd = float(maxd)
-            except ValueError: maxd = None
+            maxd = None #self.entryMaxDist.get_text()
+            #try: maxd = float(maxd)
+            #except ValueError: maxd = None
 
             keys = self.get_supra_threshold_keys(len(self.eoi), cxy, pxy, cutoff, None, maxd)
 
@@ -1626,6 +1644,9 @@ class View3(gtk.Window, Observer):
         return returnKeys
         
     def draw_connections(self, Cxy, Pxy, phasethreshold=True):     
+        if not self.buttonPhase.get_active():
+            phasethreshold = False
+        
         N = len(self.eoi)
 
         ret = self.get_cxy_pxy_cutoff(Cxy, Pxy)
@@ -1646,9 +1667,9 @@ class View3(gtk.Window, Observer):
 
         useSelected = self.buttonSelected.get_active() and (self.selected is not None)
 
-        maxd = self.entryMaxDist.get_text()
-        try: maxd = float(maxd)
-        except ValueError: maxd = None
+        maxd = None #self.entryMaxDist.get_text()
+        #try: maxd = float(maxd)
+        #except ValueError: maxd = None
         
         self.gridManager.flush_connections()
 

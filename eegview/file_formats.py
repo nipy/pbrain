@@ -371,7 +371,7 @@ class FileFormat_NeuroscanAscii:
                     print "zeroing out channel ", i
                     #z should be the row of zero-indexed channel_data array corresponding to all of the data for the channel we want to zero
                     z = channel_data[i-1,:]
-                    z[:] = 0
+                    z[:] = .5
                     #this is a hacky fix for a documented bug in numpy whereby comparing large arrays of all zeroes with themselves throws a yucky, badly traced error. It should insignificantly effect calculations.                    
                     z[1] = .001
                 
@@ -387,6 +387,7 @@ class FileFormat_NeuroscanAscii:
                 for newchan in newchannels:
                     #fix the raw data with the new zeros, hopefully inserting a column into the array
                     nz = numpy.zeros((len(channel_data[1])))
+                    nz.fill(.5)
                     nz[1] = .001 #this is the same hack as just above
                     #print "nz.shape, channel_data.shape, newchan[0]", nz.shape, channel_data.shape, newchan[0]
                     if newchan[0] <= channel_data.shape[0]:
@@ -472,7 +473,6 @@ class FileFormat_NeuroscanAscii:
                     else:
                         almostdone = 0
                 if not ascline:
-                    print "Working.."
                     almostdone = 1
                     continue
                 elif (ascline[0] == '['):
