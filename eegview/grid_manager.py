@@ -86,7 +86,7 @@ class GridManager:
         #self.renderer.AddActor(self.scalarBar)
  
         self.do_scale_pipes = False 
-        self.do_scale_pipes_with_coherence = False 
+        self.do_scale_pipes_with_coherence = True 
         self.pipes_scaling_factor = 0.2
     
     #self.entryAsciiFile = None    
@@ -238,7 +238,7 @@ class GridManager:
             self.renderer.RemoveActor(actor)
         self.tubeActors = []
         
-    def connect_markers(self, e1, e2, relHeight=0.25, lineWid=0.05,
+    def connect_markers(self, e1, e2, relHeight=0.25, lineWid=0.03,
                         scalarfunc=identity, radiusFactor=10):
         """
         Draw a line connecting electode1 with electrode2 (gname, gnum)
@@ -333,14 +333,15 @@ class GridManager:
         radius_factor = 10
         if (self.do_scale_pipes_with_coherence == True):
             radius_factor = radiusFactor
-
+        print "grid_manager ", self.do_scale_pipes_with_coherence, self.do_scale_pipes, radius_factor
         if (self.do_scale_pipes == True):
             filter.SetRadius(0.75*radius_factor*lineWid*m1.get_size())
             print "m1.get_size() is ", m1.get_size()
             #print "do_scale_pipes == True, setting radius to %f" % (0.75*radiusFactor*lineWid*m1.get_size())
         else:
             #print "do_scale_pipes == False, setting radius to %f" % (0.75*radiusFactor*lineWid)
-            filter.SetRadius(0.75*radius_factor*lineWid*self.pipes_scaling_factor)
+            #the math.pow in here is to scale the radii a little better so that we can make out the differences
+            filter.SetRadius(0.75*((math.pow(radius_factor,2))/160)*lineWid*self.pipes_scaling_factor)
 
         mapper = vtk.vtkPolyDataMapper()
         mapper.SetInput(filter.GetOutput())
@@ -1002,7 +1003,7 @@ class GridManager:
 
         button = gtk.CheckButton('Pipes scale with coherence values')
         button.show()
-        button.set_active(False)
+        button.set_active(True)
         frameVBox.pack_start(button, False, False)
         def scale_pipes_with_coherence(button):
             if not button.get_active():
