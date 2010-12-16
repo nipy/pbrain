@@ -721,7 +721,7 @@ def get_best_exp_params(x, y, guess=(1.0, -.5, 0.0)):
 
 
 
-def cohere_pairs_eeg( eeg, newLength = 256, eoiPairs=None, indMin=0, indMax=None,
+def cohere_pairs_eeg( eeg, newLength, NFFT, offset, eoiPairs=None, indMin=0, indMax=None,
                       data=None, returnPxx=False, **kwargs):
     """
     FUNC: cohere_pairs_eeg
@@ -787,6 +787,7 @@ def cohere_pairs_eeg( eeg, newLength = 256, eoiPairs=None, indMin=0, indMax=None
     print "utils.cohere_pairs_eeg: eeg.freq: ", eeg.freq   
     
     amp = eeg.get_amp()
+    print "UTILS AMP: ", amp
     if eoiPairs is None:
         eoiPairs = all_pairs_eoi( amp.to_eoi() )
 
@@ -806,13 +807,13 @@ def cohere_pairs_eeg( eeg, newLength = 256, eoiPairs=None, indMin=0, indMax=None
     if returnPxx:
         try:
             Cxy, Phase, freqs, Pxx = cohere_pairs(
-                X, ij, newLength, Fs=eeg.freq, returnPxx=True, **kwargs)
+                X, ij, newLength, NFFT, offset, Fs=eeg.freq, returnPxx=True, **kwargs)
         except OverflowError, overflowerror:
             print "cohere_pairs_eeg(): caught overflow error!! bailing: ", overflowerror
             
     else:
         Cxy, Phase, freqs = cohere_pairs(
-            X, ij, Fs=eeg.freq, **kwargs)
+            X, ij, newLength, NFFT, offset, Fs=eeg.freq, **kwargs)
 
     seen = {}
     keys = Cxy.keys()

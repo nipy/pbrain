@@ -199,6 +199,7 @@ class FileFormat_NeuroscanAscii:
     channel_names = []
     channel_numbers = []
     zerochans = []
+    newchannels = []
 
     def istext(self, file, check=1024, mask=ascii7bit_mask):
         """Returns true if the first check characters in file
@@ -251,13 +252,14 @@ class FileFormat_NeuroscanAscii:
         else:
             self.zerochans.remove(channelnum)
         print self.zerochans
+        
     def numbify(self, widget, *args):
         text = widget.get_text().strip()
         widget.set_text(''.join([i for i in text if i in '0123456789']))
-        
+               
     def manipulate_channels(self,n_channels,channels,channel_data):
         #right here we will have a new functionality that allows adding zeroed channels and taking out channels, with user input. -eli
-        newchannels = []
+        
         
         dlg = gtk.Dialog("Channel Manipulation")
         dlg.connect("destroy", dlg.destroy)
@@ -307,7 +309,7 @@ class FileFormat_NeuroscanAscii:
                 n_channels+=1
                 #here we want to add a new channel.
                 dlg2 = gtk.Dialog("Add a zeroed channel")
-                dlg2.connect("destroy", dlg.destroy)
+                dlg2.connect("destroy", dlg2.destroy)
                 dlg2.set_size_request(300,100)
                 table2 = gtk.Table(3,2)
                 table2.show()
@@ -351,8 +353,8 @@ class FileFormat_NeuroscanAscii:
                     if response2==gtk.RESPONSE_OK:
                         nc +=1
                         #here take the newly gathered userinput info and apply it
-                        newchannels.append((int(ecnum.get_text()),egname.get_text().strip(),int(egnum.get_text())))
-                        l3 = gtk.Label(newchannels[nc-1])
+                        self.newchannels.append((int(ecnum.get_text()),egname.get_text().strip(),int(egnum.get_text())))
+                        l3 = gtk.Label(self.newchannels[nc-1])
                         l3.show()
                         table.attach(l3,1,2,nc, nc+1)
                         dlg2.destroy()
@@ -371,12 +373,12 @@ class FileFormat_NeuroscanAscii:
                     print "zeroing out channel ", i
                     #z should be the row of zero-indexed channel_data array corresponding to all of the data for the channel we want to zero
                     z = channel_data[i-1,:]
-                    z[:] = .5
+                    z[:] = 0
                     #this is a hacky fix for a documented bug in numpy whereby comparing large arrays of all zeroes with themselves throws a yucky, badly traced error. It should insignificantly effect calculations.                    
                     z[1] = .001
                 
                 #sort the newchannels list by channel number. otherwise they won't add correctly:
-                newchannels = sorted(newchannels, key = lambda a: a[0])
+                self.newchannels = sorted(self.newchannels, key = lambda a: a[0])
                 #the channels list is a mess to work with, so I'll make it more useful temporarily:
                 tempchannels = []
                 for chan in channels:
@@ -384,10 +386,10 @@ class FileFormat_NeuroscanAscii:
                 
                 cc = 0
                 #now to insert the new channels + zeroed data IN THE RIGHT PLACE hopefully                            
-                for newchan in newchannels:
+                for newchan in self.newchannels:
                     #fix the raw data with the new zeros, hopefully inserting a column into the array
                     nz = numpy.zeros((len(channel_data[1])))
-                    nz.fill(.5)
+                    #nz.fill(.5)
                     nz[1] = .001 #this is the same hack as just above
                     #print "nz.shape, channel_data.shape, newchan[0]", nz.shape, channel_data.shape, newchan[0]
                     if newchan[0] <= channel_data.shape[0]:
@@ -405,11 +407,12 @@ class FileFormat_NeuroscanAscii:
                     #add the indexes back into these tuples
                     finalchannels.append((i + 1, tempchannels[i][0], tempchannels[i][1]))
                 channels = finalchannels 
-                print "FILEFORMATS CHANNELS: ", channels
                 break
                         
             if response==gtk.RESPONSE_CANCEL:
-                n_channels -= len(newchannels) #unwind any added zerochans
+                n_channels -= len(self.newchannels) #unwind any added zerochans
+                self.newchannels = []
+                self.zerochans = []
                 dlg.destroy()
                 #don't actually use the new userinput info
                 break
@@ -498,7 +501,8 @@ class FileFormat_NeuroscanAscii:
         print "channels = ", channels
         
         n_channels, channels, channel_data = self.manipulate_channels(n_channels,channels,channel_data)
-        
+        #pass forward the zeroed channel info so that coherence results aren't skewed!
+        #self.zerochans.append(self.newchannels)
             
         amp.extend(channels)
 

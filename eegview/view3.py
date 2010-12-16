@@ -154,6 +154,9 @@ class View3(gtk.Window, Observer):
         # will not have to talk to each other too much or at all
         self.meshManager = None
         
+        self.NFFT = 512
+        self.newLength = 256
+        self.offset = 0
         
         seen = {}
         for key in self.eoi:
@@ -317,6 +320,10 @@ class View3(gtk.Window, Observer):
         trode = gname, gnum
         self.broadcast(Observer.SELECT_CHANNEL, trode)
     
+    def numbify(self, widget, *args):
+        text = widget.get_text().strip()
+        widget.set_text(''.join([i for i in text if i in '0123456789']))
+        
     def add_separator(self, toolbar):
         toolitem = gtk.SeparatorToolItem()
         toolitem.set_draw(True)
@@ -374,6 +381,84 @@ class View3(gtk.Window, Observer):
         self.add_separator(toolbar1)
         self.add_toolbutton1(toolbar1, gtk.STOCK_SAVE_AS, 'Save screenshot', 'Private', self.save_image)
         self.add_toolbutton1(toolbar1, gtk.STOCK_JUMP_TO, 'Autopage/Movie', 'Private', self.auto_play)
+
+        self.buttonRange = gtk.CheckButton()
+        self.buttonRange.set_active(False)
+        self.buttonRange.set_mode(True)
+        
+        def range_toggled():
+            tmax = self.eeg.get_tmax()
+            print "view3.range_toggled test: tmax: ", tmax, self.eeg.freq
+            tmax = tmax*self.eeg.freq
+            self.eegplot.set_time_lim(0,tmax, True, False)
+
+        ###new parameters for coherence calculations:
+        def coh_params(widget, *args):
+            dlg2 = gtk.Dialog("Coherence Calculation Parameters")
+            dlg2.connect("destroy", dlg2.destroy)
+            dlg2.set_size_request(300,200)
+            table2 = gtk.Table(2,4)
+            table2.show()
+            table2.set_row_spacings(4)
+            table2.set_col_spacings(4)
+            lrange = gtk.Label("calculate over all data:")
+            lrange.show()
+            lsweep = gtk.Label("Sweep Length in points:")
+            lsweep.show()
+            lcoh = gtk.Label("Coh Calc Length in points:")
+            lcoh.show()
+            loff = gtk.Label("Offset in points:")
+            loff.show()
+            esweep = gtk.Entry()
+            esweep.set_width_chars(3)
+            esweep.set_text("%d" % self.NFFT)
+            esweep.connect('changed', self.numbify)
+            esweep.show()
+            ecoh = gtk.Entry()
+            ecoh.set_text("%d" % self.newLength)
+            ecoh.connect('changed', self.numbify)
+            ecoh.set_width_chars(3)
+            ecoh.show()
+            eoff = gtk.Entry()
+            eoff.set_width_chars(3)
+            eoff.set_text("%d" % self.offset)
+            eoff.connect('changed', self.numbify)
+            eoff.show()
+            self.buttonRange.show()
+                
+            table2.attach(lrange,0,1,0,1)
+            table2.attach(self.buttonRange,1,2,0,1)
+            table2.attach(lsweep,0,1,1,2)
+            table2.attach(lcoh,0,1,2,3)
+            table2.attach(loff,0,1,3,4)
+            table2.attach(esweep,1,2,1,2)
+            table2.attach(ecoh,1,2,2,3)
+            table2.attach(eoff,1,2,3,4)
+            dlg2.vbox.pack_start(table2, True, True)
+                
+            dlg2.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
+            dlg2.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
+                
+            dlg2.set_default_response(gtk.RESPONSE_OK)
+            dlg2.show()
+            while 1:
+                response2 = dlg2.run()
+
+                if response2==gtk.RESPONSE_OK:
+                    self.NFFT = int(esweep.get_text())
+                    self.offset = int(eoff.get_text())
+                    self.newLength = int(ecoh.get_text())
+                    if self.buttonRange.get_active():
+                        range_toggled()
+                    else:
+                        self.eegplot.set_time_lim(0,10, True, False)
+                    dlg2.destroy()
+                    break
+                if response2==gtk.RESPONSE_CANCEL:
+                    dlg2.destroy()
+                    break
+        self.add_toolbutton1(toolbar1, gtk.STOCK_EXECUTE, 'Coherence Options', 'Private', coh_params)
+
 
         def close(*args):
             print "View3.close(): calling self.destroy()"
@@ -542,25 +627,8 @@ class View3(gtk.Window, Observer):
 
         self.buttonPhase.connect('toggled', phase_toggled)
         
-        self.buttonRange = gtk.CheckButton('Full Range')
-        self.buttonRange.show()
-        self.buttonRange.set_active(False)
-        self.add_toolitem2(toolbar2, self.buttonRange, 'Use the entire range of the EEGView herald window for coherence calculations')
         
-        def range_toggled(button):
-            tmax = self.eeg.get_tmax()
-            print "view3.range_toggled test: tmax: ", tmax, self.eeg.freq
-            tmax = tmax*self.eeg.freq
-            if not button.get_active():
-                #don't broadcast
-                self.eegplot.set_time_lim(0,10, True, False)
-            else:
-                
-                self.eegplot.set_time_lim(0,tmax, True, False)
-        self.buttonRange.connect('toggled',range_toggled)
-            
 
-	
         def show_image_prefs(widget, *args):
             self.imageManager.show_prefs()
             
@@ -1319,7 +1387,6 @@ class View3(gtk.Window, Observer):
     #COMPUTE COHERENCE: CALLED BY RECIEVE: SET_TIME_LIM
     #args are min and max time
     def compute_coherence(self, setTime=None, *args):
-
         #code for view3 progressbar on the right
         if sys.platform == 'darwin':
             def progress_callback(frac,  msg):
@@ -1355,19 +1422,22 @@ class View3(gtk.Window, Observer):
         Nt = len(t)
         NFFT = int(2**math.floor(log2(Nt)-2))
         NFFT = min(NFFT, 512)
+        #NFFT can optionally be the length of a sweep changed in the dialog. The NFFT calc above no longer works..
+        
         if self.filterGM:            
             data = filter_grand_mean(data)
             
-        newLength = 512 #we will want to set this
+        
 
-        print "View3.compute_coherence(): NFFT, dt: ", NFFT, " , ", dt
+        print "View3.compute_coherence(): NFFT, dt: ", self.NFFT, " , ", dt
         #print "View3.compute_coherence(): self.eoiPairs = ", self.eoiPairs
         Cxy, Phase, freqs, Pxx = cohere_pairs_eeg(
             eeg,
-            newLength,
+            self.newLength,
+            self.NFFT,
+            self.offset,
             self.eoiPairs,
             data = data,
-            NFFT = NFFT,
             detrend = detrend_none,
             window = window_none,
             noverlap = 0,
@@ -1630,6 +1700,9 @@ class View3(gtk.Window, Observer):
                     d = dist(self.xyzd[e1], self.xyzd[e2])
                     if d>maxd: continue
                 coherence = cxy[key]
+                #adjust for zeroed out channels
+                if math.isnan(coherence):
+                    coherence = 0
                 #print e1, e2, coherence, cutoff
                 if self._low:
                     if coherence>cutoff: continue

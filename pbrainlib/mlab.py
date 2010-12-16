@@ -504,7 +504,7 @@ cohere.__doc__ = cohere.__doc__ % kwdocd
 def donothing_callback(*args):
     pass
 
-def cohere_pairs( X, ij, newLength = 256, NFFT=256, Fs=2, detrend=detrend_none,
+def cohere_pairs( X, ij, newLength = 256, NFFT=256, offset = 0, Fs=2, detrend=detrend_none,
                   window=window_hanning, noverlap=0,
                   preferSpeedOverMemory=True,
                   progressCallback=donothing_callback,
@@ -594,7 +594,7 @@ def cohere_pairs( X, ij, newLength = 256, NFFT=256, Fs=2, detrend=detrend_none,
 
     #basically we've replaced the nfft by the shorter length, but we'll maintain it down below for one thing - epoch definitions
     print "mlab nfft! ", NFFT, newLength
-    NFFT = 3584
+    #NFFT = 3584 #no longer hardcoded in, hurrah
     oldNFFT = NFFT
     NFFT = newLength
     
@@ -628,10 +628,10 @@ def cohere_pairs( X, ij, newLength = 256, NFFT=256, Fs=2, detrend=detrend_none,
         windowVals = window
     else:
         windowVals = window_hanning(np.ones(NFFT, X.dtype)) #I changed this from window to window_hanning. window was not doing anything!! -eli
-	#print windowVals
-	#original ind setting:
+    #print windowVals
+    #original ind setting:
     #ind = range(0, numRows-oldNFFT+1, oldNFFT-noverlap) #note variable change to oldnfft
-    ind = range(1024, numRows-oldNFFT+1, oldNFFT-noverlap)
+    ind = range(offset, numRows-newLength+1, oldNFFT-noverlap) #coherence calcs on each sweep start at offset
     print "INDTEST: ", ind
     numSlices = len(ind)
     FFTSlices = {}
@@ -654,7 +654,7 @@ def cohere_pairs( X, ij, newLength = 256, NFFT=256, Fs=2, detrend=detrend_none,
         if preferSpeedOverMemory:
             FFTConjSlices[iCol] = np.conjugate(Slices)
         Pxx[iCol] = np.mean((abs(Slices)**2),axis=0) / normVal
-	#I tried to change np.mean to use axis=0 -eli
+        #I tried to change np.mean to use axis=0 -eli
     del Slices, ind, windowVals
 
     # compute the coherences and phases for all pairs using the
@@ -671,13 +671,36 @@ def cohere_pairs( X, ij, newLength = 256, NFFT=256, Fs=2, detrend=detrend_none,
             Pxy = FFTSlices[i] * FFTConjSlices[j]
         else:
             Pxy = FFTSlices[i] * np.conjugate(FFTSlices[j])
-    	if numSlices>1: Pxy = np.mean(Pxy,axis=0) #fixing npmean
-	    #Pxy = np.divide(Pxy, normVal)
+        if numSlices>1: Pxy = np.mean(Pxy,axis=0) #fixing npmean
+        #Pxy = np.divide(Pxy, normVal)
         Pxy /= normVal
+        
         #Cxy[(i,j)] = np.divide(np.absolute(Pxy)**2, Pxx[i]*Pxx[j])
         Cxy[i,j] = abs(Pxy)**2 / (Pxx[i]*Pxx[j])
         Phase[i,j] =  np.arctan2(Pxy.imag, Pxy.real)
-	    
+        #print "debug: ", i, j, Cxy[i,j]
+    
+    """
+    testint = 0
+    
+    for entry in Cxy:
+        print "entry1 ", Cxy[entry]
+        
+        for item in entry:
+            print item
+            if item != 1:
+                testint = 1
+                break
+        if testint == 1:
+            testint = 0
+            continue
+        if not testint:
+            print "old, bad entry: ", entry
+            for item in entry:
+                item = 0
+            print "new, good entry: ", entry
+        """
+    
     freqs = Fs/NFFT*np.arange(numFreqs)
     if returnPxx:
         return Cxy, Phase, freqs, Pxx
