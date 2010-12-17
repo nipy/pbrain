@@ -444,6 +444,10 @@ def power_bands(pxx, freqs,
         if count%20==0:
             progressCallback(count/Nkeys,  'Averaging over bands')
         thisPxx = pxx[key]
+        #adjust for zeroed out electrodes
+        if thisPxx[1] < .000000001:
+            thisPxx.fill(1)
+            print "UTILS: PXX WAS NAN, IS NOW: ", key, pxx[key]
         avg = zeros( (Nbands,), thisPxx.dtype)
 
         count = 0

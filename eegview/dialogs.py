@@ -3666,13 +3666,14 @@ class AutoPlayDialog(gtk.Dialog, Observer):
     direction = 1
     lastSteps = None
 
-    def __init__(self, tmin, tmax, twidth, scalarDisplay, quitHook=None):
+    def __init__(self, tmin, tmax, twidth, newLength, scalarDisplay, quitHook=None):
         Observer.__init__(self)
         gtk.Dialog.__init__(self, 'Auto play')
 
         self.eegtmin = tmin
         self.eegtmax = tmax
         self.eegtwidth = twidth
+        self.newLength = newLength
         #save the original eeg argdata
         
         self.tmin = tmin
@@ -3693,7 +3694,7 @@ class AutoPlayDialog(gtk.Dialog, Observer):
             button.set_label('Page Scalar Data')
             self.buttonPageScalar = button
             self.buttonPageScalar.show()
-            
+            self.newlength = twidth #make sure we don't page eeg-style
         
         vbox = self.vbox
 
@@ -3874,16 +3875,22 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         if self.ind>=0 and self.ind<len(self.steps):
             thisMin = self.steps[self.ind]
             thisMax = thisMin + self.twidth
+            self.view3.offset = self.steps[self.ind]
+            print "DIALOGS SET VIEW3 OFFSET to ", self.view3.offset
             #decide who to send the signal to
             if self.scalarDisplay["scalardisplay"]:
                 #if the scalar option is available, choose between them: 
                 if self.buttonPageScalar.get_active():
                     self.broadcast(Observer.SET_SCALAR, thisMin, thisMax)
                 else:
-                    self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
+                    #self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
+                    self.view3.compute_coherence()
+                    self.view3.plot_band()
                 
             else: #otherwise just broadcast the eeg driver sig
-                self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
+                #self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
+                self.view3.compute_coherence()
+                self.view3.plot_band()
             #update the data (actual scrolling step):
             self.ind += self.direction
             
@@ -3910,8 +3917,11 @@ class AutoPlayDialog(gtk.Dialog, Observer):
 
 
 
-        self.steps = arange(valMin, valMax-self.twidth+0.001, valStep)
-        print valMin, valMax, valStep, self.twidth, len(self.steps) #DEBUG
+        self.steps = arange(valMin, valMax-self.newLength+0.001, valStep)
+        #so if scalar data is driving, self.newlength = self.twidth
+        #but otherwise, we want the last step to be no less than newlength from the end of the sweep length
+        #where valmax is passed in as sweep length from the NFFT var in view3
+        print "SETPARS!", valMin, valMax, valStep, self.twidth, len(self.steps), self.steps #DEBUG
 	    #print self.steps
 	    #print self.lastSteps
         #if self.steps != self.lastSteps:

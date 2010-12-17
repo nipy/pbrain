@@ -16,7 +16,7 @@ class AutoPlayView3Dialog(AutoPlayDialog):
     DESCR: note: setpars() is defined in dialogs.py, line 3852
     """
     def __init__(self, view3, tmin, tmax, twidth, scalarDisplay, quitHook=None):
-        AutoPlayDialog.__init__(self, tmin, tmax, twidth, scalarDisplay, quitHook)
+        AutoPlayDialog.__init__(self, tmin, tmax, twidth, view3.newLength, scalarDisplay, quitHook)
         self.view3 = view3
         
         frame = gtk.Frame('Rotation')
@@ -275,17 +275,21 @@ class AutoPlayView3Dialog(AutoPlayDialog):
         # we're still playing
         thisMin = self.steps[self.ind]
         thisMax = thisMin + self.twidth
+        self.view3.offset = self.steps[self.ind]
         #decide who to send the signal to
         if self.scalarDisplay["scalardisplay"]:
             #if the scalar option is available, choose between them: 
             if self.buttonPageScalar.get_active():
-                print "DIALOGS: SEND SCALAR MESSAGE: ", thisMin, thisMax
                 self.broadcast(Observer.SET_SCALAR, thisMin, thisMax)
-                print "DIALOGS: SENT SCALAR MESSAGE"
+                print "DIALOGS: SENT SCALAR MESSAGE: ", thisMin, thisMax
             else:
-                self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
+                #self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
+                self.view3.compute_coherence()
+                self.view3.plot_band()
         else:  #otherwise just broadcast the eeg driver sig
-            self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
+            #self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
+            self.view3.compute_coherence()
+            self.view3.plot_band()
         #update the data (actual scrolling step): now done below
         #self.ind += self.direction
 

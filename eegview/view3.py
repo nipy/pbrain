@@ -384,7 +384,10 @@ class View3(gtk.Window, Observer):
 
         self.buttonRange = gtk.CheckButton()
         self.buttonRange.set_active(False)
-        self.buttonRange.set_mode(True)
+        #self.buttonRange.set_mode(True)
+        self.buttonPxx = gtk.CheckButton()
+        self.buttonPxx.set_active(False)
+        #self.buttonPxx.set_mode(True)
         
         def range_toggled():
             tmax = self.eeg.get_tmax()
@@ -396,11 +399,13 @@ class View3(gtk.Window, Observer):
         def coh_params(widget, *args):
             dlg2 = gtk.Dialog("Coherence Calculation Parameters")
             dlg2.connect("destroy", dlg2.destroy)
-            dlg2.set_size_request(300,200)
-            table2 = gtk.Table(2,4)
+            dlg2.set_size_request(300,250)
+            table2 = gtk.Table(2,5)
             table2.show()
             table2.set_row_spacings(4)
             table2.set_col_spacings(4)
+            lpxx = gtk.Label("Show power bands:")
+            lpxx.show()
             lrange = gtk.Label("calculate over all data:")
             lrange.show()
             lsweep = gtk.Label("Sweep Length in points:")
@@ -425,15 +430,19 @@ class View3(gtk.Window, Observer):
             eoff.connect('changed', self.numbify)
             eoff.show()
             self.buttonRange.show()
-                
-            table2.attach(lrange,0,1,0,1)
-            table2.attach(self.buttonRange,1,2,0,1)
-            table2.attach(lsweep,0,1,1,2)
-            table2.attach(lcoh,0,1,2,3)
-            table2.attach(loff,0,1,3,4)
-            table2.attach(esweep,1,2,1,2)
-            table2.attach(ecoh,1,2,2,3)
-            table2.attach(eoff,1,2,3,4)
+            self.buttonPxx.show()
+            
+            
+            table2.attach(lpxx,0,1,0,1)
+            table2.attach(self.buttonPxx,1,2,0,1)
+            table2.attach(lrange,0,1,1,2)
+            table2.attach(self.buttonRange,1,2,1,2)
+            table2.attach(lsweep,0,1,2,3)
+            table2.attach(lcoh,0,1,3,4)
+            table2.attach(loff,0,1,4,5)
+            table2.attach(esweep,1,2,2,3)
+            table2.attach(ecoh,1,2,3,4)
+            table2.attach(eoff,1,2,4,5)
             dlg2.vbox.pack_start(table2, True, True)
                 
             dlg2.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
@@ -1155,11 +1164,14 @@ class View3(gtk.Window, Observer):
             
     
     def auto_play(self, *args):
-        
-        tmin, tmax = self.eegplot.get_time_lim()
-        twidth = tmax-tmin
-        maxTime = self.eeg.get_tmax()
-        dlg = AutoPlayView3Dialog(self, tmin, maxTime, twidth, self.scalarDisplay) #self.scalardisplay decides whether to load scalar display stuff in the autodisplay dialog. it is a tuple of bool, tmin, tmax, tstep
+        #we're changing this to the new multi-sweep coherence calculations!
+        tmin = 0
+        tmax = self.NFFT #for sweep length in points
+        #tmin, tmax = self.eegplot.get_time_lim()
+        twidth = 64 #step by 64 points by default
+        #note that the nfft and newlength vals used in compute coherence are set in the new options menu before calling autoplay
+        #maxTime = self.eeg.get_tmax() * self.eeg.freq
+        dlg = AutoPlayView3Dialog(self, tmin, tmax, twidth, self.scalarDisplay) #self.scalardisplay decides whether to load scalar display stuff in the autodisplay dialog. it is a tuple of bool, tmin, tmax, tstep
         self.buttonFollowEvents.set_active(True)
         dlg.show()
 
@@ -1422,7 +1434,7 @@ class View3(gtk.Window, Observer):
         Nt = len(t)
         NFFT = int(2**math.floor(log2(Nt)-2))
         NFFT = min(NFFT, 512)
-        #NFFT can optionally be the length of a sweep changed in the dialog. The NFFT calc above no longer works..
+        #NFFT is now the the length of a sweep changed in the dialog. The NFFT calc above no longer works..
         
         if self.filterGM:            
             data = filter_grand_mean(data)
@@ -1431,29 +1443,47 @@ class View3(gtk.Window, Observer):
 
         print "View3.compute_coherence(): NFFT, dt: ", self.NFFT, " , ", dt
         #print "View3.compute_coherence(): self.eoiPairs = ", self.eoiPairs
-        Cxy, Phase, freqs, Pxx = cohere_pairs_eeg(
-            eeg,
-            self.newLength,
-            self.NFFT,
-            self.offset,
-            self.eoiPairs,
-            data = data,
-            detrend = detrend_none,
-            window = window_none,
-            noverlap = 0,
-            preferSpeedOverMemory = 1,
-            progressCallback = progress_callback,
-            returnPxx=True,
-            )
         bands = ( (1,4), (4,8), (8,12), (12,30), (30,50), (70,100) )
+        if self.buttonPxx.get_active():
+            Cxy, Phase, freqs, Pxx = cohere_pairs_eeg(
+                eeg,
+                self.newLength,
+                self.NFFT,
+                self.offset,
+                self.eoiPairs,
+                data = data,
+                detrend = detrend_none,
+                window = window_none,
+                noverlap = 0,
+                preferSpeedOverMemory = 1,
+                progressCallback = progress_callback,
+                returnPxx=True,
+            )
+            pxxBand = power_bands(Pxx, freqs, bands)
+            self.pxxResults = pxxBand
+        else:
+            Cxy, Phase, freqs = cohere_pairs_eeg(
+                eeg,
+                self.newLength,
+                self.NFFT,
+                self.offset,
+                self.eoiPairs,
+                data = data,
+                detrend = detrend_none,
+                window = window_none,
+                noverlap = 0,
+                preferSpeedOverMemory = 1,
+                progressCallback = progress_callback,
+                returnPxx=False,
+            )
+            self.pxxResults = None
+        
+        
         cxyBands, phaseBands = cohere_bands(
             Cxy, Phase, freqs, self.eoiPairs, bands,
             progressCallback=progress_callback,
             )
-        pxxBand = power_bands(Pxx, freqs, bands)
-
         self.cohereResults  = freqs, cxyBands, phaseBands
-        self.pxxResults = pxxBand
         self.broadcast(Observer.COMPUTE_COHERENCE,
                        (tmin, tmax),
                        self.eoiPairs,
@@ -1479,15 +1509,15 @@ class View3(gtk.Window, Observer):
         print "plot_band(): len(cxyBands)= ", len(cxyBands)
         self.draw_connections(cxyBands, phaseBands)
 
-        
-        try: pxx = self.pxxResults
-        except AttributeError: pass
-        else:
-            datad = dict([(key, 10*math.log10(vals[bandind])) for key, vals in pxx.items()])
-
-            self.gridManager.scalarVals = []
-            self.gridManager.set_scalar_data(datad)
-        #print datad
+        if self.buttonPxx.get_active():
+            try: pxx = self.pxxResults
+            except AttributeError: pass
+            else:
+                datad = dict([(key, 10*math.log10(vals[bandind])) for key, vals in pxx.items()])
+    
+                self.gridManager.scalarVals = []
+                self.gridManager.set_scalar_data(datad)
+            #print datad
         
         
     def norm_by_distance(self, Cxy, bandind=None, pars=None):

@@ -333,7 +333,7 @@ class GridManager:
         radius_factor = 10
         if (self.do_scale_pipes_with_coherence == True):
             radius_factor = radiusFactor
-        print "grid_manager ", self.do_scale_pipes_with_coherence, self.do_scale_pipes, radius_factor
+        #print "grid_manager ", self.do_scale_pipes_with_coherence, self.do_scale_pipes, radius_factor
         if (self.do_scale_pipes == True):
             filter.SetRadius(0.75*radius_factor*lineWid*m1.get_size())
             print "m1.get_size() is ", m1.get_size()
