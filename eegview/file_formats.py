@@ -14,9 +14,10 @@ from datetime import date, time
 import data
 from struct import unpack
 
+
 import numpy
 
-from scipy import fromstring
+from scipy import fromstring, arange
 
 import datetime
 
@@ -385,11 +386,32 @@ class FileFormat_NeuroscanAscii:
                     tempchannels.append((chan[1],chan[2]))
                 
                 cc = 0
+                varried = 50
                 #now to insert the new channels + zeroed data IN THE RIGHT PLACE hopefully                            
                 for newchan in self.newchannels:
                     #fix the raw data with the new zeros, hopefully inserting a column into the array
                     nz = numpy.zeros((len(channel_data[1])))
-                    #nz.fill(.5)
+                    #this is a temporary test to check the validity of the coherence calculations. 
+                    #I am adding a sin wave to every zeroed out channel that we add on with the 
+                    #add button, but only in parts of the range, not the whole thing.
+                    #but since we are looking at averaged sweeps, I'm going to add it on every 7 seconds or 
+                    #3584 points.
+                    #varried starts at 50 and is subsequently 64
+                    """
+                    ind = arange(varried,len(channel_data[1])-3584+.01,3584)
+                    print "FILE_FORMATS: testing sin wave with index: ", ind
+                    for index in ind:
+                        r = 0
+                        while r < 50:
+                            nz[index+r] = math.sin(r)
+                            r = r+1
+                    print "FILE_FORMATS: testing with added column nz: "
+                    for n in nz:
+                        print "NZ! ", n
+                    varried = 64
+                    """
+                    #this is the end of the test block
+                    
                     nz[1] = .001 #this is the same hack as just above
                     #print "nz.shape, channel_data.shape, newchan[0]", nz.shape, channel_data.shape, newchan[0]
                     if newchan[0] <= channel_data.shape[0]:

@@ -341,7 +341,7 @@ class GridManager:
         else:
             #print "do_scale_pipes == False, setting radius to %f" % (0.75*radiusFactor*lineWid)
             #the math.pow in here is to scale the radii a little better so that we can make out the differences
-            filter.SetRadius(0.75*((math.pow(radius_factor,2))/160)*lineWid*self.pipes_scaling_factor)
+            filter.SetRadius(((math.pow(radius_factor,2))/160)*lineWid*self.pipes_scaling_factor)
 
         mapper = vtk.vtkPolyDataMapper()
         mapper.SetInput(filter.GetOutput())
@@ -971,12 +971,12 @@ class GridManager:
 
         scrollbar2 = gtk.HScrollbar()
         scrollbar2.show()
-        scrollbar2.set_range(0, 1)
+        scrollbar2.set_range(0, 4)
         scrollbar2.set_increments(0.01,0.1)
         scrollbar2.set_value(0.2)
 
         def set_pipes_size(bar):
-            print "set_pipes_size(", bar.get_value, ")"
+            #print "set_pipes_size(", bar.get_value, ")"
             val = bar.get_value()
             self.pipes_scaling_factor = val
             #self.interactor.Render()
