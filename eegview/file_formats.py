@@ -403,7 +403,7 @@ class FileFormat_NeuroscanAscii:
                     for index in ind:
                         r = 0
                         while r < 50:
-                            nz[index+r] = math.sin(r)
+                            nz[index+r] = math.sin((math.pi/180)*r)
                             r = r+1
                     print "FILE_FORMATS: testing with added column nz: "
                     for n in nz:

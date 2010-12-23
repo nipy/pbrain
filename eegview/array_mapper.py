@@ -142,17 +142,17 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
         if (self.time_in_secs == True):
             val = float(bar.get_value())
             ind = ((val -self.start_time)  / (self.end_time - self.start_time) * self.numSamples)
-            print "ArrayMapper.set_sample_num() : ind=", ind
+            #print "ArrayMapper.set_sample_num() : ind=", ind
             datad = self.get_datad(ind)
             self.gridManager.set_scalar_data(datad)
             xdata = array([val, val], 'd')
-            print "shape of xdata is " , xdata.shape
+            #print "shape of xdata is " , xdata.shape
             for line in self.lines:
-                print "ArrayMapper.set_sample_num(): doing line " , line
+                #print "ArrayMapper.set_sample_num(): doing line " , line
                 line.set_xdata(xdata) 
         else:
             ind = int(bar.get_value())
-            print "ArrayMapper.set_sample_num(", ind, ")"
+            #print "ArrayMapper.set_sample_num(", ind, ")"
             datad = self.get_datad(ind)
             self.gridManager.set_scalar_data(datad)
             xdata = array([ind, ind], 'd')
@@ -163,7 +163,7 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
             self.numlabel.set_text(str(float(bar.get_value())))
         else:
             self.numlabel.set_text(str(int(bar.get_value())))
-        print "self.fig.get_axes() = ", self.fig.get_axes()
+        #print "self.fig.get_axes() = ", self.fig.get_axes()
         self.canvas.draw()
         if self.addview3:
             if self.addview3destroy == False: #don't signal unless we have to
