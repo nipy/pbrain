@@ -154,6 +154,8 @@ class View3(gtk.Window, Observer):
         # will not have to talk to each other too much or at all
         self.meshManager = None
         
+        self.dumpCsvRadio = "radio_all"
+        self.cohFile = None
         self.NFFT = 512
         self.newLength = 256
         self.offset = 0
@@ -371,17 +373,6 @@ class View3(gtk.Window, Observer):
             self.compute_coherence()
             self.plot_band()
             
-        self.add_toolbutton1(toolbar1, gtk.STOCK_EXECUTE, 'Compute coher.', 'Private', compute_and_plot)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_PROPERTIES, 'Coher. norm. wndw', 'Private', self.compute_norm_over_range)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_PROPERTIES, 'Set camera', 'Private', self.control_camera)
-        
-        self.add_separator(toolbar1)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_CLEAR, 'Plot band conn.', 'Private', self.plot_band, 'mouse1 color')
-
-        self.add_separator(toolbar1)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_SAVE_AS, 'Save screenshot', 'Private', self.save_image)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_JUMP_TO, 'Autopage/Movie', 'Private', self.auto_play)
-
         self.buttonRange = gtk.CheckButton()
         self.buttonRange.set_active(False)
         #self.buttonRange.set_mode(True)
@@ -466,7 +457,21 @@ class View3(gtk.Window, Observer):
                 if response2==gtk.RESPONSE_CANCEL:
                     dlg2.destroy()
                     break
+        
+        self.add_toolbutton1(toolbar1, gtk.STOCK_EXECUTE, 'Compute Coherence', 'Private', compute_and_plot)
         self.add_toolbutton1(toolbar1, gtk.STOCK_EXECUTE, 'Coherence Options', 'Private', coh_params)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_PROPERTIES, 'Coher. norm. wndw', 'Private', self.compute_norm_over_range)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_PROPERTIES, 'Set camera', 'Private', self.control_camera)
+        
+        self.add_separator(toolbar1)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_CLEAR, 'Plot band conn.', 'Private', self.plot_band, 'mouse1 color')
+
+        self.add_separator(toolbar1)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_SAVE_AS, 'Save screenshot', 'Private', self.save_image)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_JUMP_TO, 'Autopage/Movie', 'Private', self.auto_play)
+
+        
+        
 
 
         def close(*args):
@@ -636,13 +641,20 @@ class View3(gtk.Window, Observer):
 
         self.buttonPhase.connect('toggled', phase_toggled)
         
-        
+        def dump_toggled(button):
+            if self.buttonDump.get_active():
+                self.dump_csv()
 
         def show_image_prefs(widget, *args):
             self.imageManager.show_prefs()
             
-        self.add_toolbutton1(toolbar2, gtk.STOCK_NEW, 'Image data preferences', 'Private', show_image_prefs)
-        self.add_toolbutton1(toolbar2, gtk.STOCK_COPY, 'Dump coherences to CSV', 'Private', self.dump_csv)
+        self.add_toolbutton1(toolbar2, gtk.STOCK_NEW, 'Image prefs', 'Private', show_image_prefs)
+        
+        self.buttonDump = gtk.CheckButton('Dump Coherences')
+        self.buttonDump.show()
+        self.buttonDump.set_active(False)
+        self.add_toolitem2(toolbar2, self.buttonDump, 'Dump coherences')
+        self.buttonDump.connect('toggled',dump_toggled)
 
         return toolbar2
 
@@ -651,14 +663,39 @@ class View3(gtk.Window, Observer):
         self.dumpCsvRadio = data
 
 
-    def dump_csv(self, button, *args):
-        'dump the coherences to csv'
-		
-        try: self.cohereResults
-        except AttributeError:  self.compute_coherence()
-
-        freqs, cxyBands, phaseBands = self.cohereResults
-
+    def dump_csv(self, *args):
+        
+        entryFile = gtk.Entry()
+        if (self.cohFile != None): 
+            entryFile.set_text(self.cohFile)
+        def set_filename(*args):
+            chooser = gtk.FileChooserDialog(title=None,action=gtk.FILE_CHOOSER_ACTION_SAVE,
+                                    buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_SAVE,gtk.RESPONSE_OK))
+            response = chooser.run()
+            if response == gtk.RESPONSE_OK:
+                filename = chooser.get_filename()
+                entryFile.set_text(filename)
+            else:
+                chooser.destroy()
+                return
+            # try and write a dummy file to fname to make sure the dir
+            # is writable
+            tmpfile = filename + 'tmp'
+            try: file(tmpfile, 'w').write('123')
+            except IOError:
+                error_msg('Basepath %s does not appear to be writable' % fname,
+                          parent=self)
+                return
+            else:
+                os.remove(tmpfile)
+            chooser.destroy()
+            self.cohFile = filename
+            return
+        
+        dlg = gtk.Dialog("Writing Options...")
+        dlg.connect("destroy", dlg.destroy)
+        dlg.set_size_request(250,250)
+        
         vbox = gtk.VBox()
         button1 = gtk.RadioButton(None, 'save everything')
         button1.connect("toggled", self.dump_csv_radio_callback, "radio_all")
@@ -666,22 +703,50 @@ class View3(gtk.Window, Observer):
         button2.connect("toggled", self.dump_csv_radio_callback, "radio_threshold")
         button3 = gtk.RadioButton(button1, 'save only selected electrode')
         button3.connect("toggled", self.dump_csv_radio_callback, "radio_selected")
+        entryFile.show()
         
+        buttonSave = gtk.Button(stock=gtk.STOCK_SAVE)
+        buttonSave.show()
+        buttonSave.connect('clicked', set_filename)
+        vbox.pack_start(buttonSave, False, False)
+        
+        button1.show()
+        button2.show()
+        button3.show()
+        
+        vbox.pack_start(entryFile, True, True, 0)
         vbox.pack_start(button1, True, True, 0)
         vbox.pack_start(button2, True, True, 0)
         vbox.pack_start(button3, True, True, 0)
+        vbox.show()
 
         frame = gtk.Frame()
         frame.add(vbox)
+        frame.show()
+        dlg.vbox.pack_start(frame, True, True)
+        dlg.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
+        dlg.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
+        dlg.set_default_response(gtk.RESPONSE_OK)
+        dlg.show()
+        while 1:
+            response = dlg.run()
+            if response==gtk.RESPONSE_OK:
+                #self.cohFile = filename
+                dlg.destroy()
+                break
+            if response==gtk.RESPONSE_CANCEL:
+                self.dumpCsvRadio = 'radio_all'
+                self.cohFile = None
+                dlg.destroy()
+                break
 
-        fmanager.add_widget(frame)
+    def print_coh(self, *args):
+        try: self.cohereResults
+        except AttributeError:  self.compute_coherence()
+
+        freqs, cxyBands, phaseBands = self.cohereResults
         
-        self.dumpCsvRadio = 'radio_all'
-        
-        filename = fmanager.get_filename()
-        if filename is None: return
-
-
+        #print the coherence values to a file if self.cohFile is not None
         if ((self.dumpCsvRadio == 'radio_all') | (self.dumpCsvRadio == 'radio_selected')):
             keys = cxyBands.keys()
         
@@ -698,10 +763,10 @@ class View3(gtk.Window, Observer):
 
             keys = self.get_supra_threshold_keys(len(self.eoi), cxy, pxy, cutoff, None, maxd)
 
-        fh = file(filename, 'w')
-        # this is a hack -- you should pass and parse the band data
-        # structure.  Yes Michael, this means you
-        print>>fh, 'E1,E2,delta 1-4,theta 4-8,alpha 8-12,beta 12-30,gamma 30-50,high gamma 70-100,delta phase,theta phase,alpha phase,beta phase,gamma phase,high gamma phase'
+        fh = file(self.cohFile, 'ab')
+        header = '[sweep length]\n%d\n[length]\n%d\n[offset]\n%d'%(self.NFFT,self.newLength,self.offset)
+        print>>fh, header 
+        #print>>fh, 'E1,E2,delta 1-4,theta 4-8,alpha 8-12,beta 12-30,gamma 30-50,high gamma 70-100,delta phase,theta phase,alpha phase,beta phase,gamma phase,high gamma phase'
         keys.sort()
         dumpStrings = []
         for key in keys:
@@ -725,9 +790,7 @@ class View3(gtk.Window, Observer):
         dumpStrings.sort()
         for s in dumpStrings:
             print>>fh, s
-
-
-        simple_msg('CSV file saved to %s'%filename)
+        print "coherence saved to ", self.cohFile
         
     def voltage_map(self, button, *args):
         win = VoltageMapWin(self)
@@ -1489,6 +1552,9 @@ class View3(gtk.Window, Observer):
                        self.eoiPairs,
                        self.cohereResults,
                        self.pxxResults)
+        if self.buttonDump.get_active():
+            if (self.cohFile != None):
+                self.print_coh()
         
     def get_band_ind(self):
         'Get the index into the band summary coherences'
