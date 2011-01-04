@@ -3692,8 +3692,15 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         
             button = gtk.RadioButton(button)
             button.set_label('Page Scalar Data')
+            button.connect('clicked', self.page_changed)
             self.buttonPageScalar = button
             self.buttonPageScalar.show()
+            
+            button = gtk.RadioButton(button)
+            button.set_label("Page Both")
+            button.connect('clicked', self.page_changed)
+            self.buttonPageBoth = button
+            self.buttonPageBoth.show()
             self.newlength = twidth #make sure we don't page eeg-style
         
         vbox = self.vbox
@@ -3724,7 +3731,7 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         self.entryStep.set_activates_default(True)
         self.entryStep.set_text('%1.1f' %twidth)
 
-        table = gtk.Table(2,4)
+        table = gtk.Table(2,5)
         table.show()
         table.set_row_spacings(4)
         table.set_col_spacings(4)
@@ -3739,6 +3746,7 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         if scalarDisplay["scalardisplay"]:
             table.attach(self.buttonPageEEG, 0,1,3,4)
             table.attach(self.buttonPageScalar,1,2,3,4) 
+            table.attach(self.buttonPageBoth,1,2,4,5)
         self.vbox.pack_start(table, True, True)
 
         buttonBack = self.add_button(gtk.STOCK_GO_BACK, gtk.RESPONSE_REJECT)
@@ -3822,7 +3830,7 @@ class AutoPlayDialog(gtk.Dialog, Observer):
             self.tmin = self.scalarDisplay["tmin"]
             self.tmax = self.scalarDisplay["tmax"]
             self.twidth = self.scalarDisplay["tstep"]
-        else:
+        if self.buttonPageEEG.get_active():
             self.tmin = self.eegtmin
             self.tmax = self.eegtmax
             self.twidth = self.eegtwidth

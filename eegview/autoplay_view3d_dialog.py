@@ -284,10 +284,14 @@ class AutoPlayView3Dialog(AutoPlayDialog):
                 print "DIALOGS: SENT SCALAR MESSAGE: ", thisMin, thisMax
             else:
                 #self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
+                
                 self.view3.compute_coherence()
                 self.view3.plot_band()
+                if self.buttonPageBoth.get_active():
+                    self.broadcast(Observer.SET_SCALAR, thisMin, thisMax)
+                
         else:  #otherwise just broadcast the eeg driver sig
-            #self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
+            #self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax) #note we are not moving the herald window time anymore
             self.view3.compute_coherence()
             self.view3.plot_band()
         #update the data (actual scrolling step): now done below
