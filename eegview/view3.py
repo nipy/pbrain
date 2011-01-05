@@ -188,13 +188,16 @@ class View3(gtk.Window, Observer):
 
         self.renderer = vtk.vtkRenderer()
         self.overlayRenderer = None #initialize later #vtk.vtkRenderer()
+        self.importer = None
+        self.imflip = None
+        
         interactor.GetRenderWindow().AddRenderer(self.renderer)
         
         self.interactor = interactor
         
         #make a time display actor
         timedisplay = vtk.vtkCornerAnnotation()
-        timedisplay.SetText(0, "0")
+        timedisplay.SetText(0, "t = 0")
         self.timedisplay = timedisplay
         self.renderer.AddActor(self.timedisplay)
         
@@ -1346,11 +1349,12 @@ class View3(gtk.Window, Observer):
             self.scalarDisplay[0] = False
             return
         else:
+            del self.importer
             importer = vtk.vtkImageImport()
             importer.SetDataScalarTypeToUnsignedChar()
             importer.SetNumberOfScalarComponents(4)
             self.importer = importer
-            
+            del self.imflip
             # It's upside-down when loaded, so add a flip filter
             imflip = vtk.vtkImageFlip()
             imflip.SetInput(self.importer.GetOutput())
@@ -1360,6 +1364,8 @@ class View3(gtk.Window, Observer):
             
             
             if init == True:
+                #do some cleanup in an attempt to fix a memory leak:
+                del self.overlayRenderer
                 #retrieve the data length from the figure
                 dataLength = finishedFigure.get_axes()[0].get_lines()[0].get_xdata()[-1]
                 self.scalarDisplay["scalardisplay"] = True
@@ -1367,7 +1373,6 @@ class View3(gtk.Window, Observer):
                 self.scalarDisplay["tmax"] = dataLength
                 self.scalarDisplay["tstep"] = int(dataLength/10)
                 self.overlayRenderer = vtk.vtkRenderer()
-                
                 #rejigger the renderers
                 self.renderer.SetViewport(0,.3,1,1) #maintain two renderers to overlay graph data
                 self.overlayRenderer.SetViewport(0,0,1,.3)
@@ -1483,7 +1488,7 @@ class View3(gtk.Window, Observer):
             tmin, tmax = setTime
 
         #set up the time display - only works for new coh calc functions?
-        self.timedisplay.SetText(0, "t = %10.2f" %(self.offset/self.eeg.freq))
+        self.timedisplay.SetText(0, "t = %3.2f" %(self.offset/self.eeg.freq))
 
         #if we call this function without changing time limits, and the coherence is already calculated, don't do it again!
         if self.cohCache is not None:
