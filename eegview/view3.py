@@ -177,9 +177,9 @@ class View3(gtk.Window, Observer):
         self.picker.SetTolerance(0.005)
         interactor.SetPicker(self.picker)
 
-        W = 360
+        W = 300
         #interactor.set_size_request(W, int(W/1.3))
-        interactor.set_size_request(W*2, W*2) # XXX mcc: hack. maybe try show()ing after add()
+        interactor.set_size_request(W*2 + 50, W*2) # XXX mcc: hack. maybe try show()ing after add()
       
         interactor.show()
         interactor.Initialize()
@@ -191,7 +191,12 @@ class View3(gtk.Window, Observer):
         interactor.GetRenderWindow().AddRenderer(self.renderer)
         
         self.interactor = interactor
-
+        
+        #make a time display actor
+        timedisplay = vtk.vtkCornerAnnotation()
+        timedisplay.SetText(0, "0")
+        self.timedisplay = timedisplay
+        self.renderer.AddActor(self.timedisplay)
         
 
         #self.set_title("View3 Window")
@@ -229,7 +234,7 @@ class View3(gtk.Window, Observer):
         toolbar2.show()
 	
         # line connection attribute
-        self.thresholdParams = 'pct.', 0.025
+        self.thresholdParams = 'abs.', 0.45
 
 
         if sys.platform != 'darwin':
@@ -625,8 +630,7 @@ class View3(gtk.Window, Observer):
 
         self.buttonPhase = gtk.CheckButton('Phase Threshold')
         self.buttonPhase.show()
-        self.buttonPhase.set_active(True)
-        #print "dude buttonPhase"
+        self.buttonPhase.set_active(False)
         self.add_toolitem2(toolbar2, self.buttonPhase, 'Draw white pipes when abs(phase) is <0.1')
 	
         def phase_toggled(button):
@@ -737,6 +741,7 @@ class View3(gtk.Window, Observer):
             if response==gtk.RESPONSE_CANCEL:
                 self.dumpCsvRadio = 'radio_all'
                 self.cohFile = None
+                self.buttonDump.set_active(False)
                 dlg.destroy()
                 break
 
@@ -1476,6 +1481,9 @@ class View3(gtk.Window, Observer):
             tmin, tmax = self.eegplot.get_time_lim()
         else:
             tmin, tmax = setTime
+
+        #set up the time display - only works for new coh calc functions?
+        self.timedisplay.SetText(0, "t = %10.2f" %(self.offset/self.eeg.freq))
 
         #if we call this function without changing time limits, and the coherence is already calculated, don't do it again!
         if self.cohCache is not None:
