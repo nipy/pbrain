@@ -85,6 +85,7 @@ from array_mapper import ArrayMapper
 from image_manager import ImageManager
 from grid_manager import GridManager
 from mesh_manager import MeshManager
+from coh_explorer import CohExplorer
 
 from mpl_windows import VoltageMapWin
 
@@ -380,6 +381,9 @@ class View3(gtk.Window, Observer):
         def compute_and_plot(*args):
             self.compute_coherence()
             self.plot_band()
+        def coh_explore(button, *args):
+            ce = CohExplorer(self.eoi)
+            ce.show()
             
         self.buttonRange = gtk.CheckButton()
         self.buttonRange.set_active(False)
@@ -469,6 +473,7 @@ class View3(gtk.Window, Observer):
         self.add_toolbutton1(toolbar1, gtk.STOCK_EXECUTE, 'Compute Coherence', 'Private', compute_and_plot)
         self.add_toolbutton1(toolbar1, gtk.STOCK_EXECUTE, 'Coherence Options', 'Private', coh_params)
         self.add_toolbutton1(toolbar1, gtk.STOCK_PROPERTIES, 'Coher. norm. wndw', 'Private', self.compute_norm_over_range)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_PROPERTIES, 'Coh. Explorer', 'Private', coh_explore)
         self.add_toolbutton1(toolbar1, gtk.STOCK_PROPERTIES, 'Set camera', 'Private', self.control_camera)
         
         self.add_separator(toolbar1)
