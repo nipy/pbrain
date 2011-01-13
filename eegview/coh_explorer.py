@@ -14,6 +14,7 @@ from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanva
 from matplotlib.backends.backend_gtkagg import NavigationToolbar
 from matplotlib.figure import Figure
 from matplotlib.widgets import Cursor
+import mpl_toolkits.mplot3d.axes3d as p3
 from events import Observer
 from shared import fmanager
 from pbrainlib.gtkutils import error_msg, simple_msg, make_option_menu,\
@@ -50,6 +51,7 @@ class CohExplorer(gtk.Window, Observer):
         self.oldlength = 10
         self.opt = 'multi'
         self.optchanged = 0
+        self.chansel = []
         
         def plot(button):
             self.length = int(lengthEntry.get_text())
@@ -60,9 +62,13 @@ class CohExplorer(gtk.Window, Observer):
             del self.x_data
             self.x_data = {}
             self.make_fig(self.band)
-            self.canvas.draw()
+            
             self.oldlength = copy.deepcopy(self.length)
             self.optchanged = 0
+            for linesel in self.chansel:
+                self.lines[linesel][0].set_color('w')
+                self.lines[linesel][0].set_linewidth(5)
+            self.canvas.draw()
         
         def load_file(button):
             dumpfile = fmanager.get_filename(title="Select dump file:")
@@ -87,6 +93,9 @@ class CohExplorer(gtk.Window, Observer):
         buttonSave.show()
         buttonSave.connect('clicked', load_file)
         saveEntry.show()
+        buttonChans = gtk.Button("Chans")
+        buttonChans.show()
+        buttonChans.connect('clicked', self.load_chans)
         
         def set_active_band(combobox):
             model = combobox.get_model()
@@ -102,7 +111,7 @@ class CohExplorer(gtk.Window, Observer):
             self.opt = label
             
         bandMenu = make_option_menu(self.bandlist, func=set_active_band)
-        optMenu = make_option_menu(['multi', 'forward', 'backward', 'multiphase', 'forwardphase'], func=set_opts)
+        optMenu = make_option_menu(['coh', 'phase', 'cohphase'], func=set_opts)
         
         lengthEntry = gtk.Entry()
         lengthEntry.set_text(str(self.length))
@@ -117,6 +126,7 @@ class CohExplorer(gtk.Window, Observer):
         vbox.pack_start(hbox, False, False)
         hbox.pack_start(saveEntry, False, False)
         hbox.pack_start(buttonSave, False, False)
+        hbox.pack_start(buttonChans, False, False)
         hbox.pack_start(bandMenu, False, False)
         hbox.pack_start(lengthEntry, False, False)
         hbox.pack_start(optMenu, False, False)
@@ -133,8 +143,52 @@ class CohExplorer(gtk.Window, Observer):
         vbox.pack_start(self.canvas, True, True)
         vbox.pack_start(self.progBar, False, False)
    
-   
+    def load_chans(self, button):
+        dlg = gtk.Dialog("Channel Manipulation")
+        dlg.connect("destroy", dlg.destroy)
+        dlg.set_size_request(400,400)
+        scrolled_window = gtk.ScrolledWindow(None, None)
+        scrolled_window.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+        dlg.vbox.pack_start(scrolled_window, True, True, 0)
+        scrolled_window.show()
+
+        table = gtk.Table(2,(1+len(self.channels)))
+        table.set_row_spacings(8)
+        table.set_col_spacings(8)
+        scrolled_window.add_with_viewport(table)
+        table.show()
+        #attach format: obj, beg end x, beg end y
+        l1 = gtk.Label("show            channel")
+        l1.show()
+
+        table.attach(l1,0,1,0,1)
+        #an array to control the check boxes
+        chanbuts = []
+        for i in range(0, len(self.channels)):
+            s1 = "                %s" % (self.channels[i],)
+            chanbuts.append(gtk.CheckButton(s1))
+            chanbuts[i].show()
+            chanbuts[i].connect("toggled", self.chanswitch, self.channels[i])
+            table.attach(chanbuts[i], 0,1,i+1,i+2)
+        butOK = gtk.Button("OK")    
+        butOK.connect('clicked', (lambda b, x: x.destroy()), dlg)
+        butOK.show()
+        dlg.vbox.pack_start(butOK, False, False)
+        dlg.show()
+        
     
+    def chanswitch(self, widget, channelnum):
+        print channelnum
+        if channelnum in self.lines.keys():
+            if widget.get_active():
+                self.chansel.append(channelnum)
+                self.lines[channelnum][0].set_color('w')
+                self.lines[channelnum][0].set_linewidth(5)
+            else:
+                self.chansel.remove(channelnum)
+                self.lines[channelnum][0].set_color('r')
+                self.lines[channelnum][0].set_linewidth(1)
+            self.canvas.draw()
     def motion_notify_event(self, event):
         return False
     def button_press_event(self, event):
@@ -194,57 +248,53 @@ class CohExplorer(gtk.Window, Observer):
                     tnext = 1
                     continue
             line = line.split(',')
-            
-            if (opt == 'multi'):
-                zstart = 0
-                zend = 1
+            zstart = 0
+            zend = 1
+            cstart = 2
+            cend = 8
+            if (opt == 'coh'):
                 cstart = 2
                 cend = 8
-            if (opt == 'forward'):
-                zstart = 0
-                zend = 0
-                cstart = 2
-                cend = 8
-            if (opt == 'backward'):  
-                zstart = 1
-                zend = 1
-                cstart = 2
-                cend = 8
-            if (opt == 'multiphase'):  
-                zstart = 0
-                zend = 1
+            if (opt == 'phase'):  
                 cstart = 9
                 cend = 14
-            if (opt == 'forwardphase'):
-                zstart = 0
-                zend = 0
-                cstart = 9
-                cend = 14
+            if (opt == 'cohphase'):
+                cstart = 2
+                cend = 14                
             
             for col in arange(cstart,cend): #change nan to 0
                 if (math.isnan(float(line[col]))):
                     line[col] = 0 
             for z in (zstart,zend):
-                if (line[z] in tr):
-                    item = tr[line[z]]
-                    item[0] += 1
-                    item[1] = [ab+ac for ab,ac in zip(item[1], map(float,line[cstart:cend]))] #add the new data, for all bands
+                if opt == 'cohphase':
+                    if (line[z] in tr):
+                        pass
+                    else:
+                        tr[line[z]] = map(float,line[cstart:cend]) #just grab the whole thing as a different point each time
                 else:
-                    tr[line[z]] = [1, map(float,line[cstart:cend])]
+                    if (line[z] in tr):
+                        item = tr[line[z]]
+                        item[0] += 1
+                        item[1] = [ab+ac for ab,ac in zip(item[1], map(float,line[cstart:cend]))] #add the new data, for all bands
+                    else:
+                        tr[line[z]] = [1, map(float,line[cstart:cend])]
             
         f.close()
         
     def make_fig(self, band):
         #this function modifies self.fig
         self.fig.clear()
-        self.lines = []
+        self.lines = {}
         col = self.bandlist.index(band)#find the band's index for the t_data
         N = len(self.channels)
-        self.ax = self.fig.add_subplot(1,1,1) #new singleplot configuration
+        if (self.opt != 'cohphase'):
+            self.ax = self.fig.add_subplot(1,1,1) 
+        if (self.opt == 'cohphase'):
+            self.ax = p3.Axes3D(self.fig)
         self.cursor = Cursor(self.ax, useblit=True, linewidth=1, color='white')
         self.cursor.horizOn = True
         self.cursor.vertOn = True
-        colordict = ['#A6D1FF','green','red','cyan','magenta','yellow','white']
+        colordict = ['#A6D1FF','green','red','cyan','magenta','yellow','orange']
         keys = self.t_data.keys()
         keys = sorted(keys)
         del keys[-1] #for some reason the last time key is coming out null sometimes in the data?
@@ -254,8 +304,10 @@ class CohExplorer(gtk.Window, Observer):
         
         counter = 0
         xdata = []
+        ydata = []
         for i in self.t_data[0]: #go through the ordered channel list one by one
             xdata.append([]) #keep all the channel data seperate
+            ydata.append([])
             #print "this is the channelkey: ", i
             isplit = i.split(" ")
             isplit = isplit[0],int(isplit[1])
@@ -263,13 +315,25 @@ class CohExplorer(gtk.Window, Observer):
                 print "channel error! on channel ", i
             color = colordict[((counter)%7)]
             for t in keys[0:self.length-2]: #at each time point. we don't want to use more of t_data than is asked for.
-                (ns,ss) = self.t_data[t][i] #get the data out
-                ssband = ss[col] #choose the band
-                x1 = ssband/ns #find the average
-                xdata[counter].append(x1)
+                if (self.opt != 'cohphase'):
+                    (ns,ss) = self.t_data[t][i] #get the data out
+                    ssband = ss[col] #choose the band
+                    x1 = ssband/ns #find the average
+                    xdata[counter].append(x1)
+                if (self.opt == 'cohphase'):
+                    ss = self.t_data[t][i] #get the data out
+                    sscoh = ss[col]
+                    ssphase = ss[col + 6]
+                    #x1 = sscoh/ns
+                    #y1 = ssphase/ns
+                    xdata[counter].append(ssphase)
+                    ydata[counter].append(sscoh)
             self.x_data[isplit] = xdata[counter] #save the channel's data into an organized dict of channels
-            newp = self.ax.plot(keys[0:self.length-2], xdata[counter], color, label=(str(i))) #plot a channel """arange(len(xdata[counter]))"""
-            #print "at time ", counter, "xdata has ", len(xdata[counter]), " channels."
+            if (self.opt != 'cohphase'):
+                self.lines[isplit] = self.ax.plot(keys[0:self.length-2], xdata[counter], color, label=(str(i))) #plot a channel """arange(len(xdata[counter]))"""
+                #print "at time ", counter, "xdata has ", len(xdata[counter]), " channels."
+            if (self.opt == 'cohphase'):
+                self.lines[isplit] = self.ax.plot3D(ydata[counter], keys[0:self.length-2], xdata[counter], color, label = (str(i)))
             counter += 1
         self.ax.patch.set_facecolor('black') #black bg
         self.progBar.set_fraction(0)
