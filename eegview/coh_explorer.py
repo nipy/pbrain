@@ -168,6 +168,8 @@ class CohExplorer(gtk.Window, Observer):
             s1 = "                %s" % (self.channels[i],)
             chanbuts.append(gtk.CheckButton(s1))
             chanbuts[i].show()
+            if self.channels[i] in self.chansel:
+                chanbuts[i].set_active(True) #reactivate previously active channels
             chanbuts[i].connect("toggled", self.chanswitch, self.channels[i])
             table.attach(chanbuts[i], 0,1,i+1,i+2)
         butOK = gtk.Button("OK")    
@@ -314,7 +316,7 @@ class CohExplorer(gtk.Window, Observer):
             if not isplit in self.channels: #make sure the channel we plot is in the view3 display
                 print "channel error! on channel ", i
             color = colordict[((counter)%7)]
-            for t in keys[0:self.length-2]: #at each time point. we don't want to use more of t_data than is asked for.
+            for t in keys[0:self.length-1]: #at each time point. we don't want to use more of t_data than is asked for.
                 if (self.opt != 'cohphase'):
                     (ns,ss) = self.t_data[t][i] #get the data out
                     ssband = ss[col] #choose the band
@@ -330,10 +332,10 @@ class CohExplorer(gtk.Window, Observer):
                     ydata[counter].append(sscoh)
             self.x_data[isplit] = xdata[counter] #save the channel's data into an organized dict of channels
             if (self.opt != 'cohphase'):
-                self.lines[isplit] = self.ax.plot(keys[0:self.length-2], xdata[counter], color, label=(str(i))) #plot a channel """arange(len(xdata[counter]))"""
+                self.lines[isplit] = self.ax.plot(keys[0:self.length-1], xdata[counter], color, label=(str(i))) #plot a channel """arange(len(xdata[counter]))"""
                 #print "at time ", counter, "xdata has ", len(xdata[counter]), " channels."
             if (self.opt == 'cohphase'):
-                self.lines[isplit] = self.ax.plot3D(ydata[counter], keys[0:self.length-2], xdata[counter], color, label = (str(i)))
+                self.lines[isplit] = self.ax.plot3D(ydata[counter], keys[0:self.length-1], xdata[counter], color, label = (str(i)))
             counter += 1
         self.ax.patch.set_facecolor('black') #black bg
         self.progBar.set_fraction(0)

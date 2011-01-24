@@ -1369,8 +1369,6 @@ class View3(gtk.Window, Observer):
             
             
             if init == True:
-                #do some cleanup in an attempt to fix a memory leak:
-                del self.overlayRenderer
                 #retrieve the data length from the figure
                 dataLength = finishedFigure.get_axes()[0].get_lines()[0].get_xdata()[-1]
                 self.scalarDisplay["scalardisplay"] = True
