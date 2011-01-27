@@ -192,8 +192,30 @@ class CohExplorer(gtk.Window, Observer):
                 self.lines[channelnum][0].set_linewidth(1)
             self.canvas.draw()
     def motion_notify_event(self, event):
+        if not event.inaxes: return
+        x, y = event.xdata, event.ydata
+        #print x, y
         return False
     def button_press_event(self, event):
+        """
+        if not event.inaxes: return
+        x, y = event.xdata, event.ydata
+        if event.button==1:
+            if event.inaxes == self.ax:
+                print "clicked at: ", x, y
+                keys = self.lines.keys()
+                i = 0
+                for key in keys:
+                    ys[i] = self.lines[key][0].get_ydata()[x] #more work to do here
+                    print ys[i]
+                    i += 1
+                    
+                for yval in ys:
+                    yval = y - yval
+                    yval = abs(yval)
+                matches = nonzero(ys==min(ys))
+                print "match?", matches
+        """
         return False
     def button_release_event(self, event):
         return False
