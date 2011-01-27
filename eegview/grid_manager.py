@@ -44,11 +44,11 @@ class GridManager:
     DESCR: maintains list of VTK actors for view3d display
     """
     SCROLLBARSIZE = 150,20
-    def __init__(self, interactor, renderer, infile, dimensiond=None):
+    def __init__(self, interactor, renderer, meshManager, infile, dimensiond=None):
         
         self.interactor = interactor
         self.renderer = renderer
-
+        self.meshManager = meshManager
         self.gridActors = {}  # dict from name -> grid or ribbon actors
         self.ribbons = {}     # dict from name -> ribbon actor
         self.surfs = {}       # dict from name -> surf actor
@@ -1318,7 +1318,7 @@ class GridManager:
     def _make_opacity_table(self):
         names = self.get_grid_names()
 
-        table = gtk.Table(len(names)+4,2)
+        table = gtk.Table(len(names)+5,2) #I've added a bar at the bottom for the vtk brainmesh -e
         table.set_homogeneous(False)
         table.show()
         table.set_col_spacings(3)
@@ -1469,6 +1469,34 @@ class GridManager:
         table.attach(scrollbar, 1, 2, row, row+1,
                      xoptions=gtk.FILL, yoptions=gtk.EXPAND)
         row += 1
+        print "mminactive", self.meshManager
+        #this last bit controls the vtk brainmesh opacity
+        
+        label = gtk.Label('Brain Mesh')
+        label.show()
+        
+        def mesh_opacity(bar):
+            val = bar.get_value()
+            if self.meshManager:
+                self.meshManager.contours.GetProperty().SetOpacity(val)
+                self.interactor.Render()
+            else:
+                simple_msg("Mesh manager not yet loaded.")
+                
+        scrollbar = gtk.HScrollbar()
+        scrollbar.show()
+        scrollbar.set_range(0, .99)
+        scrollbar.set_increments(0.05,0.25)
+        scrollbar.set_value(.99)
+        scrollbar.connect('value_changed', mesh_opacity)
+        scrollbar.set_size_request(*self.SCROLLBARSIZE)
+
+        table.attach(label, 0, 1, row, row+1,
+                     xoptions=gtk.EXPAND, yoptions=gtk.EXPAND)
+        table.attach(scrollbar, 1, 2, row, row+1,
+                     xoptions=gtk.FILL, yoptions=gtk.EXPAND)
+        row += 1
+        
 
         return table
 

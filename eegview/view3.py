@@ -1270,6 +1270,9 @@ class View3(gtk.Window, Observer):
 
     def load_mesh(self, mesh_filename, reg_filename):
         self.meshManager = MeshManager(self.interactor, self.renderer, mesh_filename, reg_filename)
+        if self.gridManager:
+            print "assigning!"
+            self.gridManager.meshManager = self.meshManager
         
     def load_markers(self, *args, **kwargs):
         infile = kwargs.get('infile', None)
@@ -1289,8 +1292,8 @@ class View3(gtk.Window, Observer):
                 self.gridManager.markers = None
                 return
 
-        print "View3.load_markers(): initializing GridManager(): self.eoi is uh ",self.eoi, "of length" , len(self.eoi)
-        self.gridManager = GridManager(self.interactor, self.renderer, infile)
+        print "View3.load_markers(): initializing GridManager(): self.eoi is ",self.eoi, "of length" , len(self.eoi)
+        self.gridManager = GridManager(self.interactor, self.renderer, self.meshManager, infile)
         if not self.gridManager.ok:
             return
 

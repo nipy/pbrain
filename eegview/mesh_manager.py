@@ -82,7 +82,7 @@ class MeshManager:
         vtkmat = array_to_vtkmatrix4x4(mat)
 
         self.contours.SetUserMatrix(vtkmat)
-        self.contours.GetProperty().SetOpacity(.38) #maybe this should be adjustable?
+        #self.contours.GetProperty().SetOpacity(.38)  #adjustable in the grid manager now
         
         # XXX YAH somehow get a callback when actor is moved...
         
