@@ -4,7 +4,7 @@ import pylab as p
 import vtk
 
 from scipy import array, zeros, ones, sort, absolute, sqrt, divide,\
-     argsort, take, arange
+     argsort, take, arange, nonzero
 import numpy
 import pygtk
 pygtk.require('2.0')
@@ -52,6 +52,7 @@ class CohExplorer(gtk.Window, Observer):
         self.opt = 'multi'
         self.optchanged = 0
         self.chansel = []
+        self.oldsel = []
         
         def plot(button):
             self.length = int(lengthEntry.get_text())
@@ -132,6 +133,9 @@ class CohExplorer(gtk.Window, Observer):
         hbox.pack_start(optMenu, False, False)
         hbox.pack_start(buttonPlot, False, False)
         
+        self.statBar = gtk.Label()
+        self.statBar.set_alignment(0,0)
+        self.statBar.show()
         self.progBar = gtk.ProgressBar()
         #self.progBar.set_size_request(10, 100)
         self.progBar.set_orientation(0)  # bottom-to-top
@@ -139,8 +143,8 @@ class CohExplorer(gtk.Window, Observer):
         self.progBar.show()
         load_file(buttonSave) #load a file on startup
         self.make_fig(self.band) #and plot it
-        
         vbox.pack_start(self.canvas, True, True)
+        vbox.pack_start(self.statBar, False, False)
         vbox.pack_start(self.progBar, False, False)
    
     def load_chans(self, button):
@@ -192,32 +196,35 @@ class CohExplorer(gtk.Window, Observer):
                 self.lines[channelnum][0].set_linewidth(1)
             self.canvas.draw()
     def motion_notify_event(self, event):
-        if not event.inaxes: return
-        x, y = event.xdata, event.ydata
-        #print x, y
         return False
-    def button_press_event(self, event):
-        """
+    def button_press_event(self, event):       
         if not event.inaxes: return
         x, y = event.xdata, event.ydata
         if event.button==1:
-            if event.inaxes == self.ax:
+            if event.inaxes == self.ax: #check if buttonpress is in axes
                 print "clicked at: ", x, y
-                keys = self.lines.keys()
-                i = 0
+                keys = self.lines.keys() #get the line dict keys (channels names)
+                xlen = len(self.lines[keys[0]][0].get_ydata()) #number of plotted points per channel 
+                xlim = self.ax.get_xlim() #x axes scale
+                xindex = int((x * xlen)/abs(xlim[1]-xlim[0])) #which point have we clicked closest to?
+                ysdiff = {} #will be a dict from channel name to distance to y click
                 for key in keys:
-                    ys[i] = self.lines[key][0].get_ydata()[x] #more work to do here
-                    print ys[i]
-                    i += 1
-                    
-                for yval in ys:
-                    yval = y - yval
-                    yval = abs(yval)
-                matches = nonzero(ys==min(ys))
-                print "match?", matches
-        """
+                    ys = (self.lines[key][0].get_ydata()[xindex]) #get the y value at the closest plotted point - I don't think extrapolating along a line is necessary
+                    ysdiff[key] = abs(ys - y) #distance
+                miny = min(ysdiff.items(), key = lambda x: x[1]) [0] #mininum yval
+                if (self.oldsel != []): #color switching
+                    self.lines[self.oldsel[0]][0].set_color(self.oldsel[1])
+                    self.lines[self.oldsel[0]][0].set_linewidth(1)
+                    self.oldsel = []
+                self.oldsel.append(copy.deepcopy(miny))
+                self.oldsel.append(self.lines[miny][0].get_color())
+                self.lines[miny][0].set_color('y')
+                self.lines[miny][0].set_linewidth(5)
+                self.canvas.draw()
+                self.statBar.set_text("Closest Channel: %s." %str(miny)) #display channel name
         return False
     def button_release_event(self, event):
+        self.canvas.draw()
         return False
             
     def read_data(self, df, length, opt):
