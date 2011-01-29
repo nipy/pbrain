@@ -1114,7 +1114,7 @@ class GridManager:
                     mapper.SetLookupTable(lut)
                 self.interactor.Render() 
             elif (combo.get_active() == 2):
-                print "loading custom map a la Leo"
+                print "loading custom map"
                 if fmanager.col == "" or fmanager.col == " ":
                     colormap_filename = fmanager.get_filename()
                 else:

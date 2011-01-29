@@ -205,6 +205,7 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
                 maxx = copy.deepcopy(max(x))
             color = colordict[((i-1)%7)]
             newp = self.ax.plot(time_range, x, color, label=("channel " + str(i+1)))
+            newp[0].set_linewidth(4)
             graph.append(newp)
             
         self.ax.set_xlabel('index')
