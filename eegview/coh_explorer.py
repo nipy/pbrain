@@ -19,7 +19,7 @@ from events import Observer
 from shared import fmanager
 from pbrainlib.gtkutils import error_msg, simple_msg, make_option_menu,\
      get_num_value, get_num_range, get_two_nums, str2int_or_err,\
-     OpenSaveSaveAsHBox, ButtonAltLabel, str2num_or_err
+     OpenSaveSaveAsHBox, ButtonAltLabel, str2num_or_err, exception_to_str
 
 class CohExplorer(gtk.Window, Observer):
     """this class will implement an entirely new view, launching from view3, allowing exploration and data discovery based on coherence dumps from the dump coherences button in the view3 window. """

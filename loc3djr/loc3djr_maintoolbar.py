@@ -3,7 +3,7 @@ import os
 from shared import shared
 from vtksurface import VTKSurface
 
-from pbrainlib.gtkutils import MyToolbar, FileManager
+from pbrainlib.gtkutils import MyToolbar, FileManager, error_msg
 from image_reader import widgets, GladeHandlers
 from events import EventHandler, UndoRegistry, Viewer
 
