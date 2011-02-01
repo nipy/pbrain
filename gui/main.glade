@@ -87,67 +87,6 @@
 	  </child>
 
 	  <child>
-	    <widget class="GtkMenuItem" id="menuitemAnnotations">
-	      <property name="visible">True</property>
-	      <property name="label" translatable="yes">_Annotations</property>
-	      <property name="use_underline">True</property>
-
-	      <child>
-		<widget class="GtkMenu" id="menuitemAnnotations_menu">
-
-		  <child>
-		    <widget class="GtkMenuItem" id="menuItemAnnBrowser">
-		      <property name="visible">True</property>
-		      <property name="label" translatable="yes">Annotation Browser...</property>
-		      <property name="use_underline">True</property>
-		    </widget>
-		  </child>
-
-		  <child>
-		    <widget class="GtkMenuItem" id="menuItemAnnCreateEdit">
-		      <property name="visible">True</property>
-		      <property name="label" translatable="yes">Create New</property>
-		      <property name="use_underline">True</property>
-		    </widget>
-		  </child>
-
-		  <child>
-		    <widget class="GtkMenuItem" id="menuItemAnnDelete">
-		      <property name="visible">True</property>
-		      <property name="label" translatable="yes">Delete Selected</property>
-		      <property name="use_underline">True</property>
-		    </widget>
-		  </child>
-
-		  <child>
-		    <widget class="GtkSeparatorMenuItem" id="separator1">
-		      <property name="visible">True</property>
-		    </widget>
-		  </child>
-
-		  <child>
-		    <widget class="GtkCheckMenuItem" id="menuItemAnnHorizCursor">
-		      <property name="visible">True</property>
-		      <property name="label" translatable="yes">Horizontal Cursor</property>
-		      <property name="use_underline">True</property>
-		      <property name="active">True</property>
-		    </widget>
-		  </child>
-
-		  <child>
-		    <widget class="GtkCheckMenuItem" id="menuItemAnnVertCursor">
-		      <property name="visible">True</property>
-		      <property name="label" translatable="yes">Vertical Cursor</property>
-		      <property name="use_underline">True</property>
-		      <property name="active">True</property>
-		    </widget>
-		  </child>
-		</widget>
-	      </child>
-	    </widget>
-	  </child>
-
-	  <child>
 	    <widget class="GtkMenuItem" id="menuitemView">
 	      <property name="visible">True</property>
 	      <property name="label" translatable="yes">_View</property>
