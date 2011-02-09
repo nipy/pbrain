@@ -143,7 +143,6 @@ class View3(gtk.Window, Observer):
         self.selected = None
         self.cohCache = None  # cache coherence results from other window
         self.cohereResults = None
-
         self.csv_fname = None
         self.scalarDisplay = {"scalardisplay" : False, "tmin" : 0, "tmax" : 10, "tstep" : 1} 
         
@@ -382,7 +381,7 @@ class View3(gtk.Window, Observer):
             self.compute_coherence()
             self.plot_band()
         def coh_explore(button, *args):
-            ce = CohExplorer(self.eoi)
+            ce = CohExplorer(self.eoi, self.eeg.freq)
             ce.show()
             
         self.buttonRange = gtk.CheckButton()
@@ -396,10 +395,14 @@ class View3(gtk.Window, Observer):
             tmax = self.eeg.get_tmax()
             print "view3.range_toggled test: tmax: ", tmax, self.eeg.freq
             tmax = tmax*self.eeg.freq
-            self.eegplot.set_time_lim(0,tmax, True, False)
+            tmin, toldmax = self.eegplot.get_time_lim()
+            print "view3.range_toggled test2: ", tmax, toldmax 
+            if (tmax != toldmax):
+                self.eegplot.set_time_lim(0,tmax, True, False)
 
         ###new parameters for coherence calculations:
         def coh_params(widget, *args):
+            eegfreq = self.eeg.freq
             dlg2 = gtk.Dialog("Coherence Calculation Parameters")
             dlg2.connect("destroy", dlg2.destroy)
             dlg2.set_size_request(300,250)
@@ -411,15 +414,16 @@ class View3(gtk.Window, Observer):
             lpxx.show()
             lrange = gtk.Label("calculate over all data:")
             lrange.show()
-            lsweep = gtk.Label("Sweep Length in points:")
+            lsweep = gtk.Label("Sweep Length in ms:")
             lsweep.show()
-            lcoh = gtk.Label("Coh Calc Length in points:")
+            lcoh = gtk.Label("Coh Window Size in points:")
             lcoh.show()
-            loff = gtk.Label("Offset in points:")
+            loff = gtk.Label("Offset in ms:")
             loff.show()
             esweep = gtk.Entry()
             esweep.set_width_chars(3)
-            esweep.set_text("%d" % self.NFFT)
+            print "AAAA", eegfreq
+            esweep.set_text("%d" % ((self.NFFT/eegfreq)*1000))
             esweep.connect('changed', self.numbify)
             esweep.show()
             ecoh = gtk.Entry()
@@ -429,7 +433,7 @@ class View3(gtk.Window, Observer):
             ecoh.show()
             eoff = gtk.Entry()
             eoff.set_width_chars(3)
-            eoff.set_text("%d" % self.offset)
+            eoff.set_text("%d" % ((self.offset/eegfreq)*1000))
             eoff.connect('changed', self.numbify)
             eoff.show()
             self.buttonRange.show()
@@ -457,8 +461,8 @@ class View3(gtk.Window, Observer):
                 response2 = dlg2.run()
 
                 if response2==gtk.RESPONSE_OK:
-                    self.NFFT = int(esweep.get_text())
-                    self.offset = int(eoff.get_text())
+                    self.NFFT = (int(esweep.get_text())*eegfreq)/1000
+                    self.offset = (int(eoff.get_text())*eegfreq)/1000
                     self.newLength = int(ecoh.get_text())
                     if self.buttonRange.get_active():
                         range_toggled()

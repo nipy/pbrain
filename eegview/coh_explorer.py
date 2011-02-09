@@ -23,13 +23,15 @@ from pbrainlib.gtkutils import error_msg, simple_msg, make_option_menu,\
 
 class CohExplorer(gtk.Window, Observer):
     """this class will implement an entirely new view, launching from view3, allowing exploration and data discovery based on coherence dumps from the dump coherences button in the view3 window. """
-    def __init__(self, eoi):
+    def __init__(self, eoi, freq):
         gtk.Window.__init__(self)
         Observer.__init__(self)
         self.bandlist = ['delta', 'theta', 'alpha', 'beta', 'gamma', 'high']
         self.t_data = {} #this is the dictionary used in read_data, from time points to channel cohs unaveraged
         self.x_data = {} #this is the dictionary used in make_fig, from channel labels to xdata
         self.channels = eoi
+        self.eegfreq = freq
+        self.datares = 0
         self.fig = Figure(figsize=(15,15), dpi=72)
         self.canvas = FigureCanvas(self.fig)  # a gtk.DrawingArea
         self.canvas.show()
@@ -42,20 +44,20 @@ class CohExplorer(gtk.Window, Observer):
         self.set_title('Coherence Explorer')
         
         self.band = self.bandlist[0] #start with delta
-        self.length = 10 #start with a tiny amount of lines
+        self.length = 12 #start with a tiny amount of lines
         vbox = gtk.VBox()
         vbox.show()
         self.add(vbox)
         saveEntry = gtk.Entry()
         self.dumpfile = None
-        self.oldlength = 10
+        self.oldlength = 12
         self.opt = 'multi'
         self.optchanged = 0
         self.chansel = []
         self.oldsel = []
         
         def plot(button):
-            self.length = int(lengthEntry.get_text())
+            self.length = int(self.ms2lines(float(self.lengthEntry.get_text())))
             if (self.length > self.oldlength or self.optchanged == 1):
                 del self.t_data
                 self.t_data = {}
@@ -114,9 +116,9 @@ class CohExplorer(gtk.Window, Observer):
         bandMenu = make_option_menu(self.bandlist, func=set_active_band)
         optMenu = make_option_menu(['coh', 'phase', 'cohphase'], func=set_opts)
         
-        lengthEntry = gtk.Entry()
-        lengthEntry.set_text(str(self.length))
-        lengthEntry.show()
+        self.lengthEntry = gtk.Entry()
+        self.lengthEntry.set_text(str(self.length))
+        self.lengthEntry.show()
         buttonPlot = gtk.Button(stock=gtk.STOCK_EXECUTE) #the execute button replots with changes
         buttonPlot.show()
         buttonPlot.connect('clicked', plot)
@@ -129,7 +131,7 @@ class CohExplorer(gtk.Window, Observer):
         hbox.pack_start(buttonSave, False, False)
         hbox.pack_start(buttonChans, False, False)
         hbox.pack_start(bandMenu, False, False)
-        hbox.pack_start(lengthEntry, False, False)
+        hbox.pack_start(self.lengthEntry, False, False)
         hbox.pack_start(optMenu, False, False)
         hbox.pack_start(buttonPlot, False, False)
         
@@ -226,6 +228,15 @@ class CohExplorer(gtk.Window, Observer):
     def button_release_event(self, event):
         self.canvas.draw()
         return False
+    
+    def lines2ms(self, lines):
+        if not self.datares:
+            error_msg("header error in dumpfile: data res not set!")
+        return (lines*self.datares/self.eegfreq)*1000
+    def ms2lines(self, ms):
+        if not self.datares:
+            error_msg("header error in dumpfile: data res not set!")
+        return (ms/1000)*self.eegfreq/self.datares
             
     def read_data(self, df, length, opt):
     
@@ -240,11 +251,13 @@ class CohExplorer(gtk.Window, Observer):
         f = open(df, 'rb')
         nl = length
         i = 0
+        offcounter = 0
         trodelist = []
         tr = {}
         skip = 0
         tnext = 0
         cc = 0
+        sweeplen = 0
         while 1:
             if (i != cc and i%10 == 0):
                 progress_callback(i/nl, "almost done..")
@@ -253,12 +266,26 @@ class CohExplorer(gtk.Window, Observer):
                 break
             if (line == ""):
                 break
-            if (skip == 1):
+            if (skip >= 1):
+                if (skip == 1):
+                    if (sweeplen != 0):
+                        if (sweeplen != int(line)):
+                            error_msg("invalid dump file: changing sweep length")
+                    else:
+                        sweeplen = int(line) #set the sweeplength and make sure it stays the same
                 skip = 0
                 continue
             if (tnext == 1):
                 tnext = 0
                 tcur = int(line)
+                if (offcounter < 10):
+                    offcounter += 1
+                if (offcounter == 10):
+                        offcounter += 1
+                        self.datares = tcur/9 #figure out how sharp the data dump is (set during autopaging).
+                        print "coh_explor: datares: ", self.datares
+                        self.lengthEntry.set_text(str(self.lines2ms(self.length))) #should give 12 (the default) lines in ms
+                        #note: later I will make a new data format that assumes all params set initially, with no inner headers.
                 #print "current time is ", tcur
                 tr = copy.deepcopy(tr) #trodes is a dict from name of trode to tuple containing numsamples and sumsamples. copies are important.
                 tr = {} #get ready
@@ -275,7 +302,7 @@ class CohExplorer(gtk.Window, Observer):
                     skip = 1
                     continue
                 elif (line[1:5] == 'leng'):
-                    skip = 1
+                    skip = 2
                     continue
                 elif (line[1:5] == 'offs'):
                     tnext = 1

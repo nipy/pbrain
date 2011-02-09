@@ -232,6 +232,21 @@ class FileFormat_NeuroscanAscii:
 
         #print "electrode_labels: " , self.electrode_labels
         for i in self.electrode_labels:
+            j = 0
+            while (j < len(i)):
+                if (i[j] == ' '):
+                    j+=1
+                    break #we shouldn't have any leading whitespace here, see above
+                if (i[j] in string.ascii_letters):
+                    j+=1
+                    continue #labels should all start with letters
+                if (i[j] in string.digits):
+                    start = i[0:j]
+                    end = i[j:]
+                    full = start + ' ' + end #add in the missing space already
+                    print "file_format found spaceless label, changing to: ", full
+                    i = full
+                    break                       
             electrode_label_split = i.split(' ')
             # special case for when the electrode name is just one string - -b
             # put 'NS' in front arbitrarily. (XXX: for Sozari, kind of wack)
@@ -239,7 +254,7 @@ class FileFormat_NeuroscanAscii:
             if (len(electrode_label_split) == 1):
                 electrode_label_split = ['NS', electrode_label_split[0]]
             self.channel_names.append(electrode_label_split[0])
-            #print "electrode_label_split = ", electrode_label_split, "appending 1"
+            print "electrode_label_split = ", electrode_label_split, "appending"
             self.channel_numbers.append(int(electrode_label_split[1]))
 
     def parse_sampling_rate(self, ascline):
