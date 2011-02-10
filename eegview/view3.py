@@ -156,8 +156,8 @@ class View3(gtk.Window, Observer):
         
         self.dumpCsvRadio = "radio_all"
         self.cohFile = None
-        self.NFFT = 512
-        self.newLength = 256
+        self.NFFT = 512 #sweeplength
+        self.newLength = 256 #windowlength
         self.offset = 0
         
         seen = {}
@@ -1297,7 +1297,7 @@ class View3(gtk.Window, Observer):
                 return
 
         print "View3.load_markers(): initializing GridManager(): self.eoi is ",self.eoi, "of length" , len(self.eoi)
-        self.gridManager = GridManager(self.interactor, self.renderer, self.meshManager, infile)
+        self.gridManager = GridManager(self.interactor, self.renderer, self.meshManager, self, infile)
         if not self.gridManager.ok:
             return
 

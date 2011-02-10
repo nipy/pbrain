@@ -32,13 +32,13 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
     CLASS: ArrayMapper
     DESCR: 
     """
-    def __init__(self, gridManager, X, channels, amp, addview3, start_time=None, end_time=None):
+    def __init__(self, gridManager, X, channels, amp, addview3, view3, start_time=None, end_time=None):
         ScalarMapper.__init__(self, gridManager)
         gtk.Window.__init__(self)
         Observer.__init__(self)
         self.resize(512,570)
         self.set_title('Array data')
-        
+        self.view3 = view3
         self.addview3 = addview3
         self.channels = channels        
         self.amp = amp
@@ -111,15 +111,27 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
         self.numlabel = gtk.Label(str(scrollbar.get_value()))
         self.numlabel.show()
         hbox.pack_start(self.numlabel,False, False)
-
+        hbox2 = gtk.HBox()
+        hbox2.show()
         toolbar = NavigationToolbar(self.canvas, self)
         toolbar.show()
-        vbox.pack_start(toolbar, False, False)
+        hbox2.pack_start(toolbar, True, True)
+        button = gtk.Button('Coh. Here')
+        button.show()
+        hbox2.pack_start(button, False, False)
+        button.connect('clicked', self.coh_here)
+        vbox.pack_start(hbox2, False, False)
 
         self.set_sample_num(scrollbar)
 
         self.connect("destroy", self.on_destroy)
                
+    def coh_here(self, button):
+        val = self.scrollbarIndex.get_value()
+        self.view3.offset = val - self.view3.newLength/2 #set the new view3 offset to the beginning of the window
+        self.view3.compute_coherence()
+        self.view3.plot_band()
+        #I know I should be using the receiver. I really dislike that interface tho, so for now I'll be raw about it, until we get a better one.
         
     def view3_remove(self, button):
         #a switch in the array mapper to toggle view3 display
@@ -139,6 +151,7 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
         gc.collect()
         
     def set_sample_num(self, bar):
+        LO = self.view3.newLength/2
         if (self.time_in_secs == True):
             val = float(bar.get_value())
             ind = ((val -self.start_time)  / (self.end_time - self.start_time) * self.numSamples)
@@ -147,17 +160,23 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
             self.gridManager.set_scalar_data(datad)
             xdata = array([val, val], 'd')
             #print "shape of xdata is " , xdata.shape
-            for line in self.lines:
-                #print "ArrayMapper.set_sample_num(): doing line " , line
-                line.set_xdata(xdata) 
+            #for line in self.lines:
+            #    print "ArrayMapper.set_sample_num(): doing line " , line
+            #    line.set_xdata(xdata) 
+            self.lines[0].set_xdata(array([val-LO, val-LO], 'd'))
+            self.lines[1].set_xdata(array([val, val], 'd')) #middle line
+            self.lines[2].set_xdata(array([val+LO, val+LO], 'd'))
         else:
             ind = int(bar.get_value())
             #print "ArrayMapper.set_sample_num(", ind, ")"
             datad = self.get_datad(ind)
             self.gridManager.set_scalar_data(datad)
-            xdata = array([ind, ind], 'd')
-            for line in self.lines:
-                line.set_xdata(xdata)
+            #xdata = array([ind, ind], 'd')
+            #for line in self.lines:
+            #    line.set_xdata(xdata)
+            self.lines[0].set_xdata(array([ind-LO, ind-LO], 'd'))
+            self.lines[1].set_xdata(array([ind, ind], 'd')) #middle line
+            self.lines[2].set_xdata(array([ind+LO, ind+LO], 'd'))
     
         if (self.time_in_secs == True):
             self.numlabel.set_text(str(float(bar.get_value())))
@@ -217,7 +236,18 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
         else:
             mid = self.numSamples/2.0
         #print "setting up line at (([%d, %d], [%d, %d])[0]" % (mid, mid, min(x), max(x))
-        line = self.ax.plot([mid, mid], [minx, maxx],'w')[0]
+        LO = self.view3.newLength/2
+        #line = self.ax.plot([mid, mid], [minx, maxx],'w')[0]
+        #left edge of window:
+        line = self.ax.plot([mid-LO, mid-LO], [minx, maxx],'w')[0]
+        self.ax.add_line(line)
+        self.lines.append(line)
+        #middle of window, where the scalar data comes from:
+        line = self.ax.plot([mid, mid], [minx, maxx-5],'w')[0]
+        self.ax.add_line(line)
+        self.lines.append(line)
+        #right edge of window
+        line = self.ax.plot([mid+LO, mid+LO], [minx, maxx],'w')[0]
         self.ax.add_line(line)
         self.lines.append(line)
         self.ax.patch.set_facecolor('black') #transparency

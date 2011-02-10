@@ -44,8 +44,8 @@ class GridManager:
     DESCR: maintains list of VTK actors for view3d display
     """
     SCROLLBARSIZE = 150,20
-    def __init__(self, interactor, renderer, meshManager, infile, dimensiond=None):
-        
+    def __init__(self, interactor, renderer, meshManager, view3, infile, dimensiond=None):
+        self.view3 = view3
         self.interactor = interactor
         self.renderer = renderer
         self.meshManager = meshManager
@@ -793,7 +793,7 @@ class GridManager:
                     error_msg('key %s not in list of grid names: %s' % (curr_grid_name, grid_names))
                     return
             
-            am = ArrayMapper(self, self.X, channels, self.ampAscii, self.addview3, start_time=start_time, end_time=end_time)
+            am = ArrayMapper(self, self.X, channels, self.ampAscii, self.addview3, self.view3, start_time=start_time, end_time=end_time)
             #here, we'll try to preemptively load a colormap if the .eegviewrc file has been set.
             self.set_custom_colormap()
             
