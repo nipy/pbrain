@@ -1254,7 +1254,8 @@ class EEGPlot(Observer):
     def set_time_lim(self, xmin=None, xmax=None,
                      updateData=False, broadcast=True):
         #make sure xmin keeps some eeg on the screen
-        #print "EEGPlot.set_time_lim(xmin=", xmin, "xmax=", xmax, ")"
+        print "EEGPLOT.set_time_lim broadcast=", broadcast, " update data=",updateData
+        print "EEGPlot.set_time_lim(xmin=", xmin, "xmax=", xmax, ")"
         
         
         origmin, origmax = self.get_time_lim()
@@ -1286,9 +1287,14 @@ class EEGPlot(Observer):
             self.axes.set_xlim((xmin, xmax))
             for ind, line in zip(self.indices, self.lines):
                 line.set_data(t, data[:,ind])
-        
+            self.plot()
+            #we'll let the observer take care of this
+            #self.axesSpec.set_xlim([xmin,xmax])
+            #self.axesSpec.set_xticklabels(ticks)
+            
         # recieve the observers
         if broadcast:
+            print "EEGPLOT: Broadcasting set time lim"
             self.broadcast(Observer.SET_TIME_LIM, xmin, xmax)
 
     def get_channel_at_point(self, x, y, select=True):
@@ -1421,10 +1427,10 @@ class SpecPlot(Observer):
         self.pmin = minimum.reduce(minimum.reduce(Z))
         self.pmax = maximum.reduce(maximum.reduce(Z))
         
-        self.eegplot.set_time_lim(xmin=None, xmax=None,
-                     updateData=False, broadcast=False)
-        self.axes.set_xlim( [xmin, xmax] )
-        self.axes.set_xticks( self.eegplot.axes.get_xticks()  )
+        #self.eegplot.set_time_lim(xmin=None, xmax=None,
+        #             updateData=False, broadcast=False)
+        #self.axes.set_xlim( [xmin, xmax] )
+        #self.axes.set_xticks( self.eegplot.axes.get_xticks()  )
         print "SpecPlot.make_spec: xticks = ", self.eegplot.axes.get_xticks()
         #self.axes.set_title('Spectrogram for electrode %s' % label)
         #self.axes.set_xlabel('TIME (s)')

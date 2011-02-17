@@ -417,7 +417,7 @@ class View3(gtk.Window, Observer):
             tmin, toldmax = self.eegplot.get_time_lim()
             print "view3.range_toggled test2: ", tmax, toldmax 
             if (tmax != toldmax):
-                self.eegplot.set_time_lim(0,tmax, True, False)
+                self.eegplot.set_time_lim(0,tmax, True, True)
 
         def ms2points(ms, eegfreq):
             return int((ms*eegfreq)/1000)
@@ -507,9 +507,9 @@ class View3(gtk.Window, Observer):
                         range_toggled()
                     else:
                         self.eegplot.set_time_lim(
-                            ms2points(int(self.etimemin.get_text()),eegfreq),
-                            ms2points(int(self.etimemax.get_text()), eegfreq), 
-                            True, False)
+                            ms2points(int(self.etimemin.get_text()),eegfreq)/1000,
+                            ms2points(int(self.etimemax.get_text()),eegfreq)/1000, 
+                            True, True) #the last true sends to the observer
                     dlg2.destroy()
                     break
                 if response2==gtk.RESPONSE_CANCEL:
@@ -1482,8 +1482,8 @@ class View3(gtk.Window, Observer):
     def recieve(self, event, *args):
         if not self.buttonFollowEvents.get_active(): return
         if event in (Observer.SET_TIME_LIM,):
-            self.compute_coherence()
-            self.plot_band()
+            #self.compute_coherence()
+            #self.plot_band()
             print "VIEW3.VIEW3.recieve() and buttonFollowEvents is active"
         elif event==Observer.SAVE_FRAME:
             fname = args[0]
