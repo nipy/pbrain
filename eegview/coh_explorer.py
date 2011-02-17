@@ -349,7 +349,7 @@ class CohExplorer(gtk.Window, Observer):
         N = len(self.channels)
         if (self.opt != 'cohphase'):
             self.ax = self.fig.add_subplot(1,1,1) 
-            self.ax.set_ylim(0,.5, auto=False)
+            #self.ax.set_ylim(0,.1, auto=True)
         if (self.opt == 'cohphase'):
             self.ax = p3.Axes3D(self.fig)
         self.cursor = Cursor(self.ax, useblit=True, linewidth=1, color='white')
@@ -396,7 +396,7 @@ class CohExplorer(gtk.Window, Observer):
             if (self.opt == 'cohphase'):
                 self.lines[isplit] = self.ax.plot3D(ydata[counter], keys[0:self.length-1], xdata[counter], color, label = (str(i)))
             counter += 1
-        self.ax.set_ylim(0,.4, auto=False)
+        #self.ax.set_ylim(0,.1, auto=True)
         self.ax.patch.set_facecolor('black') #black bg
         self.progBar.set_fraction(0)
         return

@@ -239,15 +239,15 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
         LO = self.view3.newLength/2
         #line = self.ax.plot([mid, mid], [minx, maxx],'w')[0]
         #left edge of window:
-        line = self.ax.plot([mid-LO, mid-LO], [minx, maxx],'w')[0]
+        line = self.ax.plot([mid-LO, mid-LO], [minx, maxx],'y')[0]
         self.ax.add_line(line)
         self.lines.append(line)
         #middle of window, where the scalar data comes from:
-        line = self.ax.plot([mid, mid], [minx, maxx-5],'w')[0]
+        line = self.ax.plot([mid, mid], [minx, maxx],'r')[0]
         self.ax.add_line(line)
         self.lines.append(line)
         #right edge of window
-        line = self.ax.plot([mid+LO, mid+LO], [minx, maxx],'w')[0]
+        line = self.ax.plot([mid+LO, mid+LO], [minx, maxx],'y')[0]
         self.ax.add_line(line)
         self.lines.append(line)
         self.ax.patch.set_facecolor('black') #transparency

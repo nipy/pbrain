@@ -340,6 +340,19 @@ class View3(gtk.Window, Observer):
         #toolitem.set_expand(gtk.TRUE)
         toolitem.show_all()
         toolbar.insert(toolitem, -1)
+    
+    #this is for the coherence options time range
+    def rangeButton_toggled(self, button):
+        if button.get_active():
+            print "active"
+            self.etimemin.set_sensitive(False)
+            self.etimemax.set_sensitive(False)
+        else:
+            print "not active"
+            self.etimemin.set_sensitive(True)
+            self.etimemax.set_sensitive(True)
+            self.etimemin.show()
+            self.etimemin.show()
         
     def add_toolbutton1(self, toolbar, icon_name, tip_text, tip_private, clicked_function, clicked_param1=None):
         iconSize = gtk.ICON_SIZE_SMALL_TOOLBAR
@@ -383,13 +396,19 @@ class View3(gtk.Window, Observer):
         def coh_explore(button, *args):
             ce = CohExplorer(self.eoi, self.eeg.freq)
             ce.show()
+        
+        
             
         self.buttonRange = gtk.CheckButton()
         self.buttonRange.set_active(False)
+        
         #self.buttonRange.set_mode(True)
         self.buttonPxx = gtk.CheckButton()
         self.buttonPxx.set_active(False)
         #self.buttonPxx.set_mode(True)
+        self.ltimerange = gtk.Label("Data Time Range:")
+        self.etimemin = gtk.Entry()
+        self.etimemax = gtk.Entry()
         
         def range_toggled():
             tmax = self.eeg.get_tmax()
@@ -400,13 +419,17 @@ class View3(gtk.Window, Observer):
             if (tmax != toldmax):
                 self.eegplot.set_time_lim(0,tmax, True, False)
 
+        def ms2points(ms, eegfreq):
+            return int((ms*eegfreq)/1000)
+
         ###new parameters for coherence calculations:
         def coh_params(widget, *args):
             eegfreq = self.eeg.freq
+            self.buttonRange.connect('toggled',self.rangeButton_toggled)
             dlg2 = gtk.Dialog("Coherence Calculation Parameters")
             dlg2.connect("destroy", dlg2.destroy)
-            dlg2.set_size_request(300,250)
-            table2 = gtk.Table(2,5)
+            dlg2.set_size_request(380,400)
+            table2 = gtk.Table(3,6)
             table2.show()
             table2.set_row_spacings(4)
             table2.set_col_spacings(4)
@@ -416,18 +439,20 @@ class View3(gtk.Window, Observer):
             lrange.show()
             lsweep = gtk.Label("Sweep Length in ms:")
             lsweep.show()
-            lcoh = gtk.Label("Coh Window Size in points:")
+            lcoh = gtk.Label("Coh Window Size in ms:")
             lcoh.show()
             loff = gtk.Label("Offset in ms:")
             loff.show()
+            lhelp = gtk.Label("Note: coherence is indexed by sweep length into datarange. if coh window size < sweep length, some data will be skipped over. set datarange manually for individual runs of trial, or choose all data for all trial runs.") 
+            lhelp.set_line_wrap(True)
+            lhelp.show()
             esweep = gtk.Entry()
             esweep.set_width_chars(3)
-            print "AAAA", eegfreq
             esweep.set_text("%d" % ((self.NFFT/eegfreq)*1000))
             esweep.connect('changed', self.numbify)
             esweep.show()
             ecoh = gtk.Entry()
-            ecoh.set_text("%d" % self.newLength)
+            ecoh.set_text("%d" % ((self.newLength/eegfreq)*1000))
             ecoh.connect('changed', self.numbify)
             ecoh.set_width_chars(3)
             ecoh.show()
@@ -438,19 +463,33 @@ class View3(gtk.Window, Observer):
             eoff.show()
             self.buttonRange.show()
             self.buttonPxx.show()
+            self.ltimerange.show()
+            self.etimemin.set_width_chars(3)
+            self.etimemax.set_width_chars(3)
+            self.etimemin.connect('changed', self.numbify)
+            self.etimemax.connect('changed', self.numbify)
+            self.etimemin.set_text("0")
+            self.etimemax.set_text("%d" % ((self.NFFT/eegfreq)*1000))
+            self.etimemin.show()
+            self.etimemax.show()
             
             
             table2.attach(lpxx,0,1,0,1)
             table2.attach(self.buttonPxx,1,2,0,1)
             table2.attach(lrange,0,1,1,2)
             table2.attach(self.buttonRange,1,2,1,2)
-            table2.attach(lsweep,0,1,2,3)
-            table2.attach(lcoh,0,1,3,4)
-            table2.attach(loff,0,1,4,5)
-            table2.attach(esweep,1,2,2,3)
-            table2.attach(ecoh,1,2,3,4)
-            table2.attach(eoff,1,2,4,5)
+            table2.attach(self.ltimerange,0,1,2,3)
+            table2.attach(self.etimemin,1,2,2,3)
+            table2.attach(self.etimemax,2,3,2,3)
+            table2.attach(lsweep,0,1,3,4)
+            table2.attach(lcoh,0,1,4,5)
+            table2.attach(loff,0,1,5,6)
+            table2.attach(esweep,1,2,3,4)
+            table2.attach(ecoh,1,2,4,5)
+            table2.attach(eoff,1,2,5,6)
+
             dlg2.vbox.pack_start(table2, True, True)
+            dlg2.vbox.pack_start(lhelp, True, False)
                 
             dlg2.add_button(gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL)
             dlg2.add_button(gtk.STOCK_OK, gtk.RESPONSE_OK)
@@ -461,13 +500,16 @@ class View3(gtk.Window, Observer):
                 response2 = dlg2.run()
 
                 if response2==gtk.RESPONSE_OK:
-                    self.NFFT = (int(esweep.get_text())*eegfreq)/1000
-                    self.offset = (int(eoff.get_text())*eegfreq)/1000
-                    self.newLength = int(ecoh.get_text())
+                    self.NFFT = ms2points(int(esweep.get_text()),eegfreq)
+                    self.offset = ms2points(int(eoff.get_text()),eegfreq)
+                    self.newLength = ms2points(int(ecoh.get_text()),eegfreq)
                     if self.buttonRange.get_active():
                         range_toggled()
                     else:
-                        self.eegplot.set_time_lim(0,10, True, False)
+                        self.eegplot.set_time_lim(
+                            ms2points(int(self.etimemin.get_text()),eegfreq),
+                            ms2points(int(self.etimemax.get_text()), eegfreq), 
+                            True, False)
                     dlg2.destroy()
                     break
                 if response2==gtk.RESPONSE_CANCEL:
