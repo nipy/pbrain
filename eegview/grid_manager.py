@@ -896,13 +896,13 @@ class GridManager:
 
         entry = gtk.Entry()
         entry.show()
-        entry.set_text('')
+        entry.set_text('0')
         entry.set_width_chars(5)
         hbox.pack_start(entry, False, False)
         entry_start_time = entry
         entry = gtk.Entry()
         entry.show()
-        entry.set_text('')
+        entry.set_text('5000')
         entry.set_width_chars(5)
         hbox.pack_start(entry, False, False)
         entry_end_time = entry

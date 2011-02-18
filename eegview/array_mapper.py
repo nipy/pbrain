@@ -128,6 +128,8 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
                
     def coh_here(self, button):
         val = self.scrollbarIndex.get_value()
+        if (self.time_in_secs == True):
+            val = (val*self.view3.eeg.freq)/1000 #convert val to points
         self.view3.offset = val - self.view3.newLength/2 #set the new view3 offset to the beginning of the window
         self.view3.compute_coherence()
         self.view3.plot_band()
@@ -153,6 +155,7 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
     def set_sample_num(self, bar):
         LO = self.view3.newLength/2
         if (self.time_in_secs == True):
+            LO = (LO*1000)/self.view3.eeg.freq #convert LO to ms
             val = float(bar.get_value())
             ind = ((val -self.start_time)  / (self.end_time - self.start_time) * self.numSamples)
             #print "ArrayMapper.set_sample_num() : ind=", ind

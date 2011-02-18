@@ -61,6 +61,7 @@ class CohExplorer(gtk.Window, Observer):
             if (self.length > self.oldlength or self.optchanged == 1):
                 del self.t_data
                 self.t_data = {}
+                print "coh_explor: linelength: ", self.length
                 self.read_data(self.dumpfile, self.length, self.opt)
             del self.x_data
             self.x_data = {}
@@ -88,7 +89,11 @@ class CohExplorer(gtk.Window, Observer):
             fh.close() 
             self.dumpfile = dumpfile
             saveEntry.set_text(str(self.dumpfile))
-            self.read_data(self.dumpfile, self.length, self.opt) #the muscle
+            if not self.datares: #this happens only on load, hopefully
+                self.read_data(self.dumpfile, self.length, self.opt)
+            else: #read data sets the input entry to ms at the end and from then on should be in ms 
+                self.read_data(self.dumpfile, self.ms2lines(self.length), self.opt)
+            
             return
             
     
@@ -116,6 +121,9 @@ class CohExplorer(gtk.Window, Observer):
         bandMenu = make_option_menu(self.bandlist, func=set_active_band)
         optMenu = make_option_menu(['coh', 'phase', 'cohphase'], func=set_opts)
         
+        lEntry = gtk.Label()
+        lEntry.set_text("ms")
+        lEntry.show()
         self.lengthEntry = gtk.Entry()
         self.lengthEntry.set_text(str(self.length))
         self.lengthEntry.show()
@@ -132,6 +140,7 @@ class CohExplorer(gtk.Window, Observer):
         hbox.pack_start(buttonChans, False, False)
         hbox.pack_start(bandMenu, False, False)
         hbox.pack_start(self.lengthEntry, False, False)
+        hbox.pack_start(lEntry, False, False)
         hbox.pack_start(optMenu, False, False)
         hbox.pack_start(buttonPlot, False, False)
         
@@ -145,6 +154,7 @@ class CohExplorer(gtk.Window, Observer):
         self.progBar.show()
         load_file(buttonSave) #load a file on startup
         self.make_fig(self.band) #and plot it
+        
         vbox.pack_start(self.canvas, True, True)
         vbox.pack_start(self.statBar, False, False)
         vbox.pack_start(self.progBar, False, False)
@@ -211,7 +221,7 @@ class CohExplorer(gtk.Window, Observer):
                 xindex = int((x * xlen)/abs(xlim[1]-xlim[0])) #which point have we clicked closest to?
                 ysdiff = {} #will be a dict from channel name to distance to y click
                 for key in keys:
-                    ys = (self.lines[key][0].get_ydata()[xindex]) #get the y value at the closest plotted point - I don't think extrapolating along a line is necessary
+                    ys = (self.lines[key][0].get_ydata()[xindex]) #get the y value at the closest plotted point - I don't think extrapolating along a line is necessary, although at lower resolutions this tends to miss quite a bit so maybe I'll add that.
                     ysdiff[key] = abs(ys - y) #distance
                 miny = min(ysdiff.items(), key = lambda x: x[1]) [0] #mininum yval
                 if (self.oldsel != []): #color switching
@@ -233,6 +243,15 @@ class CohExplorer(gtk.Window, Observer):
         if not self.datares:
             error_msg("header error in dumpfile: data res not set!")
         return (lines*self.datares/self.eegfreq)*1000
+    def lineaxis2ms(self, lines):
+        if not self.datares:
+            error_msg("header error in dumpfile: data res not set!")
+        ll = copy.deepcopy(lines)
+        lenll = len(ll)
+        for i in arange(0,lenll):
+            kk = (i*self.datares/self.eegfreq)*1000
+            ll[i] = kk
+        return ll
     def ms2lines(self, ms):
         if not self.datares:
             error_msg("header error in dumpfile: data res not set!")
@@ -262,7 +281,7 @@ class CohExplorer(gtk.Window, Observer):
             if (i != cc and i%10 == 0):
                 progress_callback(i/nl, "almost done..")
             line = f.readline()
-            if (i == nl):
+            if (i > nl):
                 break
             if (line == ""):
                 break
@@ -340,6 +359,7 @@ class CohExplorer(gtk.Window, Observer):
                         tr[line[z]] = [1, map(float,line[cstart:cend])]
             
         f.close()
+        #self.lengthEntry.set_text(str(self.lines2ms(self.length)))
         
     def make_fig(self, band):
         #this function modifies self.fig
@@ -360,22 +380,20 @@ class CohExplorer(gtk.Window, Observer):
         keys = sorted(keys)
         del keys[-1] #for some reason the last time key is coming out null sometimes in the data?
         dumpchans = self.t_data[0].keys()
-        #print "dumpchans!!", dumpchans
-        #print "EOI: ", self.channels
-        
         counter = 0
         xdata = []
         ydata = []
+        #print "chankeys: ", self.t_data[0]
         for i in self.t_data[0]: #go through the ordered channel list one by one
             xdata.append([]) #keep all the channel data seperate
             ydata.append([])
             #print "this is the channelkey: ", i
             isplit = i.split(" ")
             isplit = isplit[0],int(isplit[1])
-            if not isplit in self.channels: #make sure the channel we plot is in the view3 display
-                print "channel error! on channel ", i
+            #if not isplit in self.channels: #make sure the channel we plot is in the view3 display
+                #print "channel error! on channel ", i
             color = colordict[((counter)%7)]
-            for t in keys[0:self.length-1]: #at each time point. we don't want to use more of t_data than is asked for.
+            for t in keys: #at each time point. we don't want to use more of t_data than is asked for. took out index: #[0:self.length]
                 if (self.opt != 'cohphase'):
                     (ns,ss) = self.t_data[t][i] #get the data out
                     ssband = ss[col] #choose the band
@@ -391,12 +409,14 @@ class CohExplorer(gtk.Window, Observer):
                     ydata[counter].append(sscoh)
             self.x_data[isplit] = xdata[counter] #save the channel's data into an organized dict of channels
             if (self.opt != 'cohphase'):
-                self.lines[isplit] = self.ax.plot(keys[0:self.length-1], xdata[counter], color, label=(str(i))) #plot a channel """arange(len(xdata[counter]))"""
+                self.lines[isplit] = self.ax.plot(self.lineaxis2ms(keys), xdata[counter], color, label=(str(i))) #plot a channel """arange(len(xdata[counter]))""" """[0:self.length-1]"""
                 #print "at time ", counter, "xdata has ", len(xdata[counter]), " channels."
             if (self.opt == 'cohphase'):
-                self.lines[isplit] = self.ax.plot3D(ydata[counter], keys[0:self.length-1], xdata[counter], color, label = (str(i)))
+                self.lines[isplit] = self.ax.plot3D(ydata[counter], self.lineaxis2ms(keys), xdata[counter], color, label = (str(i)))
             counter += 1
         #self.ax.set_ylim(0,.1, auto=True)
+        self.ax.relim()
+        self.ax.autoscale_view(tight=True,scalex=True)
         self.ax.patch.set_facecolor('black') #black bg
         self.progBar.set_fraction(0)
         return
