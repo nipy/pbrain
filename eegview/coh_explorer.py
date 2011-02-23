@@ -131,6 +131,13 @@ class CohExplorer(gtk.Window, Observer):
         buttonPlot.show()
         buttonPlot.connect('clicked', plot)
         
+        lNorm = gtk.Label()
+        lNorm.set_text("norm: ")
+        lNorm.show()
+        self.buttonNorm = gtk.CheckButton()
+        self.buttonNorm.set_active(False)
+        self.buttonNorm.show()
+           
         hbox = gtk.HBox()
         hbox.show()
         hbox.set_spacing(3)
@@ -142,6 +149,8 @@ class CohExplorer(gtk.Window, Observer):
         hbox.pack_start(self.lengthEntry, False, False)
         hbox.pack_start(lEntry, False, False)
         hbox.pack_start(optMenu, False, False)
+        hbox.pack_start(lNorm, False, False)
+        hbox.pack_start(self.buttonNorm, False, False)
         hbox.pack_start(buttonPlot, False, False)
         
         self.statBar = gtk.Label()
@@ -383,6 +392,8 @@ class CohExplorer(gtk.Window, Observer):
         counter = 0
         xdata = []
         ydata = []
+        
+        
         #print "chankeys: ", self.t_data[0]
         for i in self.t_data[0]: #go through the ordered channel list one by one
             xdata.append([]) #keep all the channel data seperate
@@ -393,11 +404,20 @@ class CohExplorer(gtk.Window, Observer):
             #if not isplit in self.channels: #make sure the channel we plot is in the view3 display
                 #print "channel error! on channel ", i
             color = colordict[((counter)%7)]
+            
+            #experimental section: preparing to normalize data
+            sumY = 0
+            
             for t in keys: #at each time point. we don't want to use more of t_data than is asked for. took out index: #[0:self.length]
                 if (self.opt != 'cohphase'):
                     (ns,ss) = self.t_data[t][i] #get the data out
                     ssband = ss[col] #choose the band
                     x1 = ssband/ns #find the average
+                    
+                    if self.buttonNorm.get_active():
+                        #experimental: to normalize
+                        sumY += x1
+                    
                     xdata[counter].append(x1)
                 if (self.opt == 'cohphase'):
                     ss = self.t_data[t][i] #get the data out
@@ -408,13 +428,25 @@ class CohExplorer(gtk.Window, Observer):
                     xdata[counter].append(ssphase)
                     ydata[counter].append(sscoh)
             self.x_data[isplit] = xdata[counter] #save the channel's data into an organized dict of channels
+            
+            if self.buttonNorm.get_active():
+                #experimental: find average
+                sumY /= len(keys)
+            
             if (self.opt != 'cohphase'):
+                if self.buttonNorm.get_active():
+                    #experimental: normalize data
+                    avgdiff = sumY - .5
+                    for u in range(len(keys)):
+                        xdata[counter][u] -= avgdiff      
+            
                 self.lines[isplit] = self.ax.plot(self.lineaxis2ms(keys), xdata[counter], color, label=(str(i))) #plot a channel """arange(len(xdata[counter]))""" """[0:self.length-1]"""
                 #print "at time ", counter, "xdata has ", len(xdata[counter]), " channels."
             if (self.opt == 'cohphase'):
                 self.lines[isplit] = self.ax.plot3D(ydata[counter], self.lineaxis2ms(keys), xdata[counter], color, label = (str(i)))
             counter += 1
-        #self.ax.set_ylim(0,.1, auto=True)
+        if self.buttonNorm.get_active():
+            self.ax.set_ylim(bottom=.35,top=.75, auto=False)
         self.ax.relim()
         self.ax.autoscale_view(tight=True,scalex=True)
         self.ax.patch.set_facecolor('black') #black bg
