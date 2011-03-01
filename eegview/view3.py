@@ -3,7 +3,7 @@ Todo:
 
   - check for tlim smaller than NFFT (cohere_bands raises type error)
 
-  - enable cohere param setting
+  - DONE enable cohere param setting
 
   - enable non periodogram cohere method
 
@@ -156,9 +156,9 @@ class View3(gtk.Window, Observer):
         
         self.dumpCsvRadio = "radio_all"
         self.cohFile = None
-        self.NFFT = 512 #sweeplength
-        self.newLength = 256 #windowlength
-        self.offset = 0
+        self.NFFT = 512. #sweeplength
+        self.newLength = 256. #windowlength
+        self.offset = 0.
         
         seen = {}
         for key in self.eoi:
@@ -352,7 +352,7 @@ class View3(gtk.Window, Observer):
             self.etimemin.set_sensitive(True)
             self.etimemax.set_sensitive(True)
             self.etimemin.show()
-            self.etimemin.show()
+            self.etimemax.show()
         
     def add_toolbutton1(self, toolbar, icon_name, tip_text, tip_private, clicked_function, clicked_param1=None):
         iconSize = gtk.ICON_SIZE_SMALL_TOOLBAR
@@ -741,7 +741,7 @@ class View3(gtk.Window, Observer):
             tmpfile = filename + 'tmp'
             try: file(tmpfile, 'w').write('123')
             except IOError:
-                error_msg('Basepath %s does not appear to be writable' % fname,
+                error_msg('Basepath %s does not appear to be writable' % filename,
                           parent=self)
                 return
             else:
@@ -1561,7 +1561,7 @@ class View3(gtk.Window, Observer):
 
         Nt = len(t)
         NFFT = int(2**math.floor(log2(Nt)-2))
-        NFFT = min(NFFT, 512)
+        NFFT = min(NFFT, 512.)
         #NFFT is now the the length of a sweep changed in the dialog. The NFFT calc above no longer works..
         
         if self.filterGM:            
@@ -1570,7 +1570,7 @@ class View3(gtk.Window, Observer):
         
 
         print "View3.compute_coherence(): NFFT, dt: ", self.NFFT, " , ", dt
-        #print "View3.compute_coherence(): self.eoiPairs = ", self.eoiPairs
+        print "View3.compute_coherence(): self.eoiPairs = ", self.eoiPairs
         bands = ( (1,4), (4,8), (8,12), (12,30), (30,50), (70,100) )
         if self.buttonPxx.get_active():
             Cxy, Phase, freqs, Pxx = cohere_pairs_eeg(
