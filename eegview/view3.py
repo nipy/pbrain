@@ -727,7 +727,7 @@ class View3(gtk.Window, Observer):
         if (self.cohFile != None): 
             entryFile.set_text(self.cohFile)
         def set_filename(*args):
-            chooser = gtk.FileChooserDialog(title=None,action=gtk.FILE_CHOOSER_ACTION_SAVE,
+            chooser = gtk.FileChooserDialog(title="please create dump file", action=gtk.FILE_CHOOSER_ACTION_SAVE,
                                     buttons=(gtk.STOCK_CANCEL,gtk.RESPONSE_CANCEL,gtk.STOCK_SAVE,gtk.RESPONSE_OK))
             response = chooser.run()
             if response == gtk.RESPONSE_OK:
