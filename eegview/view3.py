@@ -45,6 +45,7 @@ import vtk
 import pygtk
 pygtk.require('2.0')
 import gtk, gobject
+import numpy
 
 try:
 	set
@@ -77,6 +78,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from matplotlib.backends.backend_gtkagg import NavigationToolbar
 from matplotlib.figure import Figure
+from itertools import izip
 
 from events import Observer
 
@@ -607,8 +609,14 @@ class View3(gtk.Window, Observer):
             elif label=='ratio':
                 title='Enter ratio'
                 default = 1.5            
-            elif label=='plot':
-                self.plot_normed_data()
+            elif label=='cohplot':
+                self.plot_normed_data('cohplot')
+                return
+            elif label=='phaseplot':
+                self.plot_normed_data('phaseplot')
+                return
+            elif label=='cohphase':
+                self.plot_normed_data('cohphase')
                 return
             else:
                 error_msg('Unrecognized label %s' % label,
@@ -626,7 +634,7 @@ class View3(gtk.Window, Observer):
             return
             
         #threshMenu, threshItemd  = make_option_menu(('pct.', 'abs.', 'STD', 'ratio', 'plot'), func=get_thresh_value)
-        threshMenu = make_option_menu(['pct.', 'abs.', 'STD', 'ratio', 'plot'], func=get_thresh_value)
+        threshMenu = make_option_menu(['pct.', 'abs.', 'STD', 'ratio', 'cohplot', 'phaseplot', 'cohphase'], func=get_thresh_value)
         #toolbar2.append_widget(threshMenu, 'The threshold type', '')
         self.add_toolitem2(toolbar2, threshMenu, 'The threshold type')
 
@@ -1691,7 +1699,7 @@ class View3(gtk.Window, Observer):
         predicted = get_exp_prediction(pars, dvec)
         return dvec, cvec, predicted, pars
 
-    def plot_normed_data(self):
+    def plot_normed_data(self, type):
         if self.gridManager.markers is None:
             self.load_markers()
 
@@ -1725,14 +1733,55 @@ class View3(gtk.Window, Observer):
         ret = self.get_cxy_pxy_cutoff(Cxy, Pxy)
         if ret is None: return
         dvec, cvec, cxy, pxy, predicted, pars, normedvec, cutoff = ret
+        print pxy
 
             
         threshType, threshVal = self.thresholdParams
+        print "plotting normed data!"
+        
+        
+        
+        
         
         if pars is None:
             bandind = self.get_band_ind()
             ax = fig.add_subplot(111)
-            ax.plot(dvec, cvec, 'b,')
+            #ax.plot(dvec, cvec, 'b,')
+            
+            counter = 0
+            roc = 1./180
+            assert(dvec.shape == cvec.shape)
+            colorarray = []
+            parray = numpy.zeros(dvec.shape)
+            c = 0
+            
+            for v in pxy.values():
+                phase = abs((v*180)/math.pi)
+                parray[c] = phase
+                c += 1
+                r = (1 - phase*roc)
+                g = (phase * roc)
+                print phase, r, g
+                if (r < 0):
+                    r = 0
+                if (r > 1):
+                    r = 1
+                if (g < 0):
+                    g = 0
+                if (g > 1):
+                    g = 1
+                colorarray.append((r,g,0))
+            
+            
+            if (type == 'cohphase'):
+                print "trying something new: plot includes phase"
+                for dist,coh,color in izip(dvec, cvec, colorarray):
+                    ax.plot(dist,coh, color=color, marker='.')
+            elif (type == 'phaseplot'):
+                ax.plot(dvec, parray, 'b,')
+            elif (type == 'cohplot'):
+                ax.plot(dvec, cvec, 'b,')        
+                    
             if threshType=='abs.':
                 ax.plot(dvec, cutoff*ones(dvec.shape, 'd'), 'r-')
 
@@ -1743,6 +1792,11 @@ class View3(gtk.Window, Observer):
             ind = argsort(dvec)
             dsort = take(dvec, ind)
             psort = take(predicted, ind)
+
+            counter = 0
+            assert(dvec.shape == cvec.shape)
+            print "trying something new"
+            
             ax1.plot(dvec, cvec, 'b,',
                      dsort, psort, 'g-')
 

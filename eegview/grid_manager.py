@@ -8,7 +8,7 @@ from loc3djr import image_reader
 from loc3djr.markers import Marker
 from pbrainlib.gtkutils import error_msg, simple_msg, make_option_menu,\
      get_num_value, get_num_range, get_two_nums, str2int_or_err,\
-     OpenSaveSaveAsHBox, ButtonAltLabel
+     OpenSaveSaveAsHBox, ButtonAltLabel, numbify
 
 from matplotlib.cbook import exception_to_str
 
@@ -23,6 +23,7 @@ except:
 #     argsort, take, arange
 from scipy import array, zeros, ones, sort, absolute, sqrt, divide,\
      argsort, take, arange
+import numpy as np 
 
 from amp_dialog import AmpDialog
 from array_mapper import ArrayMapper
@@ -150,7 +151,10 @@ class GridManager:
             scalars = vtk.vtkFloatArray()
             for num, val in items:
                 print "looking up self.vtkIDs[(%s, %d)]" % (name, num)
-                vtkID = self.vtkIDs[(name, num)]
+                try:
+                    vtkID = self.vtkIDs[(name, num)]
+                except Exception as inst:
+                    simple_msg(inst)
                 print "scalars.InsertValue(%d, %f)" % (vtkID, val)
                 scalars.InsertValue(vtkID, val)
             polydata.GetPointData().SetScalars(scalars)
@@ -652,13 +656,38 @@ class GridManager:
                 msg = exception_to_str('Error parsing %s' % filename)
                 error_msg(msg, parent=dlg)
                 return
-
+            if int(entryPercent.get_text()) == 0:
+                prop_to_zero = 10000000
+            else:
+                prop_to_zero = 100/int(entryPercent.get_text()) #user input percent to zero
             if buttonSampChan.get_active():
                 # transpose the data to channels x samples
                 X = array(zip(*X), 'd')
+                # zero out the first 50 ms of X
+                print "X.shape is ", X.shape
+                torep = int(X.shape[1]/prop_to_zero) #a proportion of the rows will be zerod
+                print "torep is: ", torep
+                xrep = np.zeros([X.shape[0], torep]) #rows by same num of columns
+                print "xrep.shape is ", xrep.shape
+                xold = X[:][:,torep+1:] #X without the affected rows
+                print "xold.shape is ", xold.shape
+                xnew = np.concatenate((xrep,xold), axis=1) #stack xrep on top of xold
+                print "xnew.shape is ", xnew.shape
+                X = xnew
             else:
                 X = array(X, 'd')
-
+                # zero out the first 50 ms of X
+                print "X.shape is ", X.shape
+                torep = int(X.shape[0]/prop_to_zero) #a proportion of the rows will be zerod
+                print "torep is: ", torep
+                xrep = np.zeros([torep, X.shape[1]]) #rows by same num of columns
+                print "xrep.shape is ", xrep.shape
+                xold = X[:,torep+1:][:] #X without the affected rows
+                print "xold.shape is ", xold.shape
+                xnew = np.concatenate((xrep,xold), axis=0) #stack xrep on top of xold
+                print "xnew.shape is ", xnew.shape
+                X = xnew
+                
             numChannels, numSamples = X.shape
             self.X = X
 
@@ -672,7 +701,7 @@ class GridManager:
             else:
                 amp_filename = fmanager.amp
                 while not os.path.exists(amp_filename):
-                    error_msg('File %s does not exist' % amp_filename, parent=dlg)
+                    error_msg('File %s in .eegviewrc does not exist' % amp_filename, parent=dlg)
                     fmanager.amp = ""
                     amp_filename = fmanager.get_filename(title="Select .amp file")
 
@@ -686,7 +715,7 @@ class GridManager:
                 amp_list = []
                 while 1:
                     line = fh.readline().strip()
-                    print "parse_amp_file(): line='%s'" % line
+                    #print "parse_amp_file(): line='%s'" % line
                     if (line == None):
                         break
                     if (line == ''):
@@ -713,7 +742,7 @@ class GridManager:
                     #    print "skipping electrode ", electrode, ": not in self.eoi"
                     #    continue
                     amp_list.append((int(vals[0]),vals[1], int(vals[2])))
-                    print "amp_list is ", amp_list
+                    #print "amp_list is ", amp_list
                 fh.close()
                 return amp_list
         
@@ -843,6 +872,17 @@ class GridManager:
         entry.set_width_chars(5)
         hbox.pack_start(entry, False, False)
         entryHeader = entry
+        
+        label = gtk.Label('% to zero')
+        label.show()
+        hbox.pack_start(label,False,False)
+        entry = gtk.Entry()
+        entry.show()
+        entry.set_text('20')
+        entry.set_width_chars(2)
+        hbox.pack_start(entry, False, False)
+        entryPercent = entry
+        entryPercent.connect('changed', numbify)
 
         hbox = gtk.HBox()
         hbox.show()

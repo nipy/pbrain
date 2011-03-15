@@ -25,6 +25,10 @@ def exception_to_str(s = None):
 def donothing_callback(*args):
     pass
 
+def numbify(widget, *args):
+    text = widget.get_text().strip()
+    widget.set_text(''.join([i for i in text if i in '0123456789']))
+
 class ProgressBarDialog(gtk.Dialog):
     "Use attribute bar to control the progress bar"
     def __init__(self, title, parent, msg='Almost there....', size=(300, 40)):
