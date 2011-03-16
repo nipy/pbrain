@@ -2267,7 +2267,7 @@ class MainWindow(PrefixWrapper):
 
 	dlg = Dialog_FileChooser(defaultDir=fmanager.get_lastdir(),
                                  okCallback=ok_callback,
-                                 title='Select EEG param file',
+                                 title='Select Neuroscanascii file',
                                  parent=self.win,
                                  previous_dirnames=fmanager.get_lastdirs())
 	print fmanager.bni
