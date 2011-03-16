@@ -55,6 +55,8 @@ class CohExplorer(gtk.Window, Observer):
         self.optchanged = 0
         self.chansel = []
         self.oldsel = []
+        self.stdsel = []
+        self.stddevstate = 0
         
         def plot(button):
             self.length = int(self.ms2lines(float(self.lengthEntry.get_text())))
@@ -221,29 +223,79 @@ class CohExplorer(gtk.Window, Observer):
     def button_press_event(self, event):       
         if not event.inaxes: return
         x, y = event.xdata, event.ydata
-        if event.button==1:
-            if event.inaxes == self.ax: #check if buttonpress is in axes
-                print "clicked at: ", x, y
-                keys = self.lines.keys() #get the line dict keys (channels names)
-                xlen = len(self.lines[keys[0]][0].get_ydata()) #number of plotted points per channel 
-                xlim = self.ax.get_xlim() #x axes scale
-                xindex = int((x * xlen)/abs(xlim[1]-xlim[0])) #which point have we clicked closest to?
-                ysdiff = {} #will be a dict from channel name to distance to y click
-                for key in keys:
-                    ys = (self.lines[key][0].get_ydata()[xindex]) #get the y value at the closest plotted point - I don't think extrapolating along a line is necessary, although at lower resolutions this tends to miss quite a bit so maybe I'll add that.
-                    ysdiff[key] = abs(ys - y) #distance
-                miny = min(ysdiff.items(), key = lambda x: x[1]) [0] #mininum yval
-                if (self.oldsel != []): #color switching
-                    self.lines[self.oldsel[0]][0].set_color(self.oldsel[1])
-                    self.lines[self.oldsel[0]][0].set_linewidth(1)
-                    self.oldsel = []
-                self.oldsel.append(copy.deepcopy(miny))
-                self.oldsel.append(self.lines[miny][0].get_color())
-                self.lines[miny][0].set_color('y')
-                self.lines[miny][0].set_linewidth(5)
-                self.canvas.draw()
-                self.statBar.set_text("Closest Channel: %s." %str(miny)) #display channel name
+        #if event.button==1: #really we want to do the below for right and left clicks
+        if event.inaxes == self.ax: #check if buttonpress is in axes
+            print "clicked at: ", x, y
+            keys = self.lines.keys() #get the line dict keys (channels names)
+            xlen = len(self.lines[keys[0]][0].get_ydata()) #number of plotted points per channel 
+            xlim = self.ax.get_xlim() #x axes scale
+            xindex = int((x * xlen)/abs(xlim[1]-xlim[0])) #which point have we clicked closest to?
+            xdiff = abs(x - self.lines[keys[0]][0].get_xdata()[xindex])
+            ysdiff = {} #will be a dict from channel name to distance to y click
+            ysfull = {}
+            for key in keys:
+                ys = (self.lines[key][0].get_ydata()[xindex]) #get the y value at the closest plotted point - I don't think extrapolating along a line is necessary, although at lower resolutions this tends to miss quite a bit so maybe I'll add that.
+                ysdiff[key] = abs(ys - float(y)) #distance
+                ysfull[key] = ys
+
+            if event.button==1:
+                if self.stddevstate==0: #if we haven't rightclicked right before this
+                    
+                    miny = min(ysdiff.items(), key = lambda x: x[1]) [0] #mininum yval
+                    if (self.oldsel != []): #color switching
+                        self.lines[self.oldsel[0]][0].set_color(self.oldsel[1])
+                        self.lines[self.oldsel[0]][0].set_linewidth(1)
+                        self.oldsel = []
+                    for (key, color) in self.stdsel: #reset the blue lines if we aren't in stdsel state anymore
+                        self.lines[key][0].set_color(color)
+                        self.lines[key][0].set_linewidth(1)
+                    self.stdsel = [] #reset stdsel                                                              
+                    
+                    
+                    self.oldsel.append(copy.deepcopy(miny))
+                    self.oldsel.append(self.lines[miny][0].get_color())
+                    self.lines[miny][0].set_color('y')
+                    self.lines[miny][0].set_linewidth(5)
+                    self.canvas.draw()
+                    self.statBar.set_text("Closest Channel: %s at value (%f, %f) has xval diff of %f." %(str(miny), x, y, xdiff)) #display channel name and position of click. should hopefully already be in ms.
+                else: #if we've primed the system with a rightclick
+                    #ysarray = numpy.zeros([len(ysfull)])
+                    self.statBar.set_text("Clicked at (%f, %f) has xval diff of %f." %(x, y, xdiff))
+                    #ysarray = ysfull.values()
+                    #ysstd = numpy.std(ysarray)
+                    #ysmean = numpy.mean(ysarray)
+                    for key in ysfull: #for each yval at the new closest point
+                        if (ysfull[key] >= self.stddevstate):
+                            #this key should be printed and highlighted
+                            print "channel ", key, " is above sig val."
+                            self.stdsel.append((key, self.lines[key][0].get_color())) #a tuple of key and old color
+                            self.lines[key][0].set_color('r')
+                            self.lines[key][0].set_linewidth(4) #make the affected lines blue and wider
+                    
+                    self.canvas.draw()
+                    self.stddevstate = 0 #reset the state switch for the next right click
+                
+            if event.button==3:
+                for (key, color) in self.stdsel: #reset the blue lines if we aren't in stdsel state anymore
+                    self.lines[key][0].set_color(color)
+                    self.lines[key][0].set_linewidth(1)
+                self.stdsel = []
+                        
+                # recall that the dict ysfull should have all of the y values at the closest plotted point to the click for each channel indexed by key
+                ysarray = numpy.zeros([len(ysfull)])
+                for key in ysfull:
+                    print "key: ", key, " = ", ysfull[key]
+                print "Clicked at (%d, %d)" %(x, y)
+                self.statBar.set_text("Clicked at (%d, %d)" %(x, y))
+                ysarray = ysfull.values()
+                ysstd = numpy.std(ysarray)
+                ysmean = numpy.mean(ysarray)
+                ysstd99_above = ysstd * 2.33 + ysmean #any y value above this range is significant compared to the range here
+                self.stddevstate = ysstd99_above #save the sig val for the next left click
+                print "stddevstate: ", self.stddevstate
+                self.statBar.set_text("Clicked at (%f, %f), producing a 99 perc. over std dev val of %f" %(x, y, self.stddevstate))
         return False
+    
     def button_release_event(self, event):
         self.canvas.draw()
         return False
