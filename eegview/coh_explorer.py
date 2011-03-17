@@ -13,6 +13,7 @@ import gobject
 from matplotlib.backends.backend_gtkagg import FigureCanvasGTKAgg as FigureCanvas
 from matplotlib.backends.backend_gtkagg import NavigationToolbar
 from matplotlib.figure import Figure
+from matplotlib import axes
 from matplotlib.widgets import Cursor
 import mpl_toolkits.mplot3d.axes3d as p3
 from events import Observer
@@ -269,7 +270,7 @@ class CohExplorer(gtk.Window, Observer):
                             #this key should be printed and highlighted
                             print "channel ", key, " is above sig val."
                             self.stdsel.append((key, self.lines[key][0].get_color())) #a tuple of key and old color
-                            self.lines[key][0].set_color('r')
+                            self.lines[key][0].set_color(Color(102,255,51))
                             self.lines[key][0].set_linewidth(4) #make the affected lines blue and wider
                     
                     self.canvas.draw()
@@ -425,14 +426,22 @@ class CohExplorer(gtk.Window, Observer):
     def make_fig(self, band):
         #this function modifies self.fig
         self.fig.clear()
+        
+        
         self.lines = {}
         col = self.bandlist.index(band)#find the band's index for the t_data
         N = len(self.channels)
         if (self.opt != 'cohphase'):
-            self.ax = self.fig.add_subplot(1,1,1) 
+            self.ax = self.fig.add_subplot(111, autoscaley_on=True, yscale='linear', adjustable='box') 
+            #self.ax = axes.Axes(self.fig, rect=)
             #self.ax.set_ylim(0,.1, auto=True)
         if (self.opt == 'cohphase'):
             self.ax = p3.Axes3D(self.fig)
+        self.ax.set_yscale('linear')
+        if self.buttonNorm.get_active():
+            self.ax.set_ylim(.5,.5)
+        #self.ax.set_frame_on(False)
+        self.ax.set_autoscaley_on(True)
         self.cursor = Cursor(self.ax, useblit=True, linewidth=1, color='white')
         self.cursor.horizOn = True
         self.cursor.vertOn = True
@@ -490,17 +499,21 @@ class CohExplorer(gtk.Window, Observer):
                     #experimental: normalize data
                     avgdiff = sumY - .5
                     for u in range(len(keys)):
-                        xdata[counter][u] -= avgdiff      
-            
+                        xdata[counter][u] -= avgdiff
+                        #print "xdata at ", counter, ", ", u, " for ", i, " is ", xdata[counter][u]      
+                        if xdata[counter][u] < .01:
+                            print "smaller: ", counter, u, i, xdata[counter][u]
+                           
                 self.lines[isplit] = self.ax.plot(self.lineaxis2ms(keys), xdata[counter], color, label=(str(i))) #plot a channel """arange(len(xdata[counter]))""" """[0:self.length-1]"""
                 #print "at time ", counter, "xdata has ", len(xdata[counter]), " channels."
             if (self.opt == 'cohphase'):
                 self.lines[isplit] = self.ax.plot3D(ydata[counter], self.lineaxis2ms(keys), xdata[counter], color, label = (str(i)))
             counter += 1
-        if self.buttonNorm.get_active():
-            self.ax.set_ylim(bottom=.35,top=.75, auto=False)
+        #if self.buttonNorm.get_active():
+        
         self.ax.relim()
-        self.ax.autoscale_view(tight=True,scalex=True)
+        self.ax.autoscale_view(tight=True,scalex=True, scaley=True)
         self.ax.patch.set_facecolor('black') #black bg
+        #self.ax.set_ylim(bottom=.35,top=.75, auto=False)
         self.progBar.set_fraction(0)
         return
