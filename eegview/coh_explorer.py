@@ -140,6 +140,14 @@ class CohExplorer(gtk.Window, Observer):
         self.buttonNorm = gtk.CheckButton()
         self.buttonNorm.set_active(False)
         self.buttonNorm.show()
+        
+        lInst = gtk.Label()
+        lInst.set_text("inst: ")
+        lInst.show()
+        self.buttonInst = gtk.CheckButton()
+        self.buttonInst.set_active(False)
+        self.buttonInst.show()
+        
            
         hbox = gtk.HBox()
         hbox.show()
@@ -155,6 +163,8 @@ class CohExplorer(gtk.Window, Observer):
         hbox.pack_start(lNorm, False, False)
         hbox.pack_start(self.buttonNorm, False, False)
         hbox.pack_start(buttonPlot, False, False)
+        hbox.pack_start(lInst, False, False)
+        hbox.pack_start(self.buttonInst, False, False)
         
         self.statBar = gtk.Label()
         self.statBar.set_alignment(0,0)
@@ -439,7 +449,7 @@ class CohExplorer(gtk.Window, Observer):
             self.ax = p3.Axes3D(self.fig)
         self.ax.set_yscale('linear')
         if self.buttonNorm.get_active():
-            self.ax.set_ylim(.5,.5)
+            self.ax.set_ylim(.5,.5) #silly hack to get the norm to autoscale better
         #self.ax.set_frame_on(False)
         self.ax.set_autoscaley_on(True)
         self.cursor = Cursor(self.ax, useblit=True, linewidth=1, color='white')
@@ -468,7 +478,7 @@ class CohExplorer(gtk.Window, Observer):
             
             #experimental section: preparing to normalize data
             sumY = 0
-            
+            oldX1 = 999
             for t in keys: #at each time point. we don't want to use more of t_data than is asked for. took out index: #[0:self.length]
                 if (self.opt != 'cohphase'):
                     (ns,ss) = self.t_data[t][i] #get the data out
@@ -478,6 +488,14 @@ class CohExplorer(gtk.Window, Observer):
                     if self.buttonNorm.get_active():
                         #experimental: to normalize
                         sumY += x1
+                    
+                    if self.buttonInst.get_active():
+                        if oldX1 == 999:
+                            oldX1 = x1 #if it's the first time, change is 0
+                        change = abs(x1 - oldX1) #distance between last val and new val
+                        oldX1 = x1 #set last val to new val
+                        x1 = change #going to set xdata to change
+                    
                     
                     xdata[counter].append(x1)
                 if (self.opt == 'cohphase'):
