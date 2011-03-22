@@ -150,12 +150,12 @@ class GridManager:
 
             scalars = vtk.vtkFloatArray()
             for num, val in items:
-                print "looking up self.vtkIDs[(%s, %d)]" % (name, num)
+                #print "looking up self.vtkIDs[(%s, %d)]" % (name, num)
                 try:
                     vtkID = self.vtkIDs[(name, num)]
                 except Exception as inst:
                     simple_msg(inst)
-                print "scalars.InsertValue(%d, %f)" % (vtkID, val)
+                #print "scalars.InsertValue(%d, %f)" % (vtkID, val)
                 scalars.InsertValue(vtkID, val)
             polydata.GetPointData().SetScalars(scalars)
 
@@ -878,7 +878,7 @@ class GridManager:
         hbox.pack_start(label,False,False)
         entry = gtk.Entry()
         entry.show()
-        entry.set_text('20')
+        entry.set_text('5')
         entry.set_width_chars(2)
         hbox.pack_start(entry, False, False)
         entryPercent = entry

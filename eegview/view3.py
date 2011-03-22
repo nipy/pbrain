@@ -146,7 +146,7 @@ class View3(gtk.Window, Observer):
         self.cohCache = None  # cache coherence results from other window
         self.cohereResults = None
         self.csv_fname = None
-        self.scalarDisplay = {"scalardisplay" : False, "tmin" : 0, "tmax" : 10, "tstep" : 1} 
+        self.scalarDisplay = {"scalardisplay" : False, "tmin" : 0, "tmax" : 10, "tstep" : 1, "freq" : self.eeg.freq} 
         
         self.filterGM = eegplot.filterGM
         self.gridManager = None
@@ -1301,7 +1301,7 @@ class View3(gtk.Window, Observer):
         twidth = 64 #step by 64 points by default
         #note that the nfft and newlength vals used in compute coherence are set in the new options menu before calling autoplay
         #maxTime = self.eeg.get_tmax() * self.eeg.freq
-        dlg = AutoPlayView3Dialog(self, tmin, tmax, twidth, self.scalarDisplay) #self.scalardisplay decides whether to load scalar display stuff in the autodisplay dialog. it is a tuple of bool, tmin, tmax, tstep
+        dlg = AutoPlayView3Dialog(self, tmin, tmax, twidth, self.scalarDisplay) #self.scalardisplay decides whether to load scalar display stuff in the autodisplay dialog. it is a tuple of bool, tmin, tmax, tstep, freq
         self.buttonFollowEvents.set_active(True)
         dlg.show()
 
@@ -1432,6 +1432,7 @@ class View3(gtk.Window, Observer):
                 self.scalarDisplay["tmin"] = 0
                 self.scalarDisplay["tmax"] = dataLength
                 self.scalarDisplay["tstep"] = int(dataLength/10)
+                self.scalarDisplay["freq"] = self.eeg.freq
                 self.overlayRenderer = vtk.vtkRenderer()
                 #rejigger the renderers
                 self.renderer.SetViewport(0,.3,1,1) #maintain two renderers to overlay graph data
@@ -1546,7 +1547,7 @@ class View3(gtk.Window, Observer):
             tmin, tmax = self.eegplot.get_time_lim()
         else:
             tmin, tmax = setTime
-
+        print "VIEW3.compute_coherence offset: ", self.offset
         #set up the time display - only works for new coh calc functions?
         self.timedisplay.SetText(0, "t = %3.2f" %(self.offset/self.eeg.freq))
 
@@ -1578,7 +1579,7 @@ class View3(gtk.Window, Observer):
         
 
         print "View3.compute_coherence(): NFFT, dt: ", self.NFFT, " , ", dt
-        print "View3.compute_coherence(): self.eoiPairs = ", self.eoiPairs
+        #print "View3.compute_coherence(): self.eoiPairs = ", self.eoiPairs
         bands = ( (1,4), (4,8), (8,12), (12,30), (30,50), (70,100) )
         if self.buttonPxx.get_active():
             Cxy, Phase, freqs, Pxx = cohere_pairs_eeg(

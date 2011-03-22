@@ -3665,16 +3665,16 @@ class AutoPlayDialog(gtk.Dialog, Observer):
     ind = 0
     direction = 1
     lastSteps = None
-
+    #note that all min, max, width vals, no matter what, are displayed in ms now
     def __init__(self, tmin, tmax, twidth, newLength, scalarDisplay, quitHook=None):
         Observer.__init__(self)
         gtk.Dialog.__init__(self, 'Auto play')
-
-        self.eegtmin = tmin
-        self.eegtmax = tmax
-        self.eegtwidth = twidth
+        self.eegfreq = scalarDisplay["freq"] #conveniently, stupidly stored in this dict
+        self.eegtmin = self.points2ms(tmin, self.eegfreq)
+        self.eegtmax = self.points2ms(tmax, self.eegfreq)
+        self.eegtwidth = self.points2ms(twidth, self.eegfreq)
         self.newLength = newLength
-        #save the original eeg argdata
+        #save the original eeg argdata, in ms
         
         self.tmin = tmin
         self.tmax = tmax
@@ -3717,19 +3717,19 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         self.entryMin = gtk.Entry()
         self.entryMin.show()
         self.entryMin.set_width_chars(10)
-        self.entryMin.set_text('%1.1f' % tmin)
+        self.entryMin.set_text('%1.1f' % self.eegtmin)
 
         
         self.entryMax = gtk.Entry()
         self.entryMax.show()
         self.entryMax.set_width_chars(10)
-        self.entryMax.set_text('%1.1f' % tmax )
+        self.entryMax.set_text('%1.1f' % self.eegtmax )
 
         self.entryStep = gtk.Entry()
         self.entryStep.show()
         self.entryStep.set_width_chars(10)
         self.entryStep.set_activates_default(True)
-        self.entryStep.set_text('%1.1f' %twidth)
+        self.entryStep.set_text('%1.1f' % self.eegtwidth)
 
         table = gtk.Table(2,5)
         table.show()
@@ -3824,13 +3824,21 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         self.statbarCID = self.statbar.get_context_id('my stat bar')
         vbox.pack_end(self.statbar, False, False)
 
+    def points2ms(self, points, freq):
+        return ((points/freq)*1000)
+
     def page_changed(self, *args):
         print "AUTOPAGE: driver changed to ", args[0]
         if self.buttonPageScalar.get_active():
             self.tmin = self.scalarDisplay["tmin"]
             self.tmax = self.scalarDisplay["tmax"]
             self.twidth = self.scalarDisplay["tstep"]
+        if self.buttonPageBoth.get_active():
+            self.tmin = self.scalarDisplay["tmin"]
+            self.tmax = self.scalarDisplay["tmax"]
+            self.twidth = self.scalarDisplay["tstep"]
         if self.buttonPageEEG.get_active():
+            print "buttonPageEEG ", self.eegtmin
             self.tmin = self.eegtmin
             self.tmax = self.eegtmax
             self.twidth = self.eegtwidth
@@ -3883,7 +3891,7 @@ class AutoPlayDialog(gtk.Dialog, Observer):
         if self.ind>=0 and self.ind<len(self.steps):
             thisMin = self.steps[self.ind]
             thisMax = thisMin + self.twidth
-            self.view3.offset = self.steps[self.ind]
+            self.view3.offset = self.steps[self.ind] #this should always be in points!
             print "DIALOGS SET VIEW3 OFFSET to ", self.view3.offset
             #decide who to send the signal to
             if self.scalarDisplay["scalardisplay"]:
@@ -3910,7 +3918,6 @@ class AutoPlayDialog(gtk.Dialog, Observer):
             self.ind=0
             return False
 
-
     def setpars(self, *args):
         
         valMin = str2num_or_err(
@@ -3923,13 +3930,18 @@ class AutoPlayDialog(gtk.Dialog, Observer):
             self.entryStep.get_text(), self.labelStep, parent=self)
         if valStep is None: return False
 
+        #to create the steps array, all values must be switched to points
+        valMin = (valMin/1000)*self.eegfreq
+        valMax = (valMax/1000)*self.eegfreq
+        valStep = (valStep/1000)*self.eegfreq
+        newLength = (self.newLength/1000)*self.eegfreq
 
-
-        self.steps = arange(valMin, valMax-self.newLength+0.001, valStep)
+        self.steps = arange(valMin, valMax-newLength+0.001, valStep)
         #so if scalar data is driving, self.newlength = self.twidth
         #but otherwise, we want the last step to be no less than newlength from the end of the sweep length
         #where valmax is passed in as sweep length from the NFFT var in view3
         print "SETPARS!", valMin, valMax, valStep, self.twidth, len(self.steps), self.steps #DEBUG
+        print "that was min, max, step, width, len, steps"
 	    #print self.steps
 	    #print self.lastSteps
         #if self.steps != self.lastSteps:

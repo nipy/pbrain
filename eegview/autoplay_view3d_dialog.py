@@ -275,7 +275,7 @@ class AutoPlayView3Dialog(AutoPlayDialog):
         # we're still playing
         thisMin = self.steps[self.ind]
         thisMax = thisMin + self.twidth
-        self.view3.offset = self.steps[self.ind]
+        self.view3.offset = self.steps[self.ind] #this should always be in points!
         #decide who to send the signal to
         if self.scalarDisplay["scalardisplay"]:
             #if the scalar option is available, choose between them: 
@@ -284,10 +284,11 @@ class AutoPlayView3Dialog(AutoPlayDialog):
                 print "DIALOGS: SENT SCALAR MESSAGE: ", thisMin, thisMax
             else:
                 #self.broadcast(Observer.SET_TIME_LIM, thisMin, thisMax)
-                
+                print "AUTOPLAY_VIEW3D_DIALOG: computing coherence with ", self.view3.offset
                 self.view3.compute_coherence()
                 self.view3.plot_band()
                 if self.buttonPageBoth.get_active():
+                    print "AUTOPLAY_VIEW3D_DIALOG: page both, setting scalar to ", thisMin, thisMax
                     self.broadcast(Observer.SET_SCALAR, thisMin, thisMax)
                 
         else:  #otherwise just broadcast the eeg driver sig

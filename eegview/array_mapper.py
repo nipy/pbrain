@@ -157,7 +157,7 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
         if (self.time_in_secs == True):
             LO = (LO*1000)/self.view3.eeg.freq #convert LO to ms
             val = float(bar.get_value())
-            ind = ((val -self.start_time)  / (self.end_time - self.start_time) * self.numSamples)
+            ind = ((val - self.start_time)  / (self.end_time - self.start_time) * self.numSamples)
             #print "ArrayMapper.set_sample_num() : ind=", ind
             datad = self.get_datad(ind)
             self.gridManager.set_scalar_data(datad)
@@ -260,8 +260,13 @@ class ArrayMapper(gtk.Window, ScalarMapper, Observer):
         
     def recieve(self, event, *args):
         if event in (Observer.SET_SCALAR,):
-            #move the scrollbar forward by the twidth
-            self.scrollbarIndex.set_value(args[1])
-            print "ARRAY MAPPER: RECIEVED SCALAR MESSAGE: ", args[1]
+            #move the scrollbar forward by the twidth,
+            #except that this is always coming in in points, and we need to 
+            #convert to ms if self.time_in_secs is true
+            newVal = args[0]
+            if self.time_in_secs == True:
+                newVal = ((newVal*1000)/self.view3.eeg.freq)
+            self.scrollbarIndex.set_value(newVal)
+            print "ARRAY MAPPER: RECIEVED SCALAR MESSAGE: ", newVal
         return
 
