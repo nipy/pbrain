@@ -261,6 +261,10 @@ class FileFormat_NeuroscanAscii:
         sr_strs = ascline.split ('\t')
         print "parse_sampling_rate(): ", sr_strs, len(sr_strs)
         self.sampling_rate = float(sr_strs[1])
+    def parse_xmin(self, ascline):
+        sr_strs = ascline.split ('\t')
+        print "parse_xmin(): ", sr_strs, len(sr_strs)
+        return float(sr_strs[1])
         
     def chanbutswitch(self, widget, channelnum):
         if widget.get_active():
@@ -460,6 +464,7 @@ class FileFormat_NeuroscanAscii:
         newheader = 0
         almostdone = 0
         line_count = 0
+        self.xmin = 0
         with open(path) as ascfile:
             for line in ascfile:
                 found_eof = 0
@@ -487,6 +492,8 @@ class FileFormat_NeuroscanAscii:
                     
                     elif (ascline.find('[Rate]') == 0):
                         sampling_rate = self.parse_sampling_rate(ascline)
+                    elif (ascline.find('[Xmin]') == 0):
+                        self.xmin = self.parse_xmin(ascline)
                 else:
                     if (n_channels == -1):
                         n_channels = len(ascline.split('\t'))
@@ -548,6 +555,7 @@ class FileFormat_NeuroscanAscii:
             'filename' : path,     
             'channels' : n_channels,
             'freq' : self.sampling_rate,
+            'xmin' : self.xmin,
             'file_type': 7,
             'raw_data': channel_data
         }

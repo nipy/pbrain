@@ -873,7 +873,7 @@ class GridManager:
         hbox.pack_start(entry, False, False)
         entryHeader = entry
         
-        label = gtk.Label('% to zero')
+        label = gtk.Label('% to zero on file open')
         label.show()
         hbox.pack_start(label,False,False)
         entry = gtk.Entry()
@@ -929,7 +929,7 @@ class GridManager:
         hbox.set_spacing(3)
         frameVBox.pack_start(hbox, True, True)
 
-        label = gtk.Label('Start time and end time in seconds (optional)')
+        label = gtk.Label('data start time and total len in ms (opt.)')
         label.show()
         labelHeader = label
         hbox.pack_start(label, False, False)
@@ -942,7 +942,7 @@ class GridManager:
         entry_start_time = entry
         entry = gtk.Entry()
         entry.show()
-        entry.set_text('5000')
+        entry.set_text(str((self.view3.NFFT/self.view3.eeg.freq) * 1000))
         entry.set_width_chars(5)
         hbox.pack_start(entry, False, False)
         entry_end_time = entry

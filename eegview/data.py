@@ -1310,6 +1310,7 @@ def read_eeg_params(fh):
         'description'     : str,
         'channels'        : int,
         'freq'            : int,
+        'xmin'            : int,
         'classification'  : int,
         'file_type'       : int,
         'behavior_state'  : int,
