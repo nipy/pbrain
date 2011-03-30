@@ -184,7 +184,7 @@ class View3(gtk.Window, Observer):
 
         W = 300
         #interactor.set_size_request(W, int(W/1.3))
-        interactor.set_size_request(W*2 + 100, W*2) # XXX mcc: hack. maybe try show()ing after add()
+        interactor.set_size_request(W*2 + 100, W*2)# XXX mcc: hack. maybe try show()ing after add()
       
         interactor.show()
         interactor.Initialize()
