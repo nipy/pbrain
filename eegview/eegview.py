@@ -839,14 +839,14 @@ class EEGPlot(Observer):
 
     def recieve(self, event, *args):
 
-        if event in (Observer.SET_TIME_LIM,):
-            tmin, tmax = args
-            print "EEGVIEW.EEGVIEW.recieve: set_time_lim"
-            self.set_time_lim(tmin, tmax, updateData=False, broadcast=False)
-            self.plot()
-            self.draw()
+        #if event in (Observer.SET_TIME_LIM,):
+        #    tmin, tmax = args
+        #    print "EEGVIEW.EEGVIEW.recieve: set_time_lim"
+        #    self.set_time_lim(tmin, tmax, updateData=False, broadcast=False)
+        #    self.plot()
+        #    self.draw()
 
-        elif event==Observer.SAVE_FRAME:
+        if event==Observer.SAVE_FRAME:
             fname = args[0] + '.png'
             width, height = self.canvas.get_width_height()
             # matplotlib needs to have get_pixmap() (in backends/FigureCanvasGTKAgg)
@@ -1031,7 +1031,16 @@ class EEGPlot(Observer):
         self.axes.cla()
         tmin, tmax = self.get_time_lim() #it turns out hardcoding 0,10 in this function was ahem counterproductive -eli 
         #print "EEGPLOT.plot(): tmn, tmax ", tmin, tmax        
-        t, data, freq = self.filter(tmin, tmax)
+        
+        #let's take out filtering for some tests
+        #t, data, freq = self.filter(tmin, tmax)
+        try: t, data = self.eeg.get_data(tmin, tmax)
+        except KeyError, msg:
+            msg = exception_to_str('Could not get data')
+            error_msg(exception_to_str('Could not get data'))
+            return None
+        freq = self.eeg.freq    
+        
         #print "EEGplot filtertest: ", data[0:10] 
 
         dt = 1/freq
@@ -1283,7 +1292,17 @@ class EEGPlot(Observer):
         
         if updateData:
             print "EEGPlot.set_time_lim(): update data"
-            t, data, freq = self.filter(xmin, xmax)        
+            
+            # let's take out filtering for some tests
+            try: t, data = self.eeg.get_data(xmin, xmax)
+            except KeyError, msg:
+                msg = exception_to_str('Could not get data')
+                error_msg(exception_to_str('Could not get data'))
+                return None
+            freq = self.eeg.freq    
+            
+            
+            #t, data, freq = self.filter(xmin, xmax)        
             self.axes.set_xlim((xmin, xmax))
             for ind, line in zip(self.indices, self.lines):
                 line.set_data(t, data[:,ind])

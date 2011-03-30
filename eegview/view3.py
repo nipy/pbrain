@@ -184,7 +184,7 @@ class View3(gtk.Window, Observer):
 
         W = 300
         #interactor.set_size_request(W, int(W/1.3))
-        interactor.set_size_request(W*2 + 50, W*2) # XXX mcc: hack. maybe try show()ing after add()
+        interactor.set_size_request(W*2 + 100, W*2) # XXX mcc: hack. maybe try show()ing after add()
       
         interactor.show()
         interactor.Initialize()
@@ -388,16 +388,23 @@ class View3(gtk.Window, Observer):
             #print "show_grid_manager: args is " , args
             if self.gridManager is not None:
                 self.gridManager.show()
+                
+        def close(*args):
+            print "View3.close(): calling self.destroy()"
+            self.destroy()
             
-        self.add_toolbutton1(toolbar1, gtk.STOCK_FLOPPY, 'Load .vtk/.reg file', 'Private', self.mesh_from_file)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_SAVE_AS, 'Save .reg file', 'Private', self.registration_to_file)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_PREFERENCES, 'Grid properties', 'Private', show_grid_manager)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_OPEN, 'Coher. from file', 'Private', self.coherence_from_file)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_SELECT_COLOR, 'Voltage map', 'Private', self.voltage_map)
-
         def compute_and_plot(*args):
             self.compute_coherence()
             self.plot_band()
+            
+        self.add_toolbutton1(toolbar1, gtk.STOCK_FLOPPY, 'Load .vtk/.reg file', 'Private', self.mesh_from_file)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_SAVE_AS, 'Save .reg file', 'Private', self.registration_to_file)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_OPEN, 'Coher. from file', 'Private', self.coherence_from_file)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_QUIT, 'Close view 3D', 'Private', close)
+        self.add_separator(toolbar1)
+        
+
+        
         def coh_explore(button, *args):
             ce = CohExplorer(self.eoi, self.eeg.freq)
             ce.show()
@@ -521,16 +528,15 @@ class View3(gtk.Window, Observer):
                     dlg2.destroy()
                     break
         
-        self.add_toolbutton1(toolbar1, gtk.STOCK_EXECUTE, 'Compute Coherence', 'Private', compute_and_plot)
+        
         self.add_toolbutton1(toolbar1, gtk.STOCK_EXECUTE, 'Coherence Options', 'Private', coh_params)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_PREFERENCES, 'Grid properties', 'Private', show_grid_manager)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_SELECT_COLOR, 'Voltage map', 'Private', self.voltage_map)
         self.add_toolbutton1(toolbar1, gtk.STOCK_PROPERTIES, 'Coher. norm. wndw', 'Private', self.compute_norm_over_range)
         self.add_toolbutton1(toolbar1, gtk.STOCK_PROPERTIES, 'Coh. Explorer', 'Private', coh_explore)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_PROPERTIES, 'Set camera', 'Private', self.control_camera)
         
         self.add_separator(toolbar1)
-        self.add_toolbutton1(toolbar1, gtk.STOCK_CLEAR, 'Plot band conn.', 'Private', self.plot_band, 'mouse1 color')
-
-        self.add_separator(toolbar1)
+        self.add_toolbutton1(toolbar1, gtk.STOCK_PROPERTIES, 'Set camera', 'Private', self.control_camera)
         self.add_toolbutton1(toolbar1, gtk.STOCK_SAVE_AS, 'Save screenshot', 'Private', self.save_image)
         self.add_toolbutton1(toolbar1, gtk.STOCK_JUMP_TO, 'Autopage/Movie', 'Private', self.auto_play)
 
@@ -538,11 +544,9 @@ class View3(gtk.Window, Observer):
         
 
 
-        def close(*args):
-            print "View3.close(): calling self.destroy()"
-            self.destroy()
+        
 
-        self.add_toolbutton1(toolbar1, gtk.STOCK_QUIT, 'Close view 3D', 'Private', close)
+        
         return toolbar1
 
     def add_toolitem2(self, toolbar, widget, tip_text):
@@ -569,6 +573,10 @@ class View3(gtk.Window, Observer):
         #def set_active_band(menuitem, label):
         #    self._activeBand = label
         #    self.plot_band()
+
+        def compute_and_plot(*args):
+            self.compute_coherence()
+            self.plot_band()
 
         def set_active_band(combobox):
             model = combobox.get_model()
@@ -659,9 +667,9 @@ class View3(gtk.Window, Observer):
         #self.entryMaxDist.set_width_chars(5)
         #toolbar2.append_widget(self.entryMaxDist, 'Maximum distace', '')
         #self.add_toolitem2(toolbar2, self.entryMaxDist, 'Maximum distance')
-
+        self.add_toolbutton1(toolbar2, gtk.STOCK_EXECUTE, 'Compute Coherence', 'Private', compute_and_plot)
         self.add_toolbutton1(toolbar2, gtk.STOCK_EXECUTE, 'Replot', 'Private', self.plot_band)
-
+        
         self.add_separator(toolbar2)
 
         
@@ -1552,7 +1560,7 @@ class View3(gtk.Window, Observer):
             tmin, tmax = setTime
         print "VIEW3.compute_coherence offset: ", self.offset
         #set up the time display - only works for new coh calc functions?
-        self.timedisplay.SetText(0, "t = %3.2f" %(self.offset/self.eeg.freq) - (self.xmin/self.eeg.freq))
+        self.timedisplay.SetText(0, "t = %3.2f" %((self.offset/self.eeg.freq) - (self.xmin/self.eeg.freq)))
 
         #if we call this function without changing time limits, and the coherence is already calculated, don't do it again!
         if self.cohCache is not None:
